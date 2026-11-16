@@ -17,6 +17,7 @@ package io.karpfen.ide.runtime.protocol.lifecycle
 
 import io.karpfen.ide.runtime.protocol.api.RuntimeApi
 import io.karpfen.ide.runtime.protocol.api.RuntimeResult
+import io.karpfen.ide.runtime.protocol.api.StateMachineHoldings
 import io.karpfen.ide.runtime.protocol.catalogue.AccessKey
 import io.karpfen.ide.runtime.protocol.catalogue.ClientId
 import io.karpfen.ide.runtime.protocol.catalogue.EnvironmentKey
@@ -42,7 +43,7 @@ import org.slf4j.LoggerFactory
  * not go through [snapshot], which would take the mutex a second time. The gateway bounds the probe by the snapshot
  * timeout.
  *
- * Activation, start and stop run in a non-cancellable context together with their probes, bounded by the timeouts of
+ * Activation, start, stop and drop run in a non-cancellable context together with their probes, bounded by the timeouts of
  * their routes. A cancelled caller waits for the outcome. The phase is recorded, and then the cancellation is
  * rethrown.
  *
@@ -84,6 +85,9 @@ internal class DefaultRuntimeEnvironment(
     override suspend fun setStateMachine(attachedTo: String, text: String): CallOutcome<Unit> =
         perform(LifecycleOperation.SET_STATE_MACHINE, attachedTo) { api.setStateMachine(key, attachedTo, text) }
 
+    override suspend fun defineStateMachine(text: String): CallOutcome<Unit> =
+        perform(LifecycleOperation.SET_STATE_MACHINE) { api.setStateMachine(key, null, text) }
+
     override suspend fun setTickDelay(milliseconds: Int): CallOutcome<Unit> =
         perform(LifecycleOperation.SET_TICK_DELAY) { api.setTickDelay(key, milliseconds) }
 
@@ -114,11 +118,17 @@ internal class DefaultRuntimeEnvironment(
     override suspend fun stop(): CallOutcome<Unit> =
         perform(LifecycleOperation.STOP, completesWhenCancelled = true, localAnswer = Unit) { api.stopEnvironment(key) }
 
+    override suspend fun drop(): CallOutcome<Unit> =
+        perform(LifecycleOperation.DROP, completesWhenCancelled = true, localAnswer = Unit) { api.dropEnvironment(key) }
+
     override suspend fun forceState(modelElement: String, state: String): CallOutcome<Unit> =
         perform(LifecycleOperation.FORCE_STATE) { api.setActiveState(key, modelElement, state) }
 
     override suspend fun stateMachineSource(modelElement: String): CallOutcome<String> =
         perform(LifecycleOperation.READ_STATE_MACHINE_SOURCE) { api.stateMachineSource(key, modelElement) }
+
+    override suspend fun stateMachines(): CallOutcome<StateMachineHoldings> =
+        perform(LifecycleOperation.READ_STATE_MACHINES) { api.stateMachines(key) }
 
     override suspend fun snapshot(): CallOutcome<RuntimeModelSnapshot> =
         perform(LifecycleOperation.READ_SNAPSHOT, settle = LifecycleRules::afterSnapshot) { api.modelSnapshot(key) }

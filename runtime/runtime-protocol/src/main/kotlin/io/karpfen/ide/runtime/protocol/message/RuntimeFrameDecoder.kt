@@ -35,6 +35,8 @@ import io.karpfen.ide.runtime.protocol.catalogue.WireNames
  *   runtime wrote, so it is applied under its own id.
  * - An `objectDeleted` payload has a string `objectId` and an integral `revision`.
  * - A `stateChange` payload has a string `modelElementId`, an array of strings `stack` and an integral `revision`.
+ * - A `stateMachineAttached` or `stateMachineDetached` payload has a string `modelElementId`, a `stateMachine` that is
+ *   a string or `null` and an integral `revision`, in any order.
  * - A `domainEvent` payload has a string `domain` and an object `payload`. The members of that inner object make the
  *   [PublishedEvent]. `event`, `payload`, `payloadFormat` and `source` are strings, and `timestamp` and `ttlMs` are
  *   integral numbers. A missing or mistyped member leaves the event null and adds a [ViolationKind.MALFORMED_PAYLOAD]
@@ -116,6 +118,7 @@ public class RuntimeFrameDecoder(private val environment: EnvironmentKey, privat
                 WireNames.OBJECT_CHANGED -> objectChanged(payload)
                 WireNames.OBJECT_DELETED -> objectDeleted(payload)
                 WireNames.STATE_CHANGE -> stateChange(payload)
+                WireNames.STATE_MACHINE_ATTACHED, WireNames.STATE_MACHINE_DETACHED -> stateMachine(type, payload)
                 WireNames.DOMAIN_EVENT -> domainEvent(payload)
                 WireNames.ENGINE_STATUS -> engineStatus(payload)
                 else -> DecodedFrame.Push(RuntimePush.Unrecognized(type, CompactJson.write(payload)), emptyList())
@@ -168,6 +171,22 @@ public class RuntimeFrameDecoder(private val environment: EnvironmentKey, privat
             return DecodedFrame.Push(RuntimePush.StateChanged(element, stack, revision), emptyList())
         }
 
+        /** Reads a `stateMachineAttached` or `stateMachineDetached` payload of [type], whose members org.json writes. */
+        private fun stateMachine(type: String, payload: WireValue): DecodedFrame {
+            val members = payload as? WireValue.WireObject ?: return malformed("the payload is not an object")
+            val element = members.stringMember(WireNames.MODEL_ELEMENT_ID)
+                ?: return missing(WireNames.MODEL_ELEMENT_ID, "a string")
+            val name = members.nullableStringMember(WireNames.STATE_MACHINE) as? NullableText.Present
+                ?: return missing(WireNames.STATE_MACHINE, "a string or null")
+            val revision = members.integralMember(WireNames.REVISION) ?: return missingRevision()
+            val push = if (type == WireNames.STATE_MACHINE_ATTACHED) {
+                RuntimePush.StateMachineAttached(element, name.text, revision)
+            } else {
+                RuntimePush.StateMachineDetached(element, name.text, revision)
+            }
+            return DecodedFrame.Push(push, emptyList())
+        }
+
         /** Reads a `domainEvent` payload. A published event that cannot be read leaves the event null. */
         private fun domainEvent(payload: WireValue): DecodedFrame {
             val members = payload as? WireValue.WireObject ?: return malformed("the payload is not an object")
@@ -191,14 +210,26 @@ public class RuntimeFrameDecoder(private val environment: EnvironmentKey, privat
             return DecodedFrame.Push(RuntimePush.DomainEvent(domain, event, CompactJson.write(inner)), violations)
         }
 
-        /** Reads an `engineStatus` payload, whose members org.json writes in its own order. */
+        /**
+         * Reads an `engineStatus` payload, whose members org.json writes in its own order. A payload with the member
+         * `phase` is the notice of a stop or a start, and its phase must be `stopped` or `running`.
+         */
         private fun engineStatus(payload: WireValue): DecodedFrame {
             val status = EngineMessages.status(payload)
                 ?: return malformed(
                     "the payload is not an engine status: it lacks the boolean '${WireNames.PAUSED}' or the boolean " +
                         "'${WireNames.WAITING}', or its '${WireNames.HALT}' is not a halt as the runtime writes it",
                 )
-            return DecodedFrame.Push(RuntimePush.EngineStatusChanged(status), emptyList())
+            val phase = when (val member = (payload as WireValue.WireObject)[WireNames.PHASE]) {
+                null -> null
+                else -> (member as? WireValue.WireString)?.value?.let(RuntimePhase::ofWireName)
+                    ?.takeIf { it == RuntimePhase.STOPPED || it == RuntimePhase.RUNNING }
+                    ?: return malformed(
+                        "the '${WireNames.PHASE}' of an engine status is neither '${RuntimePhase.STOPPED.wireName}' nor " +
+                            "'${RuntimePhase.RUNNING.wireName}'",
+                    )
+            }
+            return DecodedFrame.Push(RuntimePush.EngineStatusChanged(status, phase), emptyList())
         }
 
         /** The published event of [inner], read by member name, or null if a member is missing or mistyped. */

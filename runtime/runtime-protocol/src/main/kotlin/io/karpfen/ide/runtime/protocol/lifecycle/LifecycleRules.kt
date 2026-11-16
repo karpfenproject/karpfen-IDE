@@ -81,11 +81,13 @@ internal sealed interface ProbeResult {
  * Subscribing is allowed while configuring, activated, running or halted. Unsubscribing is allowed unless the
  * environment is lost. Injecting an event is allowed while activated or running. The feature operations, which switch
  * a feature on or off, read the features that are on and send a feature a message, are allowed in every phase in which
- * the environment exists. That is every phase except lost, the uncertain one included, because the runtime switches
- * features from the creation of an environment on, before, while and after it runs.
+ * the environment exists. That is every phase except lost and dropped, the uncertain one included, because the runtime
+ * switches features from the creation of an environment on, before, while and after it runs. A drop is allowed in
+ * every phase, because the runtime drops an environment whatever it does. The handle answers it locally for a lost
+ * environment, which the runtime no longer knows, and for a dropped one. A dropped environment refuses everything else.
  *
- * The transitions work as follows. A success of a configuring call adds to the uploads. A success of activate, start
- * and stop moves to activated, running and stopped. A snapshot reports its phase. Other successes change nothing. Some
+ * The transitions work as follows. A success of a configuring call adds to the uploads. A success of activate, start,
+ * stop and drop moves to activated, running, stopped and dropped. A snapshot reports its phase. Other successes change nothing. Some
  * failures leave open whether the call was applied: no answer, an internal error of the runtime, an unexpected status
  * and an unexpected body. Such a failure changes nothing, except for activate, start and stop, whose phase is then
  * probed. A rejection is reconciled. An unknown environment becomes lost. A rejection that shows the runtime's phase
@@ -93,10 +95,14 @@ internal sealed interface ProbeResult {
  * snapshot have rules of their own. A probe's snapshot settles the phase. A probe that fails leaves the phase uncertain
  * between the phases the operation could have left.
  *
+ * A dropped environment stays dropped, whatever follows. A failed drop is never probed. A rejection for an unknown environment makes it lost, because the runtime keeps
+ * nothing of it either way, and any other failure leaves the phase as it was.
+ *
  * A stopped environment stays stopped, whatever a later snapshot or probe reports, until the runtime no longer knows
  * it. While the engine's last tick still ends, the runtime reports the stopped environment as running or finds no tick
- * boundary in it. If a call in that tick never returns, this lasts for good. The client never restarts a stopped
- * environment.
+ * boundary in it. If a call in that tick never returns, this lasts for good. The runtime freezes a stopped environment
+ * and would let a start continue it with everything it held, but the client never starts a stopped environment again
+ * and connects to none. The environment stays frozen in the runtime until the client drops it or the runtime ends.
  *
  * The object holds no state.
  */
@@ -112,9 +118,21 @@ internal object LifecycleRules {
 
     /** Whether [operation] may be sent in [phase]. */
     fun verdict(phase: EnvironmentPhase, operation: LifecycleOperation): Verdict =
-        if (operation in FEATURE_OPERATIONS && phase !is EnvironmentPhase.Lost) Verdict.Send else phaseVerdict(phase, operation)
+        when {
+            operation == LifecycleOperation.DROP -> drop(phase)
+            phase == EnvironmentPhase.Dropped -> Verdict.Refuse("the environment was dropped, so the runtime keeps nothing of it")
+            operation in FEATURE_OPERATIONS && phase !is EnvironmentPhase.Lost -> Verdict.Send
+            else -> phaseVerdict(phase, operation)
+        }
 
-    /** Whether [operation] may be sent in [phase], by the rules of the phase. A feature operation reaches it only when lost. */
+    /** Whether a drop may be sent in [phase]. Only a lost or a dropped environment, of which nothing is left, needs none. */
+    private fun drop(phase: EnvironmentPhase): Verdict =
+        if (phase is EnvironmentPhase.Lost || phase == EnvironmentPhase.Dropped) Verdict.AnswerLocally else Verdict.Send
+
+    /**
+     * Whether [operation] may be sent in [phase], by the rules of the phase. A drop never reaches it, a dropped phase
+     * neither, and a feature operation only when lost.
+     */
     private fun phaseVerdict(phase: EnvironmentPhase, operation: LifecycleOperation): Verdict =
         when (phase) {
             is EnvironmentPhase.Configuring -> configuring(phase.uploads, operation)
@@ -124,6 +142,7 @@ internal object LifecycleRules {
             EnvironmentPhase.Stopped -> stopped(operation)
             is EnvironmentPhase.Uncertain -> uncertain(operation)
             is EnvironmentPhase.Lost -> Verdict.Refuse("the runtime no longer knows the environment (${phase.reason})")
+            EnvironmentPhase.Dropped -> Verdict.Refuse("the environment was dropped, so the runtime keeps nothing of it")
         }
 
     /**
@@ -135,6 +154,7 @@ internal object LifecycleRules {
             LifecycleOperation.ACTIVATE -> EnvironmentPhase.Activated
             LifecycleOperation.START -> EnvironmentPhase.Running
             LifecycleOperation.STOP -> EnvironmentPhase.Stopped
+            LifecycleOperation.DROP -> EnvironmentPhase.Dropped
             else -> if (phase is EnvironmentPhase.Configuring) {
                 EnvironmentPhase.Configuring(phase.uploads.after(operation, attachedTo))
             } else {
@@ -144,6 +164,7 @@ internal object LifecycleRules {
 
     /** What follows a [failure] of [operation] in [phase]. */
     fun afterFailure(phase: EnvironmentPhase, operation: LifecycleOperation, failure: RuntimeFailure): OutcomeResolution {
+        if (phase == EnvironmentPhase.Dropped) return OutcomeResolution.Settled(phase)
         val rejection = failure as? RuntimeFailure.Rejected
         return when (operation) {
             LifecycleOperation.ACTIVATE -> when (rejection?.kind) {
@@ -156,6 +177,10 @@ internal object LifecycleRules {
                 null -> unknownOutcome(phase, failure, probes = true)
                 RejectionKind.NOT_ACTIVATED -> OutcomeResolution.Probe
                 else -> reconcile(phase, rejection)
+            }
+            LifecycleOperation.DROP -> when (rejection?.kind) {
+                RejectionKind.UNKNOWN_ENVIRONMENT -> lost(rejection)
+                else -> OutcomeResolution.Settled(phase)
             }
             LifecycleOperation.READ_SNAPSHOT -> when (rejection?.kind) {
                 null -> unknownOutcome(phase, failure, probes = false)
@@ -211,7 +236,7 @@ internal object LifecycleRules {
             EnvironmentPhase.Running -> PhaseKind.RUNNING
             EnvironmentPhase.Halted -> PhaseKind.HALTED
             EnvironmentPhase.Stopped -> PhaseKind.STOPPED
-            is EnvironmentPhase.Uncertain, is EnvironmentPhase.Lost -> null
+            is EnvironmentPhase.Uncertain, is EnvironmentPhase.Lost, EnvironmentPhase.Dropped -> null
         }
 
     /** The verdicts while configuring with [uploads]. */
@@ -229,7 +254,7 @@ internal object LifecycleRules {
             }
             LifecycleOperation.SET_STATE_MACHINE, LifecycleOperation.SET_TICK_DELAY, LifecycleOperation.SET_EVENT_TTL,
             LifecycleOperation.REGISTER_OBJECT_OBSERVER, LifecycleOperation.REGISTER_DOMAIN_LISTENER,
-            LifecycleOperation.ISSUE_ACCESS_KEY, LifecycleOperation.READ_STATE_MACHINE_SOURCE,
+            LifecycleOperation.ISSUE_ACCESS_KEY, LifecycleOperation.READ_STATE_MACHINE_SOURCE, LifecycleOperation.READ_STATE_MACHINES,
             LifecycleOperation.READ_SNAPSHOT, LifecycleOperation.SUBSCRIBE_MODEL, LifecycleOperation.UNSUBSCRIBE_MODEL,
             LifecycleOperation.ACTIVATE_FEATURE, LifecycleOperation.DEACTIVATE_FEATURE,
             LifecycleOperation.READ_ACTIVE_FEATURES, LifecycleOperation.MESSAGE_FEATURE,
@@ -241,6 +266,7 @@ internal object LifecycleRules {
             }
             LifecycleOperation.START -> Verdict.Refuse("the environment must be activated before it is started")
             LifecycleOperation.STOP -> Verdict.Refuse("nothing runs yet in a configuring environment")
+            LifecycleOperation.DROP -> Verdict.Send
             LifecycleOperation.FORCE_STATE -> Verdict.Refuse("a state can only be forced in an activated or running environment")
             LifecycleOperation.INJECT_EVENT -> Verdict.Refuse("the runtime drops events sent before activation")
         }
@@ -250,7 +276,8 @@ internal object LifecycleRules {
         when (operation) {
             LifecycleOperation.ACTIVATE -> Verdict.Refuse("the environment is activated already")
             LifecycleOperation.ISSUE_ACCESS_KEY, LifecycleOperation.START, LifecycleOperation.STOP,
-            LifecycleOperation.FORCE_STATE, LifecycleOperation.READ_STATE_MACHINE_SOURCE, LifecycleOperation.READ_SNAPSHOT,
+            LifecycleOperation.FORCE_STATE, LifecycleOperation.READ_STATE_MACHINE_SOURCE, LifecycleOperation.READ_STATE_MACHINES,
+            LifecycleOperation.READ_SNAPSHOT,
             LifecycleOperation.SUBSCRIBE_MODEL, LifecycleOperation.UNSUBSCRIBE_MODEL, LifecycleOperation.INJECT_EVENT,
             -> Verdict.Send
             else -> frozen()
@@ -262,7 +289,7 @@ internal object LifecycleRules {
             LifecycleOperation.ACTIVATE -> Verdict.Refuse("the environment is activated already")
             LifecycleOperation.START -> Verdict.Refuse("the environment runs already")
             LifecycleOperation.ISSUE_ACCESS_KEY, LifecycleOperation.STOP, LifecycleOperation.FORCE_STATE,
-            LifecycleOperation.READ_STATE_MACHINE_SOURCE, LifecycleOperation.READ_SNAPSHOT,
+            LifecycleOperation.READ_STATE_MACHINE_SOURCE, LifecycleOperation.READ_STATE_MACHINES, LifecycleOperation.READ_SNAPSHOT,
             LifecycleOperation.SUBSCRIBE_MODEL, LifecycleOperation.UNSUBSCRIBE_MODEL, LifecycleOperation.INJECT_EVENT,
             -> Verdict.Send
             else -> frozen()
@@ -276,7 +303,8 @@ internal object LifecycleRules {
             LifecycleOperation.FORCE_STATE -> Verdict.Refuse("the engine ended on its own, so a forced state would never apply")
             LifecycleOperation.INJECT_EVENT -> Verdict.Refuse("the engine ended on its own, so no event would be handled")
             LifecycleOperation.ISSUE_ACCESS_KEY, LifecycleOperation.STOP, LifecycleOperation.READ_STATE_MACHINE_SOURCE,
-            LifecycleOperation.READ_SNAPSHOT, LifecycleOperation.SUBSCRIBE_MODEL, LifecycleOperation.UNSUBSCRIBE_MODEL,
+            LifecycleOperation.READ_STATE_MACHINES, LifecycleOperation.READ_SNAPSHOT, LifecycleOperation.SUBSCRIBE_MODEL,
+            LifecycleOperation.UNSUBSCRIBE_MODEL,
             -> Verdict.Send
             else -> frozen()
         }
@@ -285,19 +313,19 @@ internal object LifecycleRules {
     private fun stopped(operation: LifecycleOperation): Verdict =
         when (operation) {
             LifecycleOperation.STOP -> Verdict.AnswerLocally
-            LifecycleOperation.READ_STATE_MACHINE_SOURCE, LifecycleOperation.READ_SNAPSHOT,
-            LifecycleOperation.UNSUBSCRIBE_MODEL,
+            LifecycleOperation.READ_STATE_MACHINE_SOURCE, LifecycleOperation.READ_STATE_MACHINES,
+            LifecycleOperation.READ_SNAPSHOT, LifecycleOperation.UNSUBSCRIBE_MODEL,
             -> Verdict.Send
             LifecycleOperation.ISSUE_ACCESS_KEY, LifecycleOperation.SUBSCRIBE_MODEL ->
-                Verdict.Refuse("the runtime closed the environment's sockets when it stopped")
-            else -> Verdict.Refuse("a stopped environment is final; running again deploys a fresh environment")
+                Verdict.Refuse("the client connects to no stopped environment; it stays frozen in the runtime")
+            else -> Verdict.Refuse("the client never continues a stopped environment; running again deploys a fresh environment")
         }
 
     /** The verdicts while the phase is uncertain. */
     private fun uncertain(operation: LifecycleOperation): Verdict =
         when (operation) {
-            LifecycleOperation.STOP, LifecycleOperation.READ_STATE_MACHINE_SOURCE, LifecycleOperation.READ_SNAPSHOT,
-            LifecycleOperation.UNSUBSCRIBE_MODEL,
+            LifecycleOperation.STOP, LifecycleOperation.READ_STATE_MACHINE_SOURCE, LifecycleOperation.READ_STATE_MACHINES,
+            LifecycleOperation.READ_SNAPSHOT, LifecycleOperation.UNSUBSCRIBE_MODEL,
             -> Verdict.Send
             else -> Verdict.Refuse("the environment's phase is uncertain; a snapshot resolves it")
         }
@@ -327,10 +355,15 @@ internal object LifecycleRules {
     /**
      * The phase that a report of the runtime establishes over the believed [phase]. It is [reported], unless [phase] is
      * stopped and [reported] is not lost. While the engine's last tick ends, the runtime reports a stopped environment
-     * as running or finds no tick boundary in it. A stopped environment is final for the client.
+     * as running or finds no tick boundary in it. A stopped environment is final for the client, although the runtime
+     * keeps it frozen.
      */
     private fun reportedOver(phase: EnvironmentPhase, reported: EnvironmentPhase): EnvironmentPhase =
-        if (phase == EnvironmentPhase.Stopped && reported !is EnvironmentPhase.Lost) phase else reported
+        when {
+            phase == EnvironmentPhase.Dropped -> phase
+            phase == EnvironmentPhase.Stopped && reported !is EnvironmentPhase.Lost -> phase
+            else -> reported
+        }
 
     /** The environment is lost, as [rejection] shows. */
     private fun lost(rejection: RuntimeFailure.Rejected): OutcomeResolution =

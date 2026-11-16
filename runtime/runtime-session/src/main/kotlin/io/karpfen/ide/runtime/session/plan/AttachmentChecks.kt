@@ -21,13 +21,14 @@ import io.karpfen.ide.runtime.session.problem.DeployProblemCodes
 
 /**
  * Finds state machines attached to a key that no object of the runtime's index of the model has. The runtime refuses
- * to activate such an environment.
+ * to activate such an environment. An entry without a key is a definition, which is attached to no object.
  */
 internal class UnknownAttachmentCheck : PlanCheck {
     override fun check(subject: PlanSubject): List<DeployProblem> {
         val keyed = subject.keyedObjects ?: return emptyList()
         val model = subject.modelFile?.let(subject::nameOf) ?: return emptyList()
-        return subject.machines.filter { it.attachedTo.isNullOrBlank() || it.attachedTo !in keyed.ids }.map { machine ->
+        val attached = subject.machines.filter { it.attachedTo != null }
+        return attached.filter { it.attachedTo.isNullOrBlank() || it.attachedTo !in keyed.ids }.map { machine ->
             DeployProblem(
                 Severity.ERROR,
                 DeployProblemCodes.UNKNOWN_ATTACHMENT,

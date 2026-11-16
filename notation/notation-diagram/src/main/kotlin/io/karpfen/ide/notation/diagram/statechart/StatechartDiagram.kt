@@ -22,18 +22,37 @@ import io.karpfen.ide.core.text.TextRange
  * derived from the text of a `.kstates` file by [StatechartProjection] and holds no positions. Where the elements are
  * drawn is the business of the layout.
  *
- * @property attachedTo the type the state machine is attached to, or null if the text names none.
+ * @property name the name of an attachable state machine, `STATEMACHINE "name" ATTACHABLE TO ...`, or null for an
+ *   attached state machine, which has no name.
+ * @property types the types after `ATTACHED TO` or `ATTACHABLE TO`, in the order of the header. An attached state
+ *   machine has one, and the list is empty if the text names none.
  * @property states the top-level states in the order of the text.
  * @property transitions all transitions in the order of the text. The order matters, because the engine takes the
  *   first transition that can fire.
  * @property range the whole state machine in the text.
  */
 public data class StatechartDiagram(
-    public val attachedTo: String?,
+    public val name: String?,
+    public val types: List<String>,
     public val states: List<StateNode>,
     public val transitions: List<TransitionEdge>,
     public val range: TextRange,
 ) {
+    /** The type an attached state machine is attached to, or null for an attachable one and if the text names none. */
+    public val attachedTo: String? get() = if (name == null) types.firstOrNull() else null
+
+    /**
+     * The line that heads the drawing and says what the header of the text declares: the name, `ATTACHABLE TO` and
+     * the types of an attachable state machine, such as `glowing ATTACHABLE TO Lamp, Fan`, or `ATTACHED TO` and the
+     * type of an attached one, such as `ATTACHED TO Lamp`. It is null for an attached state machine whose text names
+     * no type.
+     */
+    public val title: String?
+        get() = when {
+            name != null -> listOf(name, ATTACHABLE_TO, types.joinToString(", ")).filter { it.isNotEmpty() }.joinToString(" ")
+            else -> attachedTo?.let { "$ATTACHED_TO $it" }
+        }
+
     /** Every state, the nested ones included, each parent before its children. */
     public fun allStates(): List<StateNode> = states.flatMap { it.withDescendants() }
 
@@ -69,6 +88,11 @@ public data class StatechartDiagram(
             edge.kind == kind && edge.sources.toSet() == sources.toSet() && edge.targets.toSet() == targets.toSet()
         }
         return transitions.firstOrNull { it.priority == index + 1 }?.takeIf(fits) ?: transitions.firstOrNull(fits)
+    }
+
+    private companion object {
+        const val ATTACHABLE_TO = "ATTACHABLE TO"
+        const val ATTACHED_TO = "ATTACHED TO"
     }
 }
 

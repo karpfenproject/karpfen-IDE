@@ -32,7 +32,7 @@ import io.karpfen.ide.notation.diagram.text.TextBlocks
  * or null if there is nothing to change. The diagram says by its kind whether its boxes are types or objects.
  *
  * An edit touches only the lines it is about. A new statement goes to the end of the block of its box, on a line of
- * its own.
+ * its own. The `behaves after` clause of a type lives in its header and is changed there.
  */
 public object StructureEdits {
 
@@ -123,6 +123,31 @@ public object StructureEdits {
     }
 
     /**
+     * Lets the type [id] behave after the attachable state machine [machine]: it changes the name in the `behaves after`
+     * clause of the type, or adds the clause after the description if the type has none. A blank [machine] removes the
+     * clause together with the blanks before it.
+     */
+    public fun behaveAfter(text: String, diagram: StructureDiagram, id: String, machine: String): DiagramChange? {
+        val node = diagram.node(id)?.takeIf { diagram.kind == StructureKind.TYPES } ?: return null
+        val name = clean(machine)
+        val behaviour = node.behaviour
+        val edit = when {
+            behaviour == null && name.isEmpty() -> return null
+            behaviour == null -> {
+                val end = description(text, diagram, id)?.end ?: return null
+                TextEdit(TextRange(end + 1, end + 1), " behaves after ${quoted(name)}")
+            }
+            name.isEmpty() -> {
+                val start = text.substring(0, behaviour.range.start).trimEnd().length
+                TextEdit(TextRange(start, behaviour.range.end), "")
+            }
+            name == behaviour.machine -> return null
+            else -> TextEdit(behaviour.machineRange, name)
+        }
+        return DiagramChange(listOf(edit))
+    }
+
+    /**
      * Makes the type [id] the root type of its metamodel, which is the last type of the file. The type moves to the
      * end of the file with everything it holds.
      */
@@ -195,14 +220,26 @@ public object StructureEdits {
         return if (new.isEmpty() || new == text.substring(range.start, range.end)) null else DiagramChange(listOf(TextEdit(range, new)))
     }
 
-    /** Deletes the statement that the row [row] of the box [id] shows. */
-    public fun deleteRow(text: String, diagram: StructureDiagram, id: String, row: Int): DiagramChange? =
-        diagram.node(id)?.rowRanges?.getOrNull(row)?.let { DiagramChange(listOf(TextBlocks.removal(text, it))) }
+    /**
+     * Deletes the statement that the row [row] of the box [id] shows. The row of a `behaves after` clause removes the
+     * clause from the header of the type.
+     */
+    public fun deleteRow(text: String, diagram: StructureDiagram, id: String, row: Int): DiagramChange? {
+        val node = diagram.node(id) ?: return null
+        if (node.behaviour != null && row == 0) return behaveAfter(text, diagram, id, "")
+        return node.rowRanges.getOrNull(row)?.let { DiagramChange(listOf(TextBlocks.removal(text, it))) }
+    }
 
-    /** The names of the members of the box [id]: of its relations that are drawn as links, and of its rows. */
-    private fun membersOf(diagram: StructureDiagram, id: String): Set<String> =
-        diagram.links.filter { it.source == id }.mapNotNull { LINK_ID.matchEntire(it.id)?.groupValues?.get(3) }.toSet() +
-            diagram.node(id)?.rows.orEmpty().map { it.substringBefore(':').substringBefore('=').trim() }
+    /**
+     * The names of the members of the box [id]: of its relations that are drawn as links, and of its rows. The row of a
+     * `behaves after` clause names no member.
+     */
+    private fun membersOf(diagram: StructureDiagram, id: String): Set<String> {
+        val node = diagram.node(id)
+        val rows = node?.rows.orEmpty().drop(if (node?.behaviour != null) 1 else 0)
+        return diagram.links.filter { it.source == id }.mapNotNull { LINK_ID.matchEntire(it.id)?.groupValues?.get(3) }.toSet() +
+            rows.map { it.substringBefore(':').substringBefore('=').trim() }
+    }
 
     /** The object [id] and every object it contains, directly or further down. */
     private fun contained(diagram: StructureDiagram, id: String): Set<String> {

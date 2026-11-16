@@ -92,9 +92,10 @@ internal class ModelObserver(
     val updates: Flow<ModelUpdate> = updateStream.asSharedFlow()
 
     /**
-     * Takes one event of the connection. Returns true if it was an object or stack push that was applied to the model.
+     * Takes one event of the connection. Returns true if it was an object, stack or state machine push that was applied
+     * to the model.
      * An opening after the first one, an interruption and an end make the observation re-synchronize while it is on.
-     * The rules apply object and stack pushes, unless a snapshot covers them or they reveal a gap. Other pushes and
+     * The rules apply object, stack and state machine pushes, unless a snapshot covers them or they reveal a gap. Other pushes and
      * protocol violations are not the observation's business.
      */
     suspend fun handle(event: ConnectionEvent): Boolean {
@@ -102,7 +103,9 @@ internal class ModelObserver(
             is ConnectionEvent.Opened -> ObservationInput.LinkOpened(event.epoch)
             is ConnectionEvent.Interrupted, is ConnectionEvent.Ended -> ObservationInput.LinkInterrupted
             is ConnectionEvent.Received -> when (event.push) {
-                is RuntimePush.ObjectChanged, is RuntimePush.ObjectDeleted, is RuntimePush.StateChanged -> ObservationInput.Pushed(event.push)
+                is RuntimePush.ObjectChanged, is RuntimePush.ObjectDeleted, is RuntimePush.StateChanged,
+                is RuntimePush.StateMachineAttached, is RuntimePush.StateMachineDetached,
+                -> ObservationInput.Pushed(event.push)
                 is RuntimePush.DomainEvent, is RuntimePush.EngineStatusChanged, is RuntimePush.Unrecognized -> return false
             }
             is ConnectionEvent.Violated -> return false

@@ -45,6 +45,7 @@ import io.karpfen.ide.runtime.protocol.transport.ktor.RawWebSocketProbe
 import kotlinx.coroutines.withTimeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -68,14 +69,18 @@ import kotlin.test.assertTrue
  * - While `TickByTick` is on, the engine's status is pushed as `engineStatus` to a client that subscribed to nothing,
  *   once when the engine thread starts to wait and once when it goes on, for a pause, a tick and a resume.
  * - Pushes for a client without a session are dropped.
- * - A stop closes the sockets with `Environment stopped`. After that the environment stays readable, and a start runs
- *   it again.
+ * - A stop freezes the environment: the sockets stay open, the `engineStatus` notice with the phase `stopped` arrives,
+ *   the snapshot reads the frozen stacks and an event sent meanwhile waits. A start continues it with the notice of the
+ *   phase `running`, from the same stacks, with the next revisions and without announcing an instance again.
  * - Features are switched on and off, listed and sent messages while configuring, running and stopped, and their
  *   refusals have the catalogue's texts.
+ * - A drop removes a configuring, an activated, a running and a stopped environment. Its sockets close with the normal
+ *   code and the reason `Environment dropped`, it is no longer listed, and its key is then rejected like an absent one,
+ *   also by a second drop.
  *
  * The scenarios run only against a real runtime, in [LiveRuntimeContractTest]. Failures that only a fake can produce
- * are ordinary tests of the client against the fake runtime. Every scenario stops the environments it launched when it
- * ends, also when it fails.
+ * are ordinary tests of the client against the fake runtime. Every scenario stops the environments it launched and did
+ * not drop when it ends, also when it fails.
  */
 abstract class RuntimeContract {
 
@@ -88,7 +93,7 @@ abstract class RuntimeContract {
     @Test
     fun `every route refuses a missing parameter with the text of the first one it checks`() = scenario {
         RuntimeRoute.entries.filter { it.parameters.isNotEmpty() }.forEach { route ->
-            route.parameters.indices.forEach { present ->
+            route.parameters.indices.filter { route.parameters[it] !in route.optional }.forEach { present ->
                 val given = route.parameters.take(present).map { it to sampleValue(it, "env-1") }
                 val missing = route.parameters[present]
                 val text = if (missing in NUMERIC) RuntimeText.INVALID_PARAMETER else RuntimeText.MISSING_PARAMETER
@@ -562,7 +567,7 @@ abstract class RuntimeContract {
     }
 
     @Test
-    fun `a stop closes the sockets, keeps the final model readable, and a start runs the environment again`() = scenario {
+    fun `a stop freezes the environment with the sockets open, and a start continues it with the same stacks and the next ticks`() = scenario {
         val environment = create()
         val client = clientId()
         uploadLamp(environment)
@@ -571,44 +576,79 @@ abstract class RuntimeContract {
         ok(RuntimeRoute.RUN_ENVIRONMENT, ENV_KEY to environment)
         ok(RuntimeRoute.START_ENVIRONMENT, ENV_KEY to environment)
         scope.eventually("the lamp's first stack") { link.stacks("lamp").firstOrNull() }
+        link.link.send(PRESS)
+        scope.eventually("the lamp turned on") { link.stacks("lamp").lastOrNull()?.takeIf { it == listOf("on") } }
+        val announced = link.payloads(WireNames.STATE_MACHINE_ATTACHED).size
         val env = mapOf("env" to environment)
 
         ok(RuntimeRoute.STOP_ENVIRONMENT, ENV_KEY to environment)
 
+        val stopped = scope.eventually("the notice of the stop") { link.payloads(WireNames.ENGINE_STATUS).firstOrNull() }
+        assertEquals(RuntimePhase.STOPPED.wireName, string(stopped, WireNames.PHASE))
+        assertEquals(WireValue.WireBoolean(false), stopped[WireNames.PAUSED])
+        assertEquals(WireValue.WireBoolean(false), stopped[WireNames.WAITING])
+        assertFalse(link.link.closure.isCompleted, "the socket stays open across a stop")
+        val frozen = snapshot(environment)
+        assertEquals(RuntimePhase.STOPPED.wireName, string(frozen, WireNames.PHASE))
         assertEquals(
-            LinkClosure(WireNames.CLOSE_NORMAL, WireNames.REASON_ENVIRONMENT_STOPPED, byClient = false),
-            withTimeout(scope.patience.reaction) { link.link.closure.await() },
+            json("""{"lamp":["on"],"wallSwitch":["up"]}""").fields.toSet(),
+            (frozen[WireNames.ACTIVE_STATES] as WireValue.WireObject).fields.toSet(),
         )
-        val final = snapshot(environment)
-        assertEquals(RuntimePhase.STOPPED.wireName, string(final, WireNames.PHASE))
-        assertEquals(
-            json("""{"lamp":["off"],"wallSwitch":["down"]}""").fields.toSet(),
-            (final[WireNames.ACTIVE_STATES] as WireValue.WireObject).fields.toSet(),
-        )
-        rejected(
-            CONFLICT,
-            RuntimeText.NO_SESSION,
-            env + ("client" to client),
-            RuntimeRoute.SUBSCRIBE_MODEL,
-            ENV_KEY to environment,
-            CLIENT_ID to client,
-        )
-        ok(RuntimeRoute.UNSUBSCRIBE_MODEL, ENV_KEY to environment, CLIENT_ID to client)
+        assertEquals(link.revisions.max().toDouble(), (frozen[WireNames.REVISION] as WireValue.WireNumber).value)
         configurationCalls(environment, client).forEach { (route, parameters, upload) ->
             rejected(CONFLICT, RuntimeText.ALREADY_ACTIVE, env, route, *parameters.toTypedArray(), upload = upload)
         }
-        accessKey(client, environment)
         val switchSource = lamp(LAMP_FILES.machines.last().file)
         expect(OK, switchSource, RuntimeRoute.STATE_MACHINE_SOURCE, ENV_KEY to environment, "modelElement" to "wallSwitch")
         ok(RuntimeRoute.STOP_ENVIRONMENT, ENV_KEY to environment)
         assertTrue(listed().any { it.first == environment }, "a stopped environment stays listed")
+        assertEquals(LinkSendResult.Sent, link.link.send(PRESS), "an event sent while stopped waits for the start")
 
         ok(RuntimeRoute.START_ENVIRONMENT, ENV_KEY to environment)
-        scope.eventually("the restarted environment running") {
-            string(snapshot(environment), WireNames.PHASE)?.takeIf { it == RuntimePhase.RUNNING.wireName }
+
+        val running = scope.eventually("the notice of the start") { link.payloads(WireNames.ENGINE_STATUS).getOrNull(1) }
+        assertEquals(RuntimePhase.RUNNING.wireName, string(running, WireNames.PHASE))
+        scope.eventually("the waiting press handled from the frozen stacks") {
+            link.stacks("wallSwitch").lastOrNull()?.takeIf { it == listOf("back down") }
         }
+        scope.eventually("the lamp off again") { link.stacks("lamp").lastOrNull()?.takeIf { it == listOf("off") } }
+        assertEquals(2, link.payloads(WireNames.ENGINE_STATUS).size, "a second stop pushes nothing, the first two notices do")
+        assertEquals(announced, link.payloads(WireNames.STATE_MACHINE_ATTACHED).size, "a start that continues announces nothing")
+        assertEquals((1L..link.revisions.size).toList(), link.revisions, "the revisions go on without a gap")
+        assertEquals(RuntimePhase.RUNNING.wireName, string(snapshot(environment), WireNames.PHASE))
         ok(RuntimeRoute.STOP_ENVIRONMENT, ENV_KEY to environment)
         assertEquals(RuntimePhase.STOPPED.wireName, string(snapshot(environment), WireNames.PHASE))
+    }
+
+    @Test
+    fun `a drop removes an environment in every phase, closes its sockets and leaves its key absent`() = scenario {
+        val launches = mapOf(
+            "configuring" to emptyList(),
+            "activated" to listOf(RuntimeRoute.RUN_ENVIRONMENT),
+            "running" to listOf(RuntimeRoute.RUN_ENVIRONMENT, RuntimeRoute.START_ENVIRONMENT),
+            "stopped" to listOf(RuntimeRoute.RUN_ENVIRONMENT, RuntimeRoute.START_ENVIRONMENT, RuntimeRoute.STOP_ENVIRONMENT),
+        )
+        launches.forEach { (phase, routes) ->
+            val environment = create()
+            val client = clientId()
+            uploadLamp(environment)
+            val link = connect(client, environment)
+            subscribe(client, environment)
+            routes.forEach { ok(it, ENV_KEY to environment) }
+            val env = mapOf("env" to environment)
+
+            ok(RuntimeRoute.DROP_ENVIRONMENT, ENV_KEY to environment)
+
+            assertEquals(
+                LinkClosure(WireNames.CLOSE_NORMAL, WireNames.REASON_ENVIRONMENT_DROPPED, byClient = false),
+                withTimeout(scope.patience.reaction) { link.link.closure.await() },
+                "the socket of a $phase environment",
+            )
+            rejected(BAD_REQUEST, RuntimeText.UNKNOWN_ENVIRONMENT, env, RuntimeRoute.MODEL_SNAPSHOT, ENV_KEY to environment)
+            rejected(BAD_REQUEST, RuntimeText.UNKNOWN_ENVIRONMENT, env, RuntimeRoute.STOP_ENVIRONMENT, ENV_KEY to environment)
+            rejected(BAD_REQUEST, RuntimeText.UNKNOWN_ENVIRONMENT, env, RuntimeRoute.DROP_ENVIRONMENT, ENV_KEY to environment)
+            assertFalse(listed().any { it.first == environment }, "a dropped $phase environment is not listed")
+        }
     }
 
     /** Runs [body] as a scenario against [runtime] with the raw view of it, which stops what it launched at the end. */
@@ -665,7 +705,13 @@ abstract class RuntimeContract {
         val NUMERIC = setOf("milliseconds", "ttlMs")
 
         /** The message types of the pushes that carry a revision. */
-        val OBSERVATIONS = setOf(WireNames.OBJECT_CHANGED, WireNames.OBJECT_DELETED, WireNames.STATE_CHANGE)
+        val OBSERVATIONS = setOf(
+            WireNames.OBJECT_CHANGED,
+            WireNames.OBJECT_DELETED,
+            WireNames.STATE_CHANGE,
+            WireNames.STATE_MACHINE_ATTACHED,
+            WireNames.STATE_MACHINE_DETACHED,
+        )
 
         /** The shape of an environment key. */
         val ENVIRONMENT_KEY = Regex("""env-\d+""")

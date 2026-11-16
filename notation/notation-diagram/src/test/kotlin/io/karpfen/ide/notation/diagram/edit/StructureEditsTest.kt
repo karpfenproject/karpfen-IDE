@@ -147,13 +147,31 @@ class StructureEditsTest {
         assertNull(StructureEdits.delete(model, objects, "living room"))
     }
 
+    @Test
+    fun `a type gets, changes and loses its behaves after clause in its header`() {
+        val added = applied(assertNotNull(StructureEdits.behaveAfter(meta, types, "Bulb", "glowing")), meta)
+        assertTrue("type \"Bulb\" \"A light bulb\" behaves after \"glowing\" {" in added, added)
+        val behaving = readTypes(added)
+        val bulb = assertNotNull(behaving.node("Bulb"))
+        assertEquals(listOf("behaves after glowing", "maxWatts: number", "lit: boolean"), bulb.rows)
+        assertEquals("behaves after \"glowing\"", added.substring(bulb.rowRanges[0].start, bulb.rowRanges[0].end))
+
+        val changed = applied(assertNotNull(StructureEdits.behaveAfter(added, behaving, "Bulb", "flickering")), added)
+        assertEquals("flickering", readTypes(changed).node("Bulb")?.behaviour?.machine)
+        assertNull(StructureEdits.behaveAfter(added, behaving, "Bulb", "glowing"), "the same name changes nothing")
+
+        assertEquals(meta, applied(assertNotNull(StructureEdits.behaveAfter(added, behaving, "Bulb", " ")), added))
+        assertEquals(meta, applied(assertNotNull(StructureEdits.deleteRow(added, behaving, "Bulb", 0)), added))
+        assertNull(StructureEdits.behaveAfter(meta, types, "Bulb", ""), "nothing to remove")
+    }
+
     private fun applied(change: DiagramChange, source: String): String =
         change.edits.sortedByDescending { it.range.start }.fold(source) { now, edit -> now.replaceRange(edit.range.start, edit.range.end, edit.newText) }
 
     private fun readTypes(source: String): StructureDiagram {
         val outcome = defaultLanguageRegistry().support(KarpfenLanguage.KMETA).parser.parse(TextSnapshot(source, 0))
         assertTrue(outcome.isSyntaxClean, "the text has syntax errors:\n$source")
-        return MetamodelProjection.of(outcome.outline)
+        return MetamodelProjection.of(outcome.outline, source)
     }
 
     private fun readObjects(source: String): StructureDiagram {

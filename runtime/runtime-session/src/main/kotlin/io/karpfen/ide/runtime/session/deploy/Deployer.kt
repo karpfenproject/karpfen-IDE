@@ -126,6 +126,9 @@ public data class DeployRequest(
  *   unanswered stop. With a large enough bound, a stop that the client still sees succeed is never cut off. With the
  *   client's default timeouts that sum is 60 seconds. A client with longer timeouts needs a longer bound.
  * @property disconnectBound how long letting a connection end after a stop, and disconnecting it, may take each.
+ * @property dropBound how long dropping an environment may take. The runtime answers a drop once the engine ended,
+ *   which takes up to about 5 seconds for an engine that still runs and hardly any time for a stopped one. A drop cut
+ *   off by the bound leaves the environment on the runtime as far as the IDE knows.
  */
 public data class DeployTiming(
     public val connectionWait: Duration = 10.seconds,
@@ -134,6 +137,7 @@ public data class DeployTiming(
     public val confirmPoll: Duration = 250.milliseconds,
     public val stopBound: Duration = 75.seconds,
     public val disconnectBound: Duration = 15.seconds,
+    public val dropBound: Duration = 10.seconds,
 ) {
     init {
         require(connectionWait.isPositive()) { "the connection wait is positive, not $connectionWait" }
@@ -142,6 +146,7 @@ public data class DeployTiming(
         require(confirmPoll.isPositive()) { "the confirmation poll is positive, not $confirmPoll" }
         require(stopBound.isPositive()) { "the stop bound is positive, not $stopBound" }
         require(disconnectBound.isPositive()) { "the disconnect bound is positive, not $disconnectBound" }
+        require(dropBound.isPositive()) { "the drop bound is positive, not $dropBound" }
     }
 }
 
@@ -206,11 +211,11 @@ public fun interface Deployer {
 }
 
 /**
- * Creates the deployer. It records what stays on a runtime in [ledger] and hands environments that stay to
- * [disposer]. By default they are kept and recorded, because the runtime cannot delete environments.
+ * Creates the deployer. It records in [ledger] what became of the environment of a deployment that failed, and hands
+ * such an environment to [disposer]. By default it is dropped within the drop bound of [timing].
  */
 public fun Deployer(
     ledger: EnvironmentLedger,
     timing: DeployTiming = DeployTiming(),
-    disposer: EnvironmentDisposer = KeepEnvironments(ledger),
+    disposer: EnvironmentDisposer = DropEnvironments(ledger, timing.dropBound),
 ): Deployer = DefaultDeployer(timing, EnvironmentCleanup(ledger, disposer, CleanupBounds.of(timing)))

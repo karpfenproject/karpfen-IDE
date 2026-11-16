@@ -43,10 +43,12 @@ public fun interface AccessKeyIssuer {
  * runtime, so they survive reconnects.
  *
  * The runtime acknowledges no handshake. [ConnectionState.Open] means the handshake was sent and not rejected. A close
- * with 1003 ends the connection with [ConnectionEnd.HandshakeRejected]. A close with `Environment stopped`, or a
- * stopped environment, ends it with [ConnectionEnd.EnvironmentStopped]. A lost environment ends it with
- * [ConnectionEnd.EnvironmentLost]. Any other close the client did not ask for emits [ConnectionEvent.Interrupted] and
- * leads to a reconnect.
+ * with 1003 ends the connection with [ConnectionEnd.HandshakeRejected]. The `engineStatus` notice with the phase
+ * `stopped`, or a stopped environment, ends it with [ConnectionEnd.EnvironmentStopped]; the runtime keeps the socket
+ * open across a stop, so the connection closes it itself. The close 1000 `Environment dropped`, or a dropped
+ * environment, ends it with [ConnectionEnd.EnvironmentDropped]. A lost environment, and the close 1001
+ * `Runtime stopped` of a runtime that ends, end it with [ConnectionEnd.EnvironmentLost]. Any other close the client did not ask for emits
+ * [ConnectionEvent.Interrupted] and leads to a reconnect.
  *
  * Every function may be called from any coroutine. The connection runs in a supervisor child of the scope it was
  * created in. The connection is the only writer of [state]. The reader of a link only decodes frames and hands the

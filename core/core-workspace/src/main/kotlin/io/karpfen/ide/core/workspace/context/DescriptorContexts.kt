@@ -63,15 +63,22 @@ internal class DescriptorContexts(private val tree: WorkspaceTree, private val d
             val descriptor = result.descriptor ?: return@mapNotNull null
             val directory = checkNotNull(path.parent) { "descriptor $path has no directory" }
             result.references.forEach { reference -> check(reference, directory)?.let { diagnostics.add(path, it) } }
-            contextOf(path, directory, descriptor)
+            contextOf(path, directory, descriptor, result.references.filter { it.role == DescriptorFileRole.STATE_MACHINE })
         }
     }
 
     /**
      * The context of the descriptor at [path] in [directory]. The files it names that are not there are left out. The
-     * context carries the decoded [descriptor] itself, so the rest of what it says reaches the analysis too.
+     * context carries the decoded [descriptor] itself, so the rest of what it says reaches the analysis too. Each state
+     * machine carries where the descriptor names its file, from [machineReferences], the references of the role
+     * STATE_MACHINE in document order, one per entry of `stateMachines`.
      */
-    private fun contextOf(path: Path, directory: Path, descriptor: EnvironmentDescriptor): ModelingContext {
+    private fun contextOf(
+        path: Path,
+        directory: Path,
+        descriptor: EnvironmentDescriptor,
+        machineReferences: List<DescriptorFileReference>,
+    ): ModelingContext {
         fun named(value: String, role: DescriptorFileRole): Path? = files.lookUp(directory, value, role).file?.path
         return ModelingContext(
             directory = directory,
@@ -79,8 +86,10 @@ internal class DescriptorContexts(private val tree: WorkspaceTree, private val d
             metamodel = named(descriptor.metamodel, DescriptorFileRole.METAMODEL),
             events = descriptor.events?.let { named(it, DescriptorFileRole.EVENTS) },
             models = listOfNotNull(named(descriptor.model, DescriptorFileRole.MODEL)),
-            stateMachines = descriptor.stateMachines.mapNotNull { entry ->
-                named(entry.file, DescriptorFileRole.STATE_MACHINE)?.let { StateMachineBinding(it, entry.attachedTo) }
+            stateMachines = descriptor.stateMachines.mapIndexedNotNull { index, entry ->
+                named(entry.file, DescriptorFileRole.STATE_MACHINE)?.let {
+                    StateMachineBinding(it, entry.attachedTo, machineReferences.getOrNull(index)?.range)
+                }
             },
             environment = descriptor,
         )

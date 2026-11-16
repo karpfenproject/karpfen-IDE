@@ -42,6 +42,9 @@ public enum class DeployStepKind {
     /** Attaches one state machine to its object key. */
     ATTACH_STATE_MACHINE,
 
+    /** Uploads one attachable state machine, which the environment holds as a definition under its name. */
+    DEFINE_STATE_MACHINE,
+
     /** Sets the tick delay of the deploy configuration. */
     SET_TICK_DELAY,
 

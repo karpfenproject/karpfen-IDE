@@ -100,8 +100,9 @@ internal class KstatesTokenizer : Tokenizer {
  * The KStates vocabulary outside EVAL bodies. It classifies these token types:
  * - the operations of [KarpfenSyntax.KSTATES_OPERATIONS]. The grammar accepts each operation in both cases with one
  *   token type, which is found by name in the lexer's vocabulary.
- * - every other grammar keyword, including `EVENT` and the words of histories, tick limits and breakpoints. The
- *   tokenizer turns `EVENT` into an OPERATION in action blocks.
+ * - every other grammar keyword, including `EVENT`, the words of histories, tick limits and breakpoints, and the
+ *   `ATTACHABLE` of a header and the `ATTACH` of a clause. The tokenizer turns `EVENT` into an OPERATION in action
+ *   blocks.
  * - double-quoted and single-quoted strings.
  * - identifiers, such as `list` in a type expression.
  * - numbers, `->`, punctuation with the `:` of tick limits, and the hidden `//` comments.
@@ -118,7 +119,7 @@ internal val KSTATES_TOKEN_KINDS: TokenKindTable = TokenKindTable.of(
         KstatesLexer.MACROS, KstatesLexer.TAKES, KstatesLexer.RETURNS, KstatesLexer.DEFINITION, KstatesLexer.REFERENCE,
         KstatesLexer.IF, KstatesLexer.IN, KstatesLexer.SCOPE, KstatesLexer.SHALLOW, KstatesLexer.DEEP, KstatesLexer.HISTORY,
         KstatesLexer.BREAKPOINT, KstatesLexer.EXIT, KstatesLexer.START, KstatesLexer.END, KstatesLexer.TICK, KstatesLexer.LIMIT,
-        KstatesLexer.DELAY, KstatesLexer.TIMEOUT, KstatesLexer.AFTER,
+        KstatesLexer.DELAY, KstatesLexer.TIMEOUT, KstatesLexer.AFTER, KstatesLexer.ATTACHABLE, KstatesLexer.ATTACH,
     ),
     TokenKind.STRING to intArrayOf(KstatesLexer.STRING, KstatesLexer.SSTRING),
     TokenKind.IDENTIFIER to intArrayOf(KstatesLexer.IDENT),

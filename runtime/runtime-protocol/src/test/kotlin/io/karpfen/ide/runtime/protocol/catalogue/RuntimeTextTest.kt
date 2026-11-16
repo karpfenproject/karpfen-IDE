@@ -134,6 +134,8 @@ class RuntimeTextTest {
             "id" to "a",
             "ms" to "10000",
             "feature" to "TickLimit",
+            "machine" to "blinking",
+            "entries" to "'Bulb' behaves after 'glowing'",
         )
     }
 }

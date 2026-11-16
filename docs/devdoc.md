@@ -278,7 +278,9 @@ Problems view show. dsl-tools' `ProjectVerifier` checks the files of a project a
 and only runs in a validation. `DslVerifier` in core-document is the only place that calls it. It works on the
 dsl-tools read results that every `ReadResult` keeps, so no file is read twice. `ProjectValidator` in core-workspace
 hands it each modeling context: the metamodel, the event definitions, the model if the context has exactly one, and
-each state machine with the object its descriptor attaches it to. `Workspace.validate()` answers a `ProjectValidation`
+each state machine with the object its descriptor attaches it to. The attachable state machines go in without an
+object, and the number of machines without a read goes in too, so the verifier reports no name as unknown while one
+of them is missing. The verifier's findings about the metamodel and the event definitions land on those files. `Workspace.validate()` answers a `ProjectValidation`
 with the findings of the analysis and of the verifier, errors first. `ValidationState` in ui-workbench runs it for the
 Validate button, for the command Validate Project and before every run, shows the report in a dialog and keeps the
 last report. An error anywhere in the open folder blocks a run.
@@ -408,6 +410,11 @@ a nested state for one of the state around it. `StatechartPainter` draws a histo
 dot. Breakpoints only have a meaning in a runtime whose Breakpoint feature is on, which a run switches on when the
 project has breakpoints on.
 
+`StatechartDiagram.title` is the header of the text as one line. `StatechartArrangement` asks
+`StatechartLayout.titled` to place it above the other elements after both the automatic layout and the layout by
+hand, so it is derived anew from every layout, takes part in the bounds that the view fits and never enters the
+`.vis` file.
+
 ### Bridges run inside the IDE
 
 A bridge connects a running model to an external system: HTTP, MQTT or ROS. It is a plain Kotlin component with a
@@ -471,7 +478,7 @@ the client is tested against.
 
 A run deploys what is on disk, never unsaved editor text. The Run action saves every open file first. The descriptor
 holds the whole deploy configuration, so a run can be repeated without the IDE's state. Every deployment sends the
-tick delay and the event time to live. A stopped environment is final. Running again creates a new one.
+tick delay and the event time to live. A stopped environment is final for the IDE. Running again creates a new one.
 
 ### Product choices
 
@@ -545,8 +552,8 @@ independent.
 ### Deployment and observation
 
 Read `DeployStepKind` and the `deploy` package of runtime-session. A deployment checks the runtime, creates the
-environment, connects, uploads the files, attaches the state machines, sets the timing, listens to the domains,
-switches on the runtime features of the project, activates, starts observing and starts.
+environment, connects, uploads the files, attaches the state machines and uploads the definitions, sets the timing,
+listens to the domains, switches on the runtime features of the project, activates, starts observing and starts.
 
 Histories, tick limits, breakpoints, macros, and splits and joins are optional features of the state machine
 language, listed by dsl-tools' `KstatesFeature`. A project switches them on by hand, and `.karpfenproject` stores
@@ -556,7 +563,27 @@ of a feature that is off as the error `kstates.feature-off`. That error blocks a
 the statechart menu read the set and leave out what is off. `LanguageFeature` in runtime-session maps what is on to
 runtime features: histories to History, tick limits to TickLimit and breakpoints to Breakpoint. The runtime reads
 these words in every environment but applies them only where its feature is on. Macros, and splits and joins, need
-nothing in the runtime.
+nothing in the runtime. Dynamic attachment is no optional feature: attachable state machines, `behaves after`,
+`ATTACH`, `DETACH` and `EXCHANGE` are always part of the languages.
+
+A descriptor entry without `attachedTo` hands an attachable state machine to the environment as a definition.
+`StateMachineForms` in core-workspace checks during the analysis that the form of each listed file fits its entry,
+from the syntax index, and reports `descriptor-state-machine-form` at the file value of the entry. The plan uploads a
+definition with the role `UploadRole.DEFINITION`, without a key, in descriptor order among the attached state
+machines, and keeps the definitions as `DeploymentPlan.definitions`. `DefinitionNotListedCheck` and
+`AttachedDefinitionNotListedCheck` compare the names that `behaves after`, `ATTACH` and `EXCHANGE` use with the listed
+definitions, which only the deployment knows; whether a name exists in the project is a check of dsl-tools.
+
+Which objects run which state machine changes during a run. The runtime announces each instance with the push
+`stateMachineAttached` and its end with `stateMachineDetached`, both with the object key and the definition name, or
+null for an attached state machine, and both count as revisions. The snapshot carries the same record as
+`stateMachines`. `ActiveStatesReducer` keeps `ActiveStates.machines` equal to that record: the attached layouts before
+the start, then the announced instances in their order, each with the `DefinitionLayout` of its definition from
+`PreparedDeployment.definitions`. Everything that lists machines reads that map, so the Runtime tool window, the
+statecharts through `DiagramLives`, the bridges and the run without a window follow instances as they come and go.
+`StatechartLogReader` reads the trace in order and keeps the live paths of each object: a split replaces its path by
+the paths it starts, a join, an exchange or a forced initial state replaces the paths it ends by its own, and a detach
+forgets them. It puts `path N: ` in front of a line only while the object has more than one live path.
 
 A project also has features that are no part of the language, `ProjectFeature` in runtime-session. TrueParallel is
 the one there is. It is stored as `feature.trueParallel = on`, switched through `LanguageFeatureBinding` and the Run
@@ -582,6 +609,18 @@ it answers with every error of the text and its line and column. `UploadRejectio
 answer, and `FailureLocator` turns each error into a problem at its place in the uploaded file. The first snapshot is
 compared with the model the IDE analyzed. Each object that differs gets the warning `deploy-model-differs`.
 
+Every end of a run drops its environment. `SessionStops` stops the environment, lets the connection end, reads the
+model a last time and then hands the environment to `EnvironmentDropper`, so Stop, a run that replaces another,
+closing the project, Stop runtime, quitting and the end of a run without a window all drop the same way. The conductor
+drops after the final read when somebody else stops the environment, and on a lost environment it tries the drop on
+a coroutine of its own. A failed deployment drops through the ledger's disposer, `DropEnvironments`. `EnvironmentDrop`
+bounds each drop by `DeployTiming.dropBound` and turns the answer into a `DropResult`: dropped, gone or kept with a
+reason. A kept environment gives the info `environment-left-behind` and a note in the journal, and never fails the
+end of the run. `EnvironmentDeparture` records the outcome once in `EnvironmentLedger`. After the drop the session is
+stopped, and stopped refuses every command, so Pull, the observation switch, the injector, the debugger and the
+bridges ask the runtime nothing more. `ModelControls` in ui-workbench greys out Pull and the switch from then on. A
+plain `close()` of a session still leaves its environment on the runtime.
+
 Read `ObservationReducer`. A mirror starts from a snapshot and then applies pushes in revision order. A gap in the
 revisions or a reconnect triggers a fresh snapshot. The runtime answers a snapshot only at a tick boundary and waits
 up to 10 s for one, so snapshots get slow on a large model or with long Python calls in a tick.
@@ -596,6 +635,14 @@ Read `DefaultRuntimeConnection`, `LifecycleRules` and `RuntimeJson`.
   socket. A half-open old socket still swallows pushes until the runtime's ping drops it. The model then
   resynchronizes, at worst about 75 s late, and domain events lost in that time are not recovered.
 - Forcing a state makes the runtime discard all queued external events of the environment.
+- A stop only freezes an environment, and the runtime keeps the sockets of its clients open. It pushes an
+  `engineStatus` notice with the member `phase`. The connection ends as stopped on the notice of a stop, or as soon as
+  the handle's phase is stopped, and closes its socket itself. A run whose environment another client stops ends the
+  same way. The runtime closes the sockets when it ends, with 1001 `Runtime stopped`, which ends the connection as
+  lost, and when the environment is dropped, with 1000 `Environment dropped`, which ends it as dropped.
+- `POST /dropEnvironment` removes an environment in any phase, after its engine ended. The handle's `drop()` sends it
+  in every phase and makes the phase `Dropped`, which is final and refuses every other operation. A key the runtime
+  no longer knows makes the phase lost. An older runtime without the route answers 404.
 
 ### Keyboard handling
 

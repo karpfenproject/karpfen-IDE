@@ -1,0 +1,2 @@
+# karpfen project settings. karpfen IDE reads and rewrites this file.
+feature.macros = on

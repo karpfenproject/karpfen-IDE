@@ -71,6 +71,31 @@ public object RuntimeGoldens {
         """{"environmentKey":"$ENVIRONMENT","clientId":"$CLIENT","messageType":"stateChange","payload":$STATE_CHANGE_PAYLOAD}"""
 
     /**
+     * The `stateMachineAttached` payload of an instance of the attachable state machine `blinking` on the object
+     * `gen_Bulb_0` at revision 61, as `ObservationRelay.lifecyclePayload` builds it with org.json 20240303. org.json
+     * writes the members in the order `stateMachine`, `modelElementId`, `revision`.
+     */
+    public const val STATE_MACHINE_ATTACHED_PAYLOAD: String =
+        """{"stateMachine":"blinking","modelElementId":"gen_Bulb_0","revision":61}"""
+
+    /** The `stateMachineAttached` push of [STATE_MACHINE_ATTACHED_PAYLOAD], as `OutgoingMessage.toJson` wraps it. */
+    public const val STATE_MACHINE_ATTACHED: String =
+        """{"environmentKey":"$ENVIRONMENT","clientId":"$CLIENT","messageType":"stateMachineAttached",""" +
+            """"payload":$STATE_MACHINE_ATTACHED_PAYLOAD}"""
+
+    /**
+     * The `stateMachineDetached` payload of the state machine that the run configuration attached to `living room`, at
+     * revision 62. Its `stateMachine` is JSON `null`, because an attached state machine has no name.
+     */
+    public const val STATE_MACHINE_DETACHED_PAYLOAD: String =
+        """{"stateMachine":null,"modelElementId":"living room","revision":62}"""
+
+    /** The `stateMachineDetached` push of [STATE_MACHINE_DETACHED_PAYLOAD], as `OutgoingMessage.toJson` wraps it. */
+    public const val STATE_MACHINE_DETACHED: String =
+        """{"environmentKey":"$ENVIRONMENT","clientId":"$CLIENT","messageType":"stateMachineDetached",""" +
+            """"payload":$STATE_MACHINE_DETACHED_PAYLOAD}"""
+
+    /**
      * The published event `start` of the domain `public`, injected over the WebSocket without a payload, as
      * `ObservationRelay.onPublished` builds it with org.json 20240303. The members come in org.json's order `payload`,
      * `source`, `ttlMs`, `event`, `payloadFormat`, `timestamp`.
@@ -112,6 +137,17 @@ public object RuntimeGoldens {
         """{"environmentKey":"$ENVIRONMENT","clientId":"$CLIENT","messageType":"engineStatus","payload":$ENGINE_STATUS_RUNNING_PAYLOAD}"""
 
     /**
+     * The `engineStatus` notice that a stop froze an environment without `TickByTick`, as
+     * `ObservationRelay.onPhaseChanged` writes it with org.json 20240303. org.json writes the members in the order
+     * `phase`, `paused`, `waiting`.
+     */
+    public const val ENGINE_STATUS_STOPPED_PAYLOAD: String = """{"phase":"stopped","paused":false,"waiting":false}"""
+
+    /** The `engineStatus` push of [ENGINE_STATUS_STOPPED_PAYLOAD], as `ClientSessionManager.notifyEngineStatus` sends it. */
+    public const val ENGINE_STATUS_STOPPED: String =
+        """{"environmentKey":"$ENVIRONMENT","clientId":"$CLIENT","messageType":"engineStatus","payload":$ENGINE_STATUS_STOPPED_PAYLOAD}"""
+
+    /**
      * A handshake that the runtime's `/ws` handler accepts. It is the client id, the environment key and the access key
      * joined by `:`. The access key has the shape `ak-<clientId>-<millis>-<0..9999>` that `ClientSessionManager`
      * issues.
@@ -147,10 +183,11 @@ public object RuntimeGoldens {
 
     /**
      * The snapshot of an activated lamp environment [ENVIRONMENT] before its start, as `ModelSnapshot.toJson` writes
-     * it. It has the phase `activated`, the revision 0, no active stacks yet, and the [LAMP_ROOT].
+     * it. It has the phase `activated`, the revision 0, no active stacks and no state machine instances yet, and the
+     * [LAMP_ROOT].
      */
     public const val LAMP_SNAPSHOT_BEFORE_START: String =
-        """{"environmentKey":"$ENVIRONMENT","phase":"activated","revision":0,"activeStates":{},"roots":[$LAMP_ROOT]}"""
+        """{"environmentKey":"$ENVIRONMENT","phase":"activated","revision":0,"activeStates":{},"stateMachines":{},"roots":[$LAMP_ROOT]}"""
 
     /**
      * The full value of `turtle` of the single robot example, as `ModelJsonWriter.write` writes it. These are the bytes
@@ -243,7 +280,8 @@ public object RuntimeGoldens {
 
     /** Every push golden of [ENVIRONMENT] and [CLIENT], in the order of their declarations. */
     public val PUSHES: List<String> = listOf(
-        OBJECT_CHANGED, OBJECT_DELETED, STATE_CHANGE, DOMAIN_EVENT, ENGINE_STATUS_HALTED, ENGINE_STATUS_RUNNING, TURTLE_CHANGED,
+        OBJECT_CHANGED, OBJECT_DELETED, STATE_CHANGE, DOMAIN_EVENT, ENGINE_STATUS_HALTED, ENGINE_STATUS_RUNNING, ENGINE_STATUS_STOPPED,
+        TURTLE_CHANGED,
         ESCAPES_CHANGED, NON_FINITE_CHANGED, RELATIONS_CHANGED, STATE_CHANGE_REORDERED, DOMAIN_EVENT_REORDERED,
     )
 }

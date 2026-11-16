@@ -22,6 +22,7 @@ import io.karpfen.ide.core.lang.completion.Snippet
 import io.karpfen.ide.core.lang.completion.nameItem
 import io.karpfen.ide.core.lang.feature.CompletionProvider
 import io.karpfen.ide.core.lang.feature.FeatureRequest
+import io.karpfen.ide.core.lang.symbols.AttachableMachines
 import io.karpfen.ide.core.lang.symbols.TypeCatalog
 import io.karpfen.ide.core.lang.symbols.TypeOrigin
 
@@ -30,7 +31,9 @@ import io.karpfen.ide.core.lang.symbols.TypeOrigin
  * `prop`, `has`, `knows` and `list` snippets. At the second argument of `prop(` it offers `number`, `string` and
  * `boolean`. At the type argument of `has(`, `knows(` or `list(` it offers the types of [types]. These are the types
  * declared in the file, plus the domain types of the context when the file is `EVENTS.kmeta`. Outside quotes, names
- * are inserted with quotes, and `list("…")` is offered as well.
+ * are inserted with quotes, and `list("…")` is offered as well. It offers the clause `behaves after "…"` after the
+ * description of a domain type, and the attachable state machines of the context inside that clause, those attachable
+ * to the type first.
  */
 internal class KmetaCompletionProvider(
     private val slots: KmetaSlots,
@@ -47,6 +50,8 @@ internal class KmetaCompletionProvider(
                 val names = if (slot.primitive) primitives(slot) else typeNames(request, slot)
                 names + if (slot.listAllowed && !slot.inString) listOf(LIST_SNIPPET.item(replace, rank = 2)) else emptyList()
             }
+            is KmetaSlot.TypeHeader -> if (request.isEventsDocument) emptyList() else listOf(BEHAVES_AFTER_SNIPPET.item(replace))
+            is KmetaSlot.StateMachineName -> AttachableMachines(request).items(slot.range, suitedType = slot.owner)
             is KmetaSlot.TypeName, is KmetaSlot.MemberName, KmetaSlot.None -> emptyList()
         }
     }
@@ -74,6 +79,7 @@ internal class KmetaCompletionProvider(
     private companion object {
         val TYPE_SNIPPET = Snippet("type \"Name\" \"Description\" { }", "type \"\$0\" \"\" { }", detail = "type definition")
         val LIST_SNIPPET = Snippet("list(\"…\")", "list(\"\$0\")", detail = "list of a type")
+        val BEHAVES_AFTER_SNIPPET = Snippet("behaves after \"…\"", "behaves after \"\$0\"", detail = "state machine of every object")
         val RULE_SNIPPETS = listOf(
             Snippet("prop(\"…\", \"…\")", "prop(\"\$0\", \"\")", detail = "simple property"),
             Snippet("has(\"…\", \"…\")", "has(\"\$0\", \"\")", detail = "containment relation"),

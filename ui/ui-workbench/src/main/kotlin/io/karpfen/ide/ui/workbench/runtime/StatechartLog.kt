@@ -41,8 +41,15 @@ public data class StatechartLogEntry(
  * the rest of the runtime's output, such as the lines about the server, the sockets and the clients.
  *
  * It shows the steps of the engine trace in the wording of [EngineTrace.describe]: the initial states, the transitions,
- * splits and joins, the entry actions and the engine's start and stop. It also shows every error line, because an
- * error in an action or in Python explains why a state machine did not do what was expected.
+ * splits and joins, the entry actions, the instances that objects get and lose, and the engine's start and stop. It
+ * also shows every error line, because an error in an action or in Python explains why a state machine did not do
+ * what was expected.
+ *
+ * While a state machine is split, its lines run on several paths at once, and the lines of the paths interleave. The
+ * engine names the path of every line. [StatechartLogReader] reads lines in order, follows which paths each state
+ * machine has, and puts `path 1: ` before the text of a line while its state machine has more than one path. A state
+ * machine that never splits never shows a path. The split and join lines name the paths they start and end. [entry]
+ * reads a single line without that knowledge, so it shows no path.
  */
 public object StatechartLog {
 
@@ -55,7 +62,13 @@ public object StatechartLog {
     /** True if the simplified log shows [line]. That is a step of the engine trace or an error. */
     public fun shows(line: OutputLine): Boolean = line.level == OutputLevel.ERROR || EngineTrace.parse(line.message) != null
 
-    /** [line] as the simplified log shows it. */
+    /** [lines], in order, as the simplified log shows them, with the paths of split state machines. */
+    public fun entries(lines: List<OutputLine>): List<StatechartLogEntry> {
+        val reader = StatechartLogReader()
+        return lines.map(reader::read)
+    }
+
+    /** [line] as the simplified log shows it, read on its own, so it shows no path. */
     public fun entry(line: OutputLine): StatechartLogEntry {
         val step = EngineTrace.parse(line.message)
             ?: return StatechartLogEntry(TIME.format(line.time), "", line.message, line.level == OutputLevel.ERROR)
@@ -66,6 +79,52 @@ public object StatechartLog {
      * The width of the subject column for [lines] in characters. It is the longest subject among them, at most
      * [MAX_SUBJECT_WIDTH], so the texts of all lines start in one column.
      */
-    public fun subjectWidth(lines: List<OutputLine>): Int =
-        lines.maxOfOrNull { entry(it).subject.length }?.coerceAtMost(MAX_SUBJECT_WIDTH) ?: 0
+    public fun subjectWidth(lines: List<OutputLine>): Int = widthOf(lines.map(::entry))
+
+    /** The width of the subject column for [entries] in characters, by the rule of [subjectWidth]. */
+    public fun widthOf(entries: Collection<StatechartLogEntry>): Int =
+        entries.maxOfOrNull { it.subject.length }?.coerceAtMost(MAX_SUBJECT_WIDTH) ?: 0
+}
+
+/**
+ * Reads the lines of the runtime's log in order as the simplified log shows them. It follows the paths of every state
+ * machine instance, by environment and object, from the lines that start and end paths:
+ * - an attached line starts the instance on its `path`, and a detached line ends the instance;
+ * - a split line ends its `path` and starts the paths in `starts`;
+ * - a join line, a forced stack and an exchange line end the paths in `ends` and start their `path`.
+ *
+ * A line whose state machine has more than one path then reads `path 1: ` before its text, for the path it names. A
+ * split line is judged by the paths before it, every other line by the paths after it. A state machine whose split
+ * the reader did not see, because the log started later, shows no paths until its next attach, exchange, join or
+ * forced stack. Not thread-safe; a reader belongs to one caller.
+ */
+public class StatechartLogReader {
+    /** The paths of each state machine instance, by environment and then by object key. */
+    private val paths = HashMap<String, HashMap<String, Set<String>>>()
+
+    /** [line] as the simplified log shows it, after the lines read before. */
+    public fun read(line: OutputLine): StatechartLogEntry {
+        val entry = StatechartLog.entry(line)
+        val step = EngineTrace.parse(line.message) ?: return entry
+        val instances = paths.getOrPut(step.environment) { HashMap() }
+        val before = instances[step.machine].orEmpty()
+        val after = next(step, before)
+        if (after == null) instances.remove(step.machine) else instances[step.machine] = after
+        val shown = if (step.kind == EngineTrace.SPLIT) before else after.orEmpty()
+        val path = step.details[EngineTrace.PATH]?.takeIf { shown.size > 1 && it in shown } ?: return entry
+        return entry.copy(text = "path $path: ${entry.text}")
+    }
+
+    /** The paths of the instance after [step], given those [before] it, or null once the instance ended. */
+    private fun next(step: EngineTraceLine, before: Set<String>): Set<String>? {
+        val path = step.details[EngineTrace.PATH]
+        return when (step.kind) {
+            EngineTrace.ATTACHED -> setOfNotNull(path)
+            EngineTrace.DETACHED -> null
+            EngineTrace.SPLIT -> before - setOfNotNull(path) + EngineTrace.numbers(step, EngineTrace.STARTS)
+            EngineTrace.JOIN, EngineTrace.EXCHANGED, EngineTrace.INITIAL ->
+                if (path == null) before else before - EngineTrace.numbers(step, EngineTrace.ENDS).toSet() + path
+            else -> before
+        }
+    }
 }

@@ -95,7 +95,9 @@ internal class StartStep : DeployStep {
 }
 
 /**
- * Confirms the start by reading the model until every attached state machine has an active state. It reads once a
+ * Confirms the start by reading the model until every state machine instance has an active state. The instances are
+ * the attached state machines of the plan and every instance the snapshot lists in its record of state machines,
+ * which holds the instances of definitions the start built for objects whose type behaves after one. It reads once a
  * tick at most, every `max(confirmPoll, tick delay)`, for at most `max(confirmMinimum, confirmTicks * tick delay)`. An
  * engine that halted fails the step. When the bound passes, the step adds an `engine-silent` warning and the
  * deployment still succeeds. A read that fails is retried, unless the runtime no longer knows the environment.
@@ -144,9 +146,12 @@ internal class ConfirmStartStep(private val tickDelayMs: Int) : DeployStep {
         }
     }
 
-    /** The attached keys of [machines] that have no active state in [snapshot]. */
+    /**
+     * The keys of the instances that have no active state in [snapshot]: the attached keys of [machines] and the keys
+     * of the snapshot's record of state machines.
+     */
     private fun silentIn(snapshot: RuntimeModelSnapshot, machines: List<String>): List<String> =
-        machines.filter { snapshot.activeStates[it].isNullOrEmpty() }
+        (machines + snapshot.stateMachines.keys).distinct().filter { snapshot.activeStates[it].isNullOrEmpty() }
 
     /** The failure of an engine that ended on its own. */
     private fun halted(): StepOutcome.Failed =

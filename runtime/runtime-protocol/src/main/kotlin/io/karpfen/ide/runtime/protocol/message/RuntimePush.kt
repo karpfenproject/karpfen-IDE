@@ -37,9 +37,10 @@ public data class PublishedEvent(
 )
 
 /**
- * A message the runtime pushed to the client, decoded from its envelope. Object and stack pushes carry the revision of
- * their observation. A model subscriber receives every revision of its environment in order. So a revision above the
- * last one plus one proves that pushes were lost. Domain events and engine statuses carry no revision.
+ * A message the runtime pushed to the client, decoded from its envelope. Object, stack and state machine pushes carry
+ * the revision of their observation from one counter of the environment. A model subscriber receives every revision of
+ * its environment in order. So a revision above the last one plus one proves that pushes were lost. Domain events and
+ * engine statuses carry no revision.
  */
 public sealed interface RuntimePush {
     /**
@@ -66,13 +67,44 @@ public sealed interface RuntimePush {
     /**
      * The active stack of a state machine changed (`stateChange`).
      *
-     * @property modelElementId the `attachedTo` key of the machine.
+     * @property modelElementId the key of the object whose state machine instance changed its stack.
      * @property stack the plain state names of every parallel branch, outermost first, branches concatenated.
      * @property revision the revision of the observation.
      */
     public data class StateChanged(
         public val modelElementId: String,
         public val stack: List<String>,
+        public val revision: Long,
+    ) : RuntimePush
+
+    /**
+     * A state machine instance appeared on an object (`stateMachineAttached`). The runtime sends one for every instance
+     * at each start of the environment, before the first tick, and one for every instance a tick attached, at the end
+     * of that tick. The instance does its first step in the next tick, so its first `stateChange` follows later.
+     *
+     * @property modelElementId the key of the object, which identifies the instance, since an object has at most one.
+     * @property stateMachine the name of the attachable state machine the instance runs, or null for a state machine
+     *   attached to the object by the run configuration.
+     * @property revision the revision of the observation.
+     */
+    public data class StateMachineAttached(
+        public val modelElementId: String,
+        public val stateMachine: String?,
+        public val revision: Long,
+    ) : RuntimePush
+
+    /**
+     * A state machine instance left its object (`stateMachineDetached`), at the end of the tick in which its object was
+     * removed or `EXCHANGE` ended it. The instance does no further step, and the runtime forgets its stack. An exchange
+     * sends this push for the old instance and then a [StateMachineAttached] for the new one under the same key.
+     *
+     * @property modelElementId the key of the object.
+     * @property stateMachine the name of the attachable state machine the instance ran, or null for an attached one.
+     * @property revision the revision of the observation.
+     */
+    public data class StateMachineDetached(
+        public val modelElementId: String,
+        public val stateMachine: String?,
         public val revision: Long,
     ) : RuntimePush
 
@@ -95,9 +127,15 @@ public sealed interface RuntimePush {
      * on. It sends one when the thread starts to wait, between two ticks or at a breakpoint, and one when it goes on.
      * A pause that was asked for while the engine still finishes its tick is told only once the thread waits.
      *
+     * The runtime sends the same message, with the member `phase`, to every connected client when a stop freezes the
+     * environment ([RuntimePhase.STOPPED]) and when a start lets a stopped environment continue
+     * ([RuntimePhase.RUNNING]), with or without `TickByTick`. The sockets stay open across a stop. The status of such a
+     * notice is the `TickByTick` status at that moment, both false without the feature.
+     *
      * @property status the engine's status, the same object that the feature `Breakpoint` answers to `getStatus`.
+     * @property phase the phase a stop or a start just reached, or null for the pushes of `TickByTick`.
      */
-    public data class EngineStatusChanged(public val status: EngineStatus) : RuntimePush
+    public data class EngineStatusChanged(public val status: EngineStatus, public val phase: RuntimePhase? = null) : RuntimePush
 
     /**
      * A message of a type the client does not know. It is not a violation, because the runtime may add types.

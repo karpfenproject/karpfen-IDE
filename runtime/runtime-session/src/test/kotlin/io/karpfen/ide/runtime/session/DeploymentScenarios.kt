@@ -45,7 +45,7 @@ import kotlin.test.assertTrue
  * configuration runs both machines of the lamp and reports its steps in order. It shows the reported stacks in place of
  * the predictions, is listed with its machines and serves the saved state machine. A dirty document is saved before the
  * deployment, so the runtime reads the edited value. A deployment without start can force a state and then start. A
- * stop is final, and running again deploys a fresh environment. The realistic single robot reads back equal to the
+ * stop is final and drops the environment, so the runtime no longer lists it, and running again deploys a fresh one. The realistic single robot reads back equal to the
  * seed.
  *
  * Some failures only a fake runtime can produce. These are an engine that halts at start and a runtime without IDE
@@ -116,7 +116,7 @@ abstract class DeploymentScenarios {
     }
 
     @Test
-    fun `a stop is final, and running again deploys a fresh environment`() = runtime.run(root) {
+    fun `a stop is final and drops the environment, and running again deploys a fresh environment`() = runtime.run(root) {
         val first = deploy(SynthesizedModel.LAMP)
 
         assertEquals(SessionCommandOutcome.Done, first.stop())
@@ -126,8 +126,8 @@ abstract class DeploymentScenarios {
 
         assertNotEquals(first.environment, second.environment)
         val listed = assertIs<RuntimeResult.Ok<List<ActiveEnvironment>>>(client.activeEnvironments()).value.map { it.key }
-        assertTrue(first.environment in listed && second.environment in listed, "$listed")
-        assertEquals("stopped", snapshotOf(first.environment, first.prepared).phase)
+        assertTrue(first.environment !in listed && second.environment in listed, "$listed")
+        assertEquals(BAD_REQUEST, call(RuntimeRoute.MODEL_SNAPSHOT, "envKey" to first.environment.value).status, diagnostics)
     }
 
     @Test
@@ -138,5 +138,10 @@ abstract class DeploymentScenarios {
 
         assertTrue(session.problems.value.none { it.code == DeployProblemCodes.MODEL_DIFFERS }, "${session.problems.value}")
         assertEquals(emptyList(), MirrorComparison.differences(session.prepared.seed, session.snapshot().mirror), diagnostics)
+    }
+
+    private companion object {
+        /** The status of a rejected argument, which an unknown environment key gets. */
+        const val BAD_REQUEST = 400
     }
 }

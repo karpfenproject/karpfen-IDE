@@ -33,6 +33,9 @@ import io.karpfen.ide.ui.foundation.theme.KarpfenColors
 /**
  * Draws a statechart.
  *
+ * The title line of the state machine, its name and the types it is attachable to or the type it is attached to, is
+ * written above the drawing where the layout places it, in the style of the names of states.
+ *
  * States are drawn parents first, so nested states lie on top of their parent. A state with nested states shows its
  * name in a row at its top. A state without shows it in its middle, above the room for the markers of its tick limit
  * and its entry and do blocks, which the canvas draws. A history is a small circle with an `H` for a shallow one and
@@ -73,7 +76,7 @@ internal object StatechartPainter : DiagramPainter<StatechartDiagram, Statechart
     override fun texts(diagram: StatechartDiagram): Map<TextRole, Collection<String>> {
         val states = diagram.allStates()
         return mapOf(
-            TextRole.TITLE to states.map { it.name },
+            TextRole.TITLE to states.map { it.name } + listOfNotNull(diagram.title),
             TextRole.ROW to listOf(StatechartMetrics.LIMIT_WORD, StatechartMetrics.ENTRY_WORD, StatechartMetrics.DO_WORD, SHALLOW_MARK, DEEP_MARK),
             TextRole.LABEL to diagram.edges().map { it.caption },
         )
@@ -88,6 +91,7 @@ internal object StatechartPainter : DiagramPainter<StatechartDiagram, Statechart
         faults: DiagramFaults,
     ) {
         val unit = scope.density
+        faults.attempt("writing the title line") { scope.drawTitle(diagram, layout, texts) }
         for (state in diagram.allStates()) {
             val box = layout.states[state.name] ?: continue
             faults.attempt("drawing the state ${state.name}") { scope.drawState(state, box, layout, texts, colors) }
@@ -128,6 +132,14 @@ internal object StatechartPainter : DiagramPainter<StatechartDiagram, Statechart
         val marks = StatechartPauseMarks.of(diagram, layout, pause)
         marks.lines.forEach { scope.drawPausedLine(it, colors) }
         marks.frames.forEach { scope.drawPausedBox(it, colors) }
+    }
+
+    /** Writes the title line of [diagram] into its box in [layout], in the middle of its height. */
+    private fun DrawScope.drawTitle(diagram: StatechartDiagram, layout: StatechartLayout, texts: DiagramTexts) {
+        val box = layout.title ?: return
+        val title = texts[TextRole.TITLE, diagram.title ?: return] ?: return
+        val topLeft = box.topLeft(density)
+        drawText(title, topLeft = topLeft + Offset(0f, (box.height * density - title.size.height) / 2f))
     }
 
     /** Draws the dots of the breakpoints of [transition] beside the box [label] of its caption. */

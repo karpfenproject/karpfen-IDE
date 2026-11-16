@@ -28,7 +28,7 @@ class StatechartProjectionTest {
 
     @Test
     fun `the states keep their nesting, their order and what the text says about them`() {
-        assertEquals("Lamp", lamp.attachedTo)
+        assertEquals(Triple(null, listOf("Lamp"), "Lamp"), Triple(lamp.name, lamp.types, lamp.attachedTo))
         assertEquals(listOf("off", "on", "broken"), lamp.states.map { it.name })
         assertEquals(listOf("full", "brighter"), lamp.state("on")?.children?.map { it.name })
         assertEquals(listOf("off", "on", "full", "brighter", "broken"), lamp.allStates().map { it.name })
@@ -131,6 +131,15 @@ class StatechartProjectionTest {
             listOf("JOIN:left,right->done#1/from:left", "JOIN:left,right->done#1/from:right", "JOIN:left,right->done#1/to:done"),
             join.lineIds,
         )
+    }
+
+    @Test
+    fun `an attachable state machine carries its name and its types and is attached to nothing`() {
+        val text = LampStateMachine.LAMP.replace("STATEMACHINE ATTACHED TO \"Lamp\"", "STATEMACHINE \"glowing\" ATTACHABLE TO \"Lamp\", \"Bulb\"")
+        val glowing = LampStateMachine.diagramOf(text)
+
+        assertEquals(Triple("glowing", listOf("Lamp", "Bulb"), null), Triple(glowing.name, glowing.types, glowing.attachedTo))
+        assertEquals(lamp.allStates().map { it.name }, glowing.allStates().map { it.name })
     }
 
     @Test

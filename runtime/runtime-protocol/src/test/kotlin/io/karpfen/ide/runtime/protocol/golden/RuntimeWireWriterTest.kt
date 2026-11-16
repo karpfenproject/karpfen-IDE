@@ -187,12 +187,17 @@ class RuntimeWireWriterTest {
 
         assertEquals(
             """{"environmentKey":"env-1761560123456","phase":"running","revision":57,"activeStates":{"turtle":["observe","react to obstacle"]},""" +
-                """"roots":[{"__id__": "turtle", "__type__": "Robot", "d_closest_obstacle": 0.2}]}""",
+                """"stateMachines":{},"roots":[{"__id__": "turtle", "__type__": "Robot", "d_closest_obstacle": 0.2}]}""",
             RuntimeWireWriter.snapshot(environment, RuntimePhase.RUNNING, 57, mapOf("turtle" to listOf("observe", "react to obstacle")), listOf(root)),
         )
         assertEquals(
-            """{"environmentKey":"env-1","phase":"activated","revision":0,"activeStates":{},"roots":[{"a":1},{"b":2}]}""",
+            """{"environmentKey":"env-1","phase":"activated","revision":0,"activeStates":{},"stateMachines":{},"roots":[{"a":1},{"b":2}]}""",
             RuntimeWireWriter.snapshot("env-1", RuntimePhase.ACTIVATED, 0, emptyMap(), listOf("""{"a":1}""", """{"b":2}""")),
+        )
+        assertEquals(
+            """{"environmentKey":"env-1","phase":"running","revision":4,"activeStates":{},""" +
+                """"stateMachines":{"living room":null,"gen_Bulb_0":"blinking"},"roots":[]}""",
+            RuntimeWireWriter.snapshot("env-1", RuntimePhase.RUNNING, 4, emptyMap(), emptyList(), linkedMapOf("living room" to null, "gen_Bulb_0" to "blinking")),
         )
     }
 

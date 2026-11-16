@@ -16,7 +16,10 @@
 package io.karpfen.ide.runtime.session.deploy
 
 import io.karpfen.ide.core.document.Severity
+import io.karpfen.ide.runtime.protocol.api.RuntimeFailure
 import io.karpfen.ide.runtime.protocol.catalogue.EnvironmentKey
+import io.karpfen.ide.runtime.protocol.catalogue.RejectionKind
+import io.karpfen.ide.runtime.protocol.catalogue.RuntimeRoute
 import io.karpfen.ide.runtime.protocol.lifecycle.EnvironmentPhase
 import io.karpfen.ide.runtime.protocol.lifecycle.PhaseKind
 import io.karpfen.ide.runtime.protocol.lifecycle.Uploads
@@ -28,6 +31,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Covers the environment ledger with its order, its publication and records from many threads. It also covers keeping
@@ -98,7 +102,46 @@ class EnvironmentLedgerTest {
     }
 
     @Test
-    fun `an environment the runtime lost does not stay`() {
+    fun `an environment the runtime lost or that was dropped does not stay`() {
         assertNull(entry("env-1", LedgerDisposition.LOST).leftBehind())
+        assertNull(entry("env-1", LedgerDisposition.DROPPED).leftBehind())
+    }
+
+    @Test
+    fun `dropping an environment records it as dropped, as lost when it was gone, and as it stays when the drop failed`() = runTest {
+        val ledger = EnvironmentLedger()
+        val drop = DropEnvironments(ledger, 10.seconds)
+        fun environment(phase: EnvironmentPhase, failure: RuntimeFailure? = null): ScriptedEnvironment {
+            val script = DeployScript { 0 }
+            failure?.let { script.fail("drop", it) }
+            return ScriptedEnvironment(ENVIRONMENT, script).also { it.settle(phase) }
+        }
+        val unknown = RuntimeFailure.Rejected(RuntimeRoute.DROP_ENVIRONMENT, 400, RejectionKind.UNKNOWN_ENVIRONMENT, "gone", emptyMap())
+        val notFound = RuntimeFailure.UnexpectedStatus(RuntimeRoute.DROP_ENVIRONMENT, 404, "")
+        val unreachable = RuntimeFailure.Unreachable(RuntimeRoute.DROP_ENVIRONMENT, "Connection refused")
+
+        val entries = listOf(
+            drop.dispose(environment(EnvironmentPhase.Running), ENDPOINT),
+            drop.dispose(environment(EnvironmentPhase.Lost("restarted")), ENDPOINT),
+            drop.dispose(environment(EnvironmentPhase.Stopped, unknown), ENDPOINT),
+            drop.dispose(environment(EnvironmentPhase.Activated, notFound), ENDPOINT),
+            drop.dispose(environment(EnvironmentPhase.Configuring(Uploads.NONE), unreachable), ENDPOINT),
+        )
+
+        assertEquals(
+            listOf(
+                LedgerDisposition.DROPPED, LedgerDisposition.LOST, LedgerDisposition.LOST,
+                LedgerDisposition.LEFT_ACTIVATED, LedgerDisposition.LEFT_CONFIGURED,
+            ),
+            entries.map { it.disposition },
+        )
+        assertEquals(entries, ledger.entries.value)
+        assertEquals(
+            "The runtime at http://127.0.0.1:8080 cannot drop environments, so it is older than the IDE; the environment " +
+                "$ENVIRONMENT stays there.",
+            entries[3].note,
+        )
+        assertTrue(entries[4].note.startsWith("Dropping the environment $ENVIRONMENT failed, so it may stay on the runtime at"), entries[4].note)
+        assertEquals(listOf(null, null, null), entries.take(3).map { it.leftBehind() })
     }
 }

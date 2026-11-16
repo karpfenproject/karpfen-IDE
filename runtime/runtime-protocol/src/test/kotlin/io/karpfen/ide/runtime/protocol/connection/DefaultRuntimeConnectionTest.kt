@@ -32,8 +32,10 @@ import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation
 import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleRefusal
 import io.karpfen.ide.runtime.protocol.lifecycle.PhaseKind
 import io.karpfen.ide.runtime.protocol.lifecycle.Uploads
+import io.karpfen.ide.runtime.protocol.message.EngineStatus
 import io.karpfen.ide.runtime.protocol.message.EventFrame
 import io.karpfen.ide.runtime.protocol.message.EventPayload
+import io.karpfen.ide.runtime.protocol.message.RuntimePhase
 import io.karpfen.ide.runtime.protocol.message.RuntimePush
 import io.karpfen.ide.runtime.protocol.message.ViolationKind
 import io.karpfen.ide.runtime.protocol.transport.LinkClosure
@@ -64,7 +66,8 @@ import kotlin.time.Duration.Companion.seconds
  * - The handshake is exact, and the connection is open without any acknowledgement.
  * - Pushes, violations and binary frames arrive in order without closing the link.
  * - The reader drains the link while the collector is suspended.
- * - The connection ends by a close 1003, also a late one, and by the runtime's stop. It also ends by the handle's
+ * - The connection ends by a close 1003, also a late one, by the runtime's notice of a stop, which leaves the socket
+ *   open so that the connection closes it, and by the runtime's close 1001 at its own end. It also ends by the handle's
  *   phase, by a key the runtime refuses for an unknown environment, by the client, by a scope cancelled before the
  *   open, and by the attempt limit.
  * - A reconnect comes after the policy's delay. It uses a fresh key and the same client id, closes the old link first
@@ -235,20 +238,92 @@ class DefaultRuntimeConnectionTest {
     }
 
     @Test
-    fun `the runtime's close at a stop ends the connection as stopped without a reconnect`() = runTest {
+    fun `the runtime's notice of a stop is handed on, ends the connection as stopped and closes the open link`() = runTest {
         val connection = connection()
         val (events, collector) = collect(connection)
         connection.open()
+        val notice = RuntimeWireWriter.engineStatusPayload(paused = false, waiting = false, phase = "stopped")
 
-        connector.links.single().closeByRuntime(1000, "Environment stopped")
+        connector.links.single().push(frame("engineStatus", notice))
+        connector.links.single().push(deletion("lamp", 7))
         runCurrent()
         advanceTimeBy(1.minutes)
         runCurrent()
 
         assertEquals(ConnectionState.Ended(ConnectionEnd.EnvironmentStopped), connection.state.value)
-        assertEquals(ConnectionEvent.Ended(ConnectionEnd.EnvironmentStopped), events.last())
+        assertEquals(
+            listOf(
+                ConnectionEvent.Opened(1),
+                ConnectionEvent.Received(RuntimePush.EngineStatusChanged(EngineStatus(false, false, null), RuntimePhase.STOPPED)),
+                ConnectionEvent.Ended(ConnectionEnd.EnvironmentStopped),
+            ),
+            events,
+        )
+        assertTrue(collector.isCompleted)
+        assertEquals(1000, connector.links.single().closes.single().first)
+        assertEquals(1, connector.links.size)
+    }
+
+    @Test
+    fun `the notice of a start and the pushes of TickByTick keep the connection open`() = runTest {
+        val connection = connection()
+        connection.open()
+
+        connector.links.single().push(frame("engineStatus", RuntimeWireWriter.engineStatusPayload(true, true, phase = "running")))
+        connector.links.single().push(frame("engineStatus", RuntimeWireWriter.engineStatusPayload(paused = false, waiting = false)))
+        runCurrent()
+
+        assertEquals(ConnectionState.Open(1), connection.state.value)
+        assertEquals(emptyList(), connector.links.single().closes)
+    }
+
+    @Test
+    fun `the runtime's close at its own end ends the connection as lost without a reconnect`() = runTest {
+        val connection = connection()
+        val (events, collector) = collect(connection)
+        connection.open()
+
+        connector.links.single().closeByRuntime(1001, "Runtime stopped")
+        runCurrent()
+        advanceTimeBy(1.minutes)
+        runCurrent()
+
+        val end = ConnectionEnd.EnvironmentLost("the runtime ended and closed every connection")
+        assertEquals(ConnectionState.Ended(end), connection.state.value)
+        assertEquals(ConnectionEvent.Ended(end), events.last())
         assertTrue(collector.isCompleted)
         assertEquals(1, connector.links.size)
+    }
+
+    @Test
+    fun `the runtime's close of a dropped environment ends the connection as dropped without a reconnect`() = runTest {
+        val connection = connection(ReconnectPolicy(firstDelay = 1.seconds))
+        val (events, collector) = collect(connection)
+        connection.open()
+
+        connector.links.single().closeByRuntime(1000, "Environment dropped")
+        runCurrent()
+        advanceTimeBy(1.minutes)
+        runCurrent()
+
+        assertEquals(ConnectionState.Ended(ConnectionEnd.EnvironmentDropped), connection.state.value)
+        assertEquals(ConnectionEvent.Ended(ConnectionEnd.EnvironmentDropped), events.last())
+        assertTrue(collector.isCompleted)
+        assertEquals(1, connector.links.size)
+    }
+
+    @Test
+    fun `a close with the reason of the former stop is an interruption to reconnect after`() = runTest {
+        val connection = connection(ReconnectPolicy(firstDelay = 1.seconds))
+        connection.open()
+
+        connector.links.single().closeByRuntime(1000, "Environment stopped")
+        runCurrent()
+        advanceTimeBy(2.seconds)
+        runCurrent()
+
+        assertEquals(ConnectionState.Open(2), connection.state.value)
+        assertEquals(2, connector.links.size)
     }
 
     @Test
@@ -348,7 +423,7 @@ class DefaultRuntimeConnectionTest {
     }
 
     @Test
-    fun `the handle's phase ends the connection when it becomes stopped or lost`() = runTest {
+    fun `the handle's phase ends the connection when it becomes stopped, lost or dropped`() = runTest {
         val stopped = connection()
         stopped.open()
         handle.moveTo(EnvironmentPhase.Stopped)
@@ -365,10 +440,19 @@ class DefaultRuntimeConnectionTest {
 
         assertEquals(ConnectionState.Ended(ConnectionEnd.EnvironmentLost("the runtime restarted")), lost.state.value)
         assertEquals(1000, connector.links[1].closes.single().first)
+
+        handle.moveTo(EnvironmentPhase.Running)
+        val dropped = connection()
+        dropped.open()
+        handle.moveTo(EnvironmentPhase.Dropped)
+        runCurrent()
+
+        assertEquals(ConnectionState.Ended(ConnectionEnd.EnvironmentDropped), dropped.state.value)
+        assertEquals(1000, connector.links[2].closes.single().first)
     }
 
     @Test
-    fun `a key refused while the phase is uncertain is a failed attempt, a refused one of a stopped environment ends it`() = runTest {
+    fun `a key refused while the phase is uncertain is a failed attempt, a refused one of a stopped or dropped environment ends it`() = runTest {
         val uncertain = EnvironmentPhase.Uncertain(setOf(PhaseKind.ACTIVATED, PhaseKind.RUNNING), "start", Uploads.NONE)
         issuances += CallOutcome.Refused(LifecycleRefusal(LifecycleOperation.ISSUE_ACCESS_KEY, uncertain, "uncertain"))
         val retried = connection(ReconnectPolicy(firstDelay = 1.seconds))
@@ -378,6 +462,8 @@ class DefaultRuntimeConnectionTest {
 
         issuances += CallOutcome.Refused(LifecycleRefusal(LifecycleOperation.ISSUE_ACCESS_KEY, EnvironmentPhase.Stopped, "stopped"))
         assertEquals(ConnectionState.Ended(ConnectionEnd.EnvironmentStopped), connection().open())
+        issuances += CallOutcome.Refused(LifecycleRefusal(LifecycleOperation.ISSUE_ACCESS_KEY, EnvironmentPhase.Dropped, "dropped"))
+        assertEquals(ConnectionState.Ended(ConnectionEnd.EnvironmentDropped), connection().open())
         assertEquals(1, connector.links.size)
     }
 

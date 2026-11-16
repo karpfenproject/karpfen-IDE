@@ -41,10 +41,15 @@ refer to.
 - The class diagram shows the types of one file only, so a relation to a type of another metamodel file is a row and
   not a link.
 - Dragging and the context menu were tried in tests only for the class and object diagrams, not in the window.
+- No menu adds `ATTACH` or `EXCHANGE`. They are written in the cells of the entry and do actions, which complete and
+  check them.
+- The class diagram asks for the name after `behaves after` as plain text. It does not offer the attachable state
+  machines of the context, because the diagram knows only its own file.
 
 ### Running models
 
-- After a restart the IDE does not adopt the environments it left on a runtime.
+- After a restart the IDE does not adopt or drop the environments an earlier process left on a runtime, which only
+  happens when a drop failed or the process was killed outright.
 - Deployment problems are shown in the run, not in the Problems view.
 - The descriptor template still writes the `observe` key, which deployment ignores.
 - The descriptor keys `runtime.image`, `runtime.pythonPackages` and `bridges` are accepted but ignored. So `EVAL`
@@ -69,6 +74,12 @@ refer to.
 - An embedded runtime does not exist. Its path `runtime/runtime-embedded` is not in the settings.
 - TrueParallel has run against the real runtime in the live scenarios of runtime-session, but nobody has tried it by
   hand in the window yet.
+- The statechart of a definition shows one instance at a time. It cannot show several instances at once or compare
+  them, and the Model pane does not say which state machine an object runs.
+- The active states above the log list every instance on one line each. A run with many instances of definitions
+  makes that list long, and it has no filter.
+- Dynamic attachment has run against the real runtime in the live scenarios of runtime-session and in the spares run
+  of `LiveHeadlessRunTest`, but nobody has tried it by hand in the window yet.
 
 ### Bridges
 
@@ -112,8 +123,9 @@ dsl-tools checks each text in its readers and a project as a whole in its verifi
 
 - There is no channel that reports engine errors to the client. The IDE only sees that the engine halted or went
   silent and points to the runtime log.
-- Environments cannot be deleted, so they pile up in a long-running runtime. Access keys never expire, and events sent
-  to a stopped environment are queued anyway.
+- An environment that the IDE could not drop, because the runtime was gone or the drop took too long, stays in the
+  runtime with its instances, its waiting events and its Python sessions until the runtime ends. So do the
+  environments of a process that was killed outright. Access keys never expire.
 - The engine skips the entry block of a state that a join leaves in the next tick. The test for it in
   `ObservationScenarios` is disabled until the runtime is fixed.
 - After the `ENTRY` block of an outer state the engine also checks the transitions of the nested states it has not
@@ -146,8 +158,9 @@ dsl-tools checks each text in its readers and a project as a whole in its verifi
 - Pushes still queued when an environment stops are dropped.
 - A macro that changes an existing object sends no push. Setting a scalar that was never written does send one.
 - The runtime pushes nothing when a transition fires or an event is consumed, so a live view cannot show either.
-- Starting a stopped environment restarts it from the initial states over the changed model. The stop closed its
-  sockets, so clients must connect again. The runtime does not document this, and the IDE never does it.
+- A start after a stop lets the frozen environment continue, and the sockets of its clients stay open across the stop.
+  The IDE does not use this: Stop ends a run for good and drops its environment, and a run whose environment another
+  client stops ends and drops it as well.
 - There is no version endpoint, no published image, no configuration through environment variables and no
   authentication. Access keys are predictable, and the runtime prints them on its console.
 - The runtime reads every upload with all optional language features on. The IDE checks the features of the project

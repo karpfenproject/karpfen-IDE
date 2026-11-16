@@ -196,6 +196,50 @@ class KstatesSyntaxAnalyzerTest {
     }
 
     @Test
+    fun `an attachable state machine declares its name, references its types and names machines after ATTACH and EXCHANGE`() {
+        val attachable = """
+            STATEMACHINE "glowing" ATTACHABLE TO "Bulb", "Lamp" {
+                STATES {
+                    INITIAL STATE "dark" {
+                        ENTRY {
+                            APPENDOBJ("self", "spares", MACRO("new bulb")) ATTACH "steady"
+                            SETOBJ("self", "bulb", MACRO("new bulb")) ATTACH EVAL { return ${'$'}(mode) }
+                            EXCHANGE("bulb", "flickering")
+                            EXCHANGE("bulb", EVAL { return "x" })
+                        }
+                    }
+                }
+                TRANSITIONS { }
+            }
+        """.trimIndent()
+        val result = analyze(KarpfenLanguage.KSTATES, attachable)
+        checkInvariants(attachable, result, "attachable")
+
+        assertEquals(emptyList(), result.syntaxDiagnostics)
+        val machine = result.index.declarationsOf(SymbolKind.STATEMACHINE).single()
+        assertEquals(Triple("glowing", "Bulb", true), Triple(machine.name, machine.typeName, machine.isAttachableStateMachine))
+        assertEquals("glowing", attachable.at(machine.nameRange))
+        assertEquals(listOf("Bulb", "Lamp"), result.index.referencesOf(ReferenceKind.TYPE).map { it.name })
+        val machines = result.index.referencesOf(ReferenceKind.STATE_MACHINE)
+        assertEquals(listOf("steady", "flickering"), machines.map { it.name })
+        assertEquals(listOf("steady", "flickering"), machines.map { attachable.at(it.range) })
+        val outline = result.outline.single()
+        assertEquals(Triple("glowing", "Bulb, Lamp", "glowing"), Triple(outline.name, outline.detail, attachable.at(outline.selectionRange)))
+        assertTrue(
+            result.semanticSpans.filter { it.kind == SemanticKind.STATE_MACHINE_NAME }.map { attachable.at(it.range) }
+                .containsAll(listOf("glowing", "steady", "flickering")),
+        )
+    }
+
+    @Test
+    fun `an attached state machine keeps its declaration named after the keyword`() {
+        val machine = index.declarationsOf(SymbolKind.STATEMACHINE).single()
+
+        assertEquals(false, machine.isAttachableStateMachine)
+        assertEquals(emptyList(), index.referencesOf(ReferenceKind.STATE_MACHINE))
+    }
+
+    @Test
     fun `the examples yield the expected states, transitions and macros`() {
         val robot = analyze(KarpfenLanguage.KSTATES, Examples.file("karpfen-runtime/single_robot_example/cleaning_robot.kstates").text)
         assertEquals(

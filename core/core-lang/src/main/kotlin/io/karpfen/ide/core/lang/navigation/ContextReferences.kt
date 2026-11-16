@@ -33,6 +33,9 @@ internal sealed interface ContextSymbol {
 
     /** The member [name] of the type [owner]. It is a `prop`, `has` or `knows` member. */
     data class Member(val owner: String, override val name: String) : ContextSymbol
+
+    /** An attachable state machine, which `behaves after`, `ATTACH` and `EXCHANGE` name. */
+    data class StateMachine(override val name: String) : ContextSymbol
 }
 
 /**
@@ -101,6 +104,16 @@ internal class TypeReferences : ReferenceContributor {
     override fun references(symbol: ContextSymbol, file: SearchFile, scope: ReferenceScope): List<Location> =
         if (symbol is ContextSymbol.Type) {
             file.source.outcome.index.references(ReferenceKind.TYPE, symbol.name).map { file.source.location(it.range) }
+        } else {
+            emptyList()
+        }
+}
+
+/** The names of attachable state machines, references of kind `ReferenceKind.STATE_MACHINE`, in files of every language. */
+internal class StateMachineReferences : ReferenceContributor {
+    override fun references(symbol: ContextSymbol, file: SearchFile, scope: ReferenceScope): List<Location> =
+        if (symbol is ContextSymbol.StateMachine) {
+            file.source.outcome.index.references(ReferenceKind.STATE_MACHINE, symbol.name).map { file.source.location(it.range) }
         } else {
             emptyList()
         }

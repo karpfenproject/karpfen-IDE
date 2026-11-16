@@ -50,6 +50,19 @@ public object WireNames {
     public const val ENGINE_STATUS: String = "engineStatus"
 
     /**
+     * The message type of a state machine instance that appeared on an object, at the start of an environment for every
+     * instance of the start and at the end of a tick for every instance the tick attached. Its payload has
+     * [MODEL_ELEMENT_ID], [STATE_MACHINE] and [REVISION].
+     */
+    public const val STATE_MACHINE_ATTACHED: String = "stateMachineAttached"
+
+    /**
+     * The message type of a state machine instance that left its object, at the end of the tick that removed the
+     * object or exchanged the state machine. Its payload has the members of [STATE_MACHINE_ATTACHED].
+     */
+    public const val STATE_MACHINE_DETACHED: String = "stateMachineDetached"
+
+    /**
      * The environment key, a member of the push envelope and of the snapshot. In an inbound event frame, the member of
      * this name holds the event's domain instead.
      */
@@ -77,8 +90,18 @@ public object WireNames {
     /** The object's JSON, a member of the `objectChanged` payload. */
     public const val VALUE: String = "value"
 
-    /** The `attachedTo` key of the machine, a member of the `stateChange` payload. */
+    /**
+     * The key of the object whose state machine instance a push is about, a member of the `stateChange`,
+     * `stateMachineAttached` and `stateMachineDetached` payloads and of a halt.
+     */
     public const val MODEL_ELEMENT_ID: String = "modelElementId"
+
+    /**
+     * The name of the attachable state machine an instance runs, or JSON `null` for a state machine attached by the run
+     * configuration. It is a member of the `stateMachineAttached` and `stateMachineDetached` payloads and of an
+     * instance in the answer of `GET /observatory/stateMachines`.
+     */
+    public const val STATE_MACHINE: String = "stateMachine"
 
     /** The active stack, a member of the `stateChange` payload. */
     public const val STACK: String = "stack"
@@ -113,6 +136,30 @@ public object WireNames {
     /** The active stacks by machine, a member of the snapshot. */
     public const val ACTIVE_STATES: String = "activeStates"
 
+    /**
+     * The state machine instances by the key of their object, each the name of its definition or `null`, a member of
+     * the snapshot between [ACTIVE_STATES] and [ROOTS].
+     */
+    public const val STATE_MACHINES: String = "stateMachines"
+
+    /** The keys of the state machines uploaded with `attachedTo`, a member of the answer of `GET /observatory/stateMachines`. */
+    public const val HELD_ATTACHED: String = "attached"
+
+    /** The attachable state machines, a member of the answer of `GET /observatory/stateMachines`. */
+    public const val HELD_DEFINITIONS: String = "definitions"
+
+    /** The state machine instances, a member of the answer of `GET /observatory/stateMachines`. */
+    public const val HELD_INSTANCES: String = "instances"
+
+    /** The name of an attachable state machine in the answer of `GET /observatory/stateMachines`. */
+    public const val HELD_NAME: String = "name"
+
+    /** The types an attachable state machine lists, in the answer of `GET /observatory/stateMachines`. */
+    public const val HELD_TYPES: String = "types"
+
+    /** The key of the object of an instance, in the answer of `GET /observatory/stateMachines`. */
+    public const val HELD_MODEL_ELEMENT: String = "modelElement"
+
     /** The root objects of the model, a member of the snapshot. */
     public const val ROOTS: String = "roots"
 
@@ -125,8 +172,11 @@ public object WireNames {
     /** The payload format of a KModel payload. */
     public const val FORMAT_KMODEL: String = "kmodel"
 
-    /** The close code of a normal close, also the runtime's close of the sockets of a stopped environment. */
+    /** The close code of a normal close, which the client uses when it closes a link itself. */
     public const val CLOSE_NORMAL: Int = 1000
+
+    /** The close code with which the runtime closes every socket when it ends. */
+    public const val CLOSE_GOING_AWAY: Int = 1001
 
     /** The close code of a refused handshake. */
     public const val CLOSE_CANNOT_ACCEPT: Int = 1003
@@ -146,8 +196,11 @@ public object WireNames {
     /** The close reason of a connection that missed a pong. */
     public const val REASON_PING_TIMEOUT: String = "Ping timeout"
 
-    /** The close reason of the sockets of an environment that was stopped. */
-    public const val REASON_ENVIRONMENT_STOPPED: String = "Environment stopped"
+    /** The close reason, with [CLOSE_NORMAL], of the sockets of an environment that `POST /dropEnvironment` dropped. */
+    public const val REASON_ENVIRONMENT_DROPPED: String = "Environment dropped"
+
+    /** The close reason of the sockets of every environment when the runtime ends. */
+    public const val REASON_RUNTIME_STOPPED: String = "Runtime stopped"
 
     /** The prefix of every environment key, `env-<epoch millis>`. */
     public const val ENVIRONMENT_KEY_PREFIX: String = "env-"

@@ -16,6 +16,7 @@
 package io.karpfen.ide.core.workspace.context
 
 import io.karpfen.ide.core.document.Severity
+import io.karpfen.ide.core.document.environment.DescriptorFileRole
 import io.karpfen.ide.core.document.fixtures.DescriptorExamples
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.workspace.diagnostics.WorkspaceDiagnosticCodes
@@ -56,7 +57,13 @@ class DefaultContextResolverTest {
                     metamodel = ws("ctx/cleaning_robot.kmeta"),
                     events = ws("ctx/EVENTS.kmeta"),
                     models = listOf(ws("ctx/cleaning_robot.kmodel")),
-                    stateMachines = listOf(StateMachineBinding(ws("ctx/cleaning_robot.kstates"), DescriptorExamples.ATTACHED_TO)),
+                    stateMachines = listOf(
+                        StateMachineBinding(
+                            ws("ctx/cleaning_robot.kstates"),
+                            DescriptorExamples.ATTACHED_TO,
+                            read.getValue(ws("ctx/robot.kenv.json")).references.single { it.role == DescriptorFileRole.STATE_MACHINE }.range,
+                        ),
+                    ),
                     environment = read.getValue(ws("ctx/robot.kenv.json")).descriptor,
                 ),
             ),

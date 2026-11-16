@@ -27,8 +27,8 @@ import kotlin.test.assertTrue
 
 /**
  * The adapter over the project verifier of dsl-tools on real reads: findings across files in the coordinates of the
- * state machine they concern, the attached object handed to the verifier, and nothing for reads that keep no dsl-tools
- * result.
+ * state machine or the metamodel they concern, the attached object handed to the verifier, no unknown names while a
+ * machine is unread, and nothing for reads that keep no dsl-tools result.
  */
 class DslVerifierTest {
 
@@ -41,7 +41,7 @@ class DslVerifierTest {
 
     @Test
     fun `the reads of a project are verified, with each finding in the text of its state machine`() {
-        val findings = verifier.verify(VerificationInput(metamodel, null, model, listOf(MachineToVerify(machine, "lamp")))).single()
+        val findings = verifier.verify(VerificationInput(metamodel, null, model, listOf(MachineToVerify(machine, "lamp")))).stateMachines.single()
 
         val unknown = findings.single { it.code == "project.unknown-path" }
         assertEquals(Severity.ERROR, unknown.severity)
@@ -55,8 +55,8 @@ class DslVerifierTest {
 
     @Test
     fun `the attached object reaches the verifier, which checks its type`() {
-        val onSwitch = verifier.verify(VerificationInput(metamodel, null, model, listOf(MachineToVerify(machine, "wall")))).single()
-        val withoutObject = verifier.verify(VerificationInput(metamodel, null, model, listOf(MachineToVerify(machine, null)))).single()
+        val onSwitch = verifier.verify(VerificationInput(metamodel, null, model, listOf(MachineToVerify(machine, "wall")))).stateMachines.single()
+        val withoutObject = verifier.verify(VerificationInput(metamodel, null, model, listOf(MachineToVerify(machine, null)))).stateMachines.single()
 
         assertEquals(listOf(Severity.ERROR), onSwitch.filter { it.code == ATTACHED_OBJECT_TYPE }.map { it.severity })
         assertTrue(withoutObject.none { it.code == ATTACHED_OBJECT_TYPE }, "$withoutObject")
@@ -67,7 +67,7 @@ class DslVerifierTest {
         val clean = reader.kstates(TextSnapshot(CLEAN_MACHINE, 0))
         val findings = verifier.verify(
             VerificationInput(metamodel, null, model, listOf(MachineToVerify(clean, "lamp"), MachineToVerify(machine, "lamp"))),
-        )
+        ).stateMachines
 
         assertEquals(2, findings.size)
         assertEquals(emptyList(), findings[0])
@@ -80,14 +80,30 @@ class DslVerifierTest {
 
         assertEquals(
             listOf(emptyList()),
-            verifier.verify(VerificationInput(metamodel, null, model, listOf(MachineToVerify(byHand, "lamp")))),
+            verifier.verify(VerificationInput(metamodel, null, model, listOf(MachineToVerify(byHand, "lamp")))).stateMachines,
         )
         assertEquals(
             listOf(emptyList()),
-            verifier.verify(VerificationInput(ReadResult(metamodel.model, metamodel.diagnostics), null, model, listOf(MachineToVerify(machine, "lamp")))),
+            verifier.verify(VerificationInput(ReadResult(metamodel.model, metamodel.diagnostics), null, model, listOf(MachineToVerify(machine, "lamp")))).stateMachines,
             "without the metamodel's own read no machine is verified",
         )
         assertEquals(machine, byHand, "a read equals another of the same model and diagnostics")
+    }
+
+    @Test
+    fun `the findings about a metamodel are in its own text, and none while a machine is unread`() {
+        val behaving = reader.kmeta(TextSnapshot(BEHAVING_METAMODEL, 0))
+        val clean = reader.kstates(TextSnapshot(CLEAN_MACHINE, 0))
+
+        val findings = verifier.verify(VerificationInput(behaving, null, null, listOf(MachineToVerify(clean, "lamp"))))
+        val unknown = findings.metamodel.single()
+        assertEquals(Severity.ERROR to DiagnosticSource.DSL_TOOLS, unknown.severity to unknown.source)
+        assertTrue(BEHAVING_METAMODEL.substring(unknown.range.start, unknown.range.end).contains("glowing"), "${unknown.range}")
+        assertEquals(emptyList(), findings.events)
+
+        val incomplete = verifier.verify(VerificationInput(behaving, null, null, listOf(MachineToVerify(clean, "lamp")), unreadMachines = 1))
+        assertEquals(emptyList(), incomplete.metamodel, "the missing machine may be the one the clause names")
+        assertEquals(listOf(emptyList()), incomplete.stateMachines)
     }
 
     private companion object {
@@ -104,6 +120,13 @@ class DslVerifierTest {
             type "Room" "r" {
                 has("lamp", "Lamp")
                 has("switch", "Switch")
+            }
+        """.trimIndent() + "\n"
+
+        /** A metamodel whose type behaves after a state machine that no file declares. */
+        val BEHAVING_METAMODEL = """
+            type "Lamp" "l" behaves after "glowing" {
+                prop("mode", "string")
             }
         """.trimIndent() + "\n"
 

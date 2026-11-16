@@ -127,7 +127,7 @@ class EnvironmentDescriptorReaderTest {
     fun `nested unknown and missing keys are found at their places`() {
         val text = """
             {"metamodel": "a.kmeta", "model": "b.kmodel",
-             "stateMachines": [{"file": "c.kstates", "attachedTo": "x", "extra": 1}, {"file": "d.kstates"}],
+             "stateMachines": [{"file": "c.kstates", "attachedTo": "x", "extra": 1}, {"attachedTo": "y"}],
              "observe": {"objects": "*", "colour": "red"}}
         """.trimIndent()
 
@@ -137,7 +137,7 @@ class EnvironmentDescriptorReaderTest {
         assertEquals(
             listOf(
                 Triple(WorkspaceDiagnosticCodes.DESCRIPTOR_UNKNOWN_KEY, Severity.WARNING, rangeOf(text, "extra")),
-                Triple(WorkspaceDiagnosticCodes.DESCRIPTOR_INVALID, Severity.ERROR, TextRange.ofLength(text.indexOf("{\"file\": \"d"), 1)),
+                Triple(WorkspaceDiagnosticCodes.DESCRIPTOR_INVALID, Severity.ERROR, TextRange.ofLength(text.indexOf("{\"attachedTo\": \"y"), 1)),
                 Triple(WorkspaceDiagnosticCodes.DESCRIPTOR_UNKNOWN_KEY, Severity.WARNING, rangeOf(text, "colour")),
             ),
             result.diagnostics.map { Triple(it.code, it.severity, it.range) },

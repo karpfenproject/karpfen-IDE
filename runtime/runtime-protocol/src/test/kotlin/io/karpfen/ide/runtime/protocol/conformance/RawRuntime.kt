@@ -60,14 +60,14 @@ internal fun RuntimeUnderTest.runRaw(webSocketUrl: String, body: suspend RawRunt
  * The runtime as the contract scenarios drive it. The scenarios use raw requests built from the catalogue's routes and
  * raw links, through the transports of the scenario. They bypass the client's gateway, lifecycle and connection, so
  * that they check the runtime's behaviour itself. The object remembers the environments it asked to activate or start
- * until a stop of them succeeds, so that [stopLaunched] can stop them after the scenario.
+ * until a stop or a drop of them succeeds, so that [stopLaunched] can stop them after the scenario.
  *
  * @property scope the scenario's scope, whose transports reach the runtime and whose patience bounds every wait.
  * @property webSocketUrl the URL of the runtime's WebSocket.
  */
 internal class RawRuntime(val scope: RuntimeScenarioScope, private val webSocketUrl: String) {
 
-    /** The keys of the environments asked to activate or start and not stopped since, in that order. */
+    /** The keys of the environments asked to activate or start and neither stopped nor dropped since, in that order. */
     private val launched = MutableStateFlow<Set<String>>(emptySet())
 
     /**
@@ -82,7 +82,7 @@ internal class RawRuntime(val scope: RuntimeScenarioScope, private val webSocket
             is HttpOutcome.Answered -> outcome
             is HttpOutcome.Failed -> fail("$route failed on the transport: ${outcome.failure}. ${scope.diagnostics}")
         }
-        if (environment != null && route == RuntimeRoute.STOP_ENVIRONMENT && answer.status == OK) launched.update { it - environment }
+        if (environment != null && route in ENDING && answer.status == OK) launched.update { it - environment }
         return answer
     }
 
@@ -216,6 +216,9 @@ internal class RawRuntime(val scope: RuntimeScenarioScope, private val webSocket
         /** The routes that activate or start an environment, which then has to be stopped. */
         val LAUNCHING = setOf(RuntimeRoute.RUN_ENVIRONMENT, RuntimeRoute.START_ENVIRONMENT)
 
+        /** The routes that end an environment's engine, after which it needs no stop. */
+        val ENDING = setOf(RuntimeRoute.STOP_ENVIRONMENT, RuntimeRoute.DROP_ENVIRONMENT)
+
         /** The files of the lamp model. */
         val LAMP_FILES: ModelFiles = SynthesizedModels.files(SynthesizedModel.LAMP)
 
@@ -261,7 +264,7 @@ internal class RawLink(val link: WebSocketLink, scope: RuntimeScenarioScope) {
         envelopes.filter { RawRuntime.string(it, WireNames.MESSAGE_TYPE) == messageType }
             .map { it[WireNames.PAYLOAD] as WireValue.WireObject }
 
-    /** The revisions of the object and stack pushes received so far, in order. */
+    /** The revisions of the object, stack and instance pushes received so far, in order. */
     val revisions: List<Long>
         get() = envelopes.filter { RawRuntime.string(it, WireNames.MESSAGE_TYPE) in REVISED }
             .map { ((it[WireNames.PAYLOAD] as WireValue.WireObject)[WireNames.REVISION] as WireValue.WireNumber).value.toLong() }
@@ -278,6 +281,12 @@ internal class RawLink(val link: WebSocketLink, scope: RuntimeScenarioScope) {
 
     private companion object {
         /** The message types that carry a revision. */
-        val REVISED = setOf(WireNames.OBJECT_CHANGED, WireNames.OBJECT_DELETED, WireNames.STATE_CHANGE)
+        val REVISED = setOf(
+            WireNames.OBJECT_CHANGED,
+            WireNames.OBJECT_DELETED,
+            WireNames.STATE_CHANGE,
+            WireNames.STATE_MACHINE_ATTACHED,
+            WireNames.STATE_MACHINE_DETACHED,
+        )
     }
 }

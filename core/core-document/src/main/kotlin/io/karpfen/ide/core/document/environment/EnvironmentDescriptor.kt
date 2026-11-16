@@ -52,7 +52,10 @@ public data class EnvironmentDescriptor(
     @NamesFile(DescriptorFileRole.MODEL)
     public val model: String,
 
-    @KeyDoc("The state machines of the environment, each running attached to one object of the model.")
+    @KeyDoc(
+        "The state machines of the environment: each one with attachedTo runs attached to one object of the model, " +
+            "each one without it is an attachable state machine that objects get by behaves after, ATTACH or EXCHANGE.",
+    )
     public val stateMachines: List<StateMachineEntry> = emptyList(),
 
     @KeyDoc(
@@ -85,7 +88,12 @@ public data class EnvironmentDescriptor(
     @NamesFile(DescriptorFileRole.BRIDGE)
     public val bridges: List<String> = emptyList(),
 ) {
-    /** One state machine of the environment. [file] runs attached to the object with the key [attachedTo]. */
+    /**
+     * One state machine of the environment. With an [attachedTo], [file] is a state machine `ATTACHED TO` a type that
+     * runs attached to the object with that key. Without one, [file] is an attachable state machine, a definition that
+     * the environment knows by its name and that runs on the objects that `behaves after`, `ATTACH` or `EXCHANGE` give
+     * it.
+     */
     @Serializable
     public data class StateMachineEntry(
         @KeyDoc("The state machine: a .kstates file, relative to this descriptor.")
@@ -94,10 +102,10 @@ public data class EnvironmentDescriptor(
 
         @KeyDoc(
             "The key of the model object the state machine runs attached to; its type should be the type the state " +
-                "machine names after ATTACHED TO.",
+                "machine names after ATTACHED TO. Left out for an attachable state machine.",
         )
         @NamesObject
-        public val attachedTo: String,
+        public val attachedTo: String? = null,
     )
 
     /**

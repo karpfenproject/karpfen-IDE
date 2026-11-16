@@ -29,6 +29,7 @@ import io.karpfen.ide.runtime.protocol.lifecycle.RuntimeEnvironment
 import io.karpfen.ide.runtime.protocol.lifecycle.Uploads
 import io.karpfen.ide.runtime.protocol.message.EngineStatus
 import io.karpfen.ide.runtime.protocol.message.RuntimeModelSnapshot
+import io.karpfen.ide.runtime.protocol.message.RuntimePhase
 import io.karpfen.ide.runtime.protocol.message.RuntimePush
 import io.karpfen.ide.runtime.session.mirror.MirrorReducer
 import io.karpfen.ide.runtime.session.observation.ModelObserver
@@ -106,8 +107,9 @@ internal sealed interface RouterMessage {
  * - Object pushes, stack pushes, openings, interruptions and the end of the connection go to the observation. A push
  *   that the observation applied is journaled.
  * - Domain events go to [domainEvents] and to the journal. Engine statuses go to [engineStatuses], whose collector is
- *   the session's debugger, which journals what it makes of them. Protocol violations, anomalies and unknown message
- *   types go to the journal only.
+ *   the session's debugger, which journals what it makes of them. The runtime's notices that a stop froze the
+ *   environment or a start let it continue go to the journal only, and the connection ends on the notice of a stop.
+ *   Protocol violations, anomalies and unknown message types go to the journal only.
  * - The end of the connection, its state changes and observation problems are reported to the conductor without
  *   suspending. The router never waits for the conductor, so the two never wait for each other.
  * - The model updates, the domain events and the engine statuses are published without suspending. A collector that falls behind misses the
@@ -147,7 +149,10 @@ internal class PushRouter(
 
     /** The live switch and the observed model. */
     private val observer = ModelObserver(
-        reducer = ObservationReducer(MirrorReducer(prepared.schema, prepared.plan.modelObjectIds), ActiveStatesReducer(prepared.layouts)),
+        reducer = ObservationReducer(
+            MirrorReducer(prepared.schema, prepared.plan.modelObjectIds),
+            ActiveStatesReducer(prepared.layouts, prepared.definitions),
+        ),
         port = port,
         seed = prepared.seed,
         settings = settings,
@@ -323,17 +328,32 @@ internal class PushRouter(
                 domainEventStream.tryEmit(observed)
                 journal(SessionActivity.DomainEventReceived(observed, observed.elapsed))
             }
-            is RuntimePush.EngineStatusChanged -> engineStatusStream.tryEmit(push.status)
+            is RuntimePush.EngineStatusChanged -> when (val phase = push.phase) {
+                null -> engineStatusStream.tryEmit(push.status)
+                else -> journal(SessionActivity.Note(phaseNotice(phase), clock.elapsed()))
+            }
             is RuntimePush.Unrecognized ->
                 journal(SessionActivity.Note("The runtime pushed a message of the unknown type '${push.messageType}'; it is ignored.", clock.elapsed()))
             is RuntimePush.ObjectChanged -> applied(event, WireNames.OBJECT_CHANGED, listOf(push.objectId), push.revision)
             is RuntimePush.ObjectDeleted -> applied(event, WireNames.OBJECT_DELETED, listOf(push.objectId), push.revision)
             is RuntimePush.StateChanged -> applied(event, WireNames.STATE_CHANGE, listOf(push.modelElementId), push.revision)
+            is RuntimePush.StateMachineAttached ->
+                applied(event, WireNames.STATE_MACHINE_ATTACHED, listOf(push.modelElementId), push.revision)
+            is RuntimePush.StateMachineDetached ->
+                applied(event, WireNames.STATE_MACHINE_DETACHED, listOf(push.modelElementId), push.revision)
         }
     }
 
+    /** The journal's note on the runtime's notice that a stop or a start brought the environment into [phase]. */
+    private fun phaseNotice(phase: RuntimePhase): String =
+        if (phase == RuntimePhase.STOPPED) {
+            "The runtime reports that the environment stopped."
+        } else {
+            "The runtime reports that the environment runs again after a stop."
+        }
+
     /**
-     * Hands the object or stack push of [event] to the observation and journals it if the observation applied it. A
+     * Hands the object, stack or state machine push of [event] to the observation and journals it if the observation applied it. A
      * push that a snapshot already covers is not applied, and neither is a push that reveals a gap.
      */
     private suspend fun applied(event: ConnectionEvent.Received, messageType: String, ids: List<String>, revision: Long) {

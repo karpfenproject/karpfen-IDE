@@ -26,7 +26,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Decides how the environment of a session leaves it. The decision is made once, even when closing races the end of
- * the deployment or a stop. The session records its environment in the ledger at most once. When the deployment
+ * the deployment, a stop or a drop. The session records its environment in the ledger at most once. When the deployment
  * failed, the deployment's cleanup records it instead. A deployment can succeed while the session is closed at the same
  * time. Whoever of the two learns about the other second takes care of the deployed environment.
  *
@@ -49,8 +49,11 @@ internal class EnvironmentDeparture(private val ledger: EnvironmentLedger, priva
     /** True once the environment was recorded. */
     private val recorded = AtomicBoolean(false)
 
-    /** True while the session's own stop call runs. That call records the environment itself. */
-    private var stopping = false
+    /**
+     * True while the session's own stop call or drop runs, and between a successful stop and the drop that follows it.
+     * The stop or the drop records the environment itself.
+     */
+    private var ending = false
 
     /**
      * Takes the deployment's [result] and returns true if the session was closed while the deployment ran. In that
@@ -70,21 +73,28 @@ internal class EnvironmentDeparture(private val ledger: EnvironmentLedger, priva
     fun close(): Leaving? =
         synchronized(lock) {
             closed = true
-            deployed?.let { Leaving(it, records = !stopping) }
+            deployed?.let { Leaving(it, records = !ending) }
         }
 
     /** Marks that the session's own stop call starts. */
     fun stopStarts() {
-        synchronized(lock) { stopping = true }
+        synchronized(lock) { ending = true }
+    }
+
+    /** Marks that the session's own drop starts. The drop records the environment when it ends. */
+    fun dropStarts() {
+        synchronized(lock) { ending = true }
     }
 
     /**
-     * Marks that the session's own stop call ended and returns true if the session was closed meanwhile. In that case
-     * closing left the recording to the stop, so the caller records the environment as the stop left it.
+     * Marks that the session's own stop call ended, [stopped] or not, and returns true if the session was closed
+     * meanwhile. In that case closing left the recording to the stop. After a stop that failed, the caller records the
+     * environment as the stop left it. After a successful one, the drop that follows records it, and closing still
+     * leaves the recording to it.
      */
-    fun stopEnded(): Boolean =
+    fun stopEnded(stopped: Boolean): Boolean =
         synchronized(lock) {
-            stopping = false
+            ending = stopped
             closed
         }
 
@@ -106,7 +116,7 @@ internal class EnvironmentDeparture(private val ledger: EnvironmentLedger, priva
  * The deployed environment a closed session leaves.
  *
  * @property deployed the deployment's result.
- * @property records true if closing records the environment. It is false while the session's own stop call runs,
- *   because that call records the environment when it ends.
+ * @property records true if closing records the environment. It is false while the session's own stop call or drop
+ *   runs, and between a successful stop and its drop, because they record the environment themselves.
  */
 internal data class Leaving(val deployed: DeploymentResult.Deployed, val records: Boolean)

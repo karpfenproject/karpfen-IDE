@@ -52,7 +52,10 @@ abstract class InjectionScenarios {
         session.awaitModel("both machines in their initial states") { it.stacks == INITIAL }
 
         session.inject("switch", "press")
-        val first = session.awaitModel("the first press") { it.stacks == mapOf("lamp" to listOf("on"), "wallSwitch" to listOf("up")) && it.log() == listOf("off", "on") }
+        val first = session.awaitModel("the first press") {
+            it.stacks == mapOf("lamp" to listOf("on"), "wallSwitch" to listOf("up")) && it.log() == listOf("off", "on") &&
+                it.mirror.objectOf("wallSwitch").text("position") == "up"
+        }
 
         assertEquals("on", first.mirror.objectOf("lamp").text("mode"))
         assertEquals(true, first.mirror.objectOf("bulb").flag("lit"))

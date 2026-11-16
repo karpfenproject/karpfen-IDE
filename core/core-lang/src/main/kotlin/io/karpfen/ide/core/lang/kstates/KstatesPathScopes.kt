@@ -38,7 +38,9 @@ import io.karpfen.ide.core.text.TextRange
  * The model path scope at an offset of a KStates document. It is one collaborator that KStates completion, hover and
  * navigation share instead of three copies. The scope is filled like this.
  * - `types` is `TypeCatalog.contextTypes(request)`, with domain and event types.
- * - `rootType` is the `ATTACHED TO` type of the STATEMACHINE.
+ * - `rootType` is the `ATTACHED TO` type of the STATEMACHINE, or the first type after `ATTACHABLE TO`. A path of an
+ *   attachable state machine must hold for every listed type, which the verifier of dsl-tools checks, so completion
+ *   and hover follow the first one.
  * - `eventType` is the event type named by the `EVENT(…)` clause of the enclosing TRANSITION when it can be
  *   determined, or else null.
  * - `bindings` are the `WITH MACRO(…) AS "x"` bindings in scope, typed by the RETURNS type of the macro. Inside a
@@ -83,7 +85,9 @@ internal class DefaultKstatesPathScopes(private val types: TypeCatalog) : Kstate
         val declarations = DocumentDeclarations(document)
         val blocks = context.blocks.map(KstatesBlocks::of)
         val facts = ScopeFacts(
-            attachedType = blocks.firstOrNull { it.kind == MACHINE }?.construct?.lastOrNull { it.kind == TokenKind.STRING }?.text
+            attachedType = blocks.firstOrNull { it.kind == MACHINE }?.construct
+                ?.dropWhile { !(it.kind == TokenKind.KEYWORD && it.text == KstatesSlots.TO) }
+                ?.firstOrNull { it.kind == TokenKind.STRING }?.text
                 ?: declarations.all(SymbolKind.STATEMACHINE).firstOrNull()?.declaration?.typeName,
             eventName = blocks.lastOrNull { it.kind in KstatesSlots.TRANSITION_KEYWORDS }?.let { eventIn(document, it.range) },
             bindings = blocks.filter { it.kind == WITH }.mapNotNull { bindingOf(document, it.construct) },

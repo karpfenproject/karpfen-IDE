@@ -199,7 +199,7 @@ class RuntimeSessionContractTest {
     }
 
     @Test
-    fun `the default deployer records what stays in the given ledger`() = runTest {
+    fun `the default deployer drops the environment of a failed deployment and records it in the given ledger`() = runTest {
         val rig = SessionRig(this, root)
         val deployment = rig.prepared(SynthesizedModel.LAMP)
         val ledger = EnvironmentLedger()
@@ -209,8 +209,9 @@ class RuntimeSessionContractTest {
         val session = RuntimeSessions(rig.options, ledger).launch(deployment.prepared, rig.client, backgroundScope)
 
         val failed = assertIs<SessionState.Failed>(rig.awaitState(session) { it is SessionState.Failed })
-        assertEquals(listOf(failed.leftBehind), ledger.entries.value)
-        assertEquals(LedgerDisposition.LEFT_CONFIGURED, failed.leftBehind?.disposition)
+        assertEquals(null, failed.leftBehind)
+        assertEquals(listOf(LedgerDisposition.DROPPED), ledger.entries.value.map { it.disposition })
+        assertEquals(1, rig.fake.requests(RuntimeRoute.DROP_ENVIRONMENT).size)
         session.close()
     }
 }

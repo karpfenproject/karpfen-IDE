@@ -47,7 +47,14 @@ internal sealed interface KstatesSlot {
     data class MacroName(val name: String, val range: TextRange, val isDeclaration: Boolean) : KstatesSlot
 
     /**
-     * A type. This is `ATTACHED TO "T"`, a TAKES or RETURNS type, or `list(` or `reference(` inside them.
+     * The name of an attachable state machine. The name of `STATEMACHINE "n" ATTACHABLE TO` is a declaration, for which
+     * [isDeclaration] is true. The string after `ATTACH` and the second argument of `EXCHANGE` are references.
+     */
+    data class StateMachineName(val name: String, val range: TextRange, val isDeclaration: Boolean) : KstatesSlot
+
+    /**
+     * A type. This is `ATTACHED TO "T"`, a type after `ATTACHABLE TO`, a TAKES or RETURNS type, or `list(` or
+     * `reference(` inside them.
      * [primitives] allows `number`, `string` and `boolean`. [inString] is false at the argument before its quotes, and
      * then [name] is empty. There the [wrappers] `list` and `reference` are offered as well.
      */
@@ -88,6 +95,12 @@ internal sealed interface KstatesSlot {
 internal enum class KstatesPosition {
     /** Outside every block, where the state machine goes. */
     TOP_LEVEL,
+
+    /** After `STATEMACHINE` at top level, where the rest of either header form goes. */
+    MACHINE_HEADER,
+
+    /** After `STATEMACHINE "name"` at top level, where the rest of the attachable header goes. */
+    NAMED_MACHINE_HEADER,
 
     /** In the state machine block, where the states, transitions and macros blocks go. */
     MACHINE,
@@ -134,8 +147,14 @@ internal enum class KstatesPosition {
     /** In the definition block of a macro, where its EVAL body goes. */
     DEFINITION,
 
-    /** At the value argument of an operation, where a macro call or an EVAL body goes. */
+    /** At the value argument of an operation or after `ATTACH`, where a macro call or an EVAL body goes. */
     RIGHT_SIDE,
+
+    /**
+     * Right after the closing parenthesis of `SETOBJ` or `APPENDOBJ` in an action block, where an `ATTACH` clause or the
+     * next action goes.
+     */
+    OBJECT_RULE_END,
 }
 
 /** Classifies the caret of a KStates document from its [CaretContext]. The class has no state. */
@@ -194,6 +213,7 @@ internal class KstatesSlots(private val caretContexts: CaretContextDetector) {
             call.name == EVENT && index == 0 -> KstatesSlot.EventDomain(name, range)
             call.name == EVENT && index == 1 -> KstatesSlot.EventName(name, range, call.arguments.firstOrNull())
             operation in KarpfenSyntax.KSTATES_OPERATIONS && index == 0 -> KstatesSlot.ModelPath(range)
+            operation == EXCHANGE && index == 1 -> KstatesSlot.StateMachineName(name, range, isDeclaration = false)
             operation in KarpfenSyntax.KSTATES_RELATION_OPERATIONS && index == 1 ->
                 KstatesSlot.RelationKey(call.arguments.firstOrNull().orEmpty(), name, range)
             call.name == VALUE || call.name == SCOPE -> KstatesSlot.ModelPath(range)
@@ -205,7 +225,9 @@ internal class KstatesSlots(private val caretContexts: CaretContextDetector) {
 
     /**
      * The slot of a string that is no call argument. The statement before the string decides what it names. After
-     * `TRANSITION TO` it is the state a timeout leads to.
+     * `TRANSITION TO` it is the state a timeout leads to. After `STATEMACHINE` it is the name of an attachable state
+     * machine, after `ATTACHED TO`, `ATTACHABLE TO` and a comma of an attachable header it is a type, and after
+     * `ATTACH` it names an attachable state machine.
      */
     private fun headerString(statement: List<ContextToken>, name: String, range: TextRange, context: CaretContext): KstatesSlot {
         val last = statement.lastOrNull()
@@ -216,8 +238,11 @@ internal class KstatesSlots(private val caretContexts: CaretContextDetector) {
             last.isKeyword(TO) && statement.getOrNull(statement.size - 2)?.isKeyword(TRANSITION) == true ->
                 KstatesSlot.StateName(name, range, isDeclaration = false)
             last.kind == TokenKind.KEYWORD && last.text.uppercase() == AS -> KstatesSlot.BindingName(name, range)
-            last.isKeyword(TO) && statement.getOrNull(statement.size - 2)?.isKeyword(ATTACHED) == true ->
+            last.isKeyword(TO) && statement.getOrNull(statement.size - 2)?.let { it.isKeyword(ATTACHED) || it.isKeyword(ATTACHABLE) } == true ->
                 KstatesSlot.TypeName(name, range, primitives = false)
+            last.text == "," && isAttachableHeader(statement) -> KstatesSlot.TypeName(name, range, primitives = false)
+            last.isKeyword(STATEMACHINE) && statement.size == 1 -> KstatesSlot.StateMachineName(name, range, isDeclaration = true)
+            last.isAttach() -> KstatesSlot.StateMachineName(name, range, isDeclaration = false)
             last.isKeyword(MACRO) && context.innermostBlock?.let(KstatesBlocks::kindOf) == MACROS ->
                 KstatesSlot.MacroName(name, range, isDeclaration = true)
             else -> KstatesSlot.None
@@ -225,9 +250,10 @@ internal class KstatesSlots(private val caretContexts: CaretContextDetector) {
     }
 
     /**
-     * The slot outside strings. It is the right side of an operation, or the type arguments of TAKES and RETURNS
-     * before their quotes. It is the `NOT LOOPING` position after a transition header. Where no statement is in
-     * progress, it is the keyword position of the enclosing block.
+     * The slot outside strings. It is the right side of an operation or of `ATTACH`, or the type arguments of TAKES and
+     * RETURNS before their quotes. It is the `NOT LOOPING` position after a transition header, and the rest of the
+     * header after `STATEMACHINE`. Where no statement is in progress, it is the keyword position of the enclosing
+     * block, or the place for an `ATTACH` clause right after `SETOBJ` or `APPENDOBJ`.
      */
     private fun outsideStrings(context: CaretContext): KstatesSlot {
         val call = context.call
@@ -250,9 +276,12 @@ internal class KstatesSlots(private val caretContexts: CaretContextDetector) {
         if (block == TRANSITIONS && isTransitionHeader(statement) && statement.lastOrNull()?.kind == TokenKind.STRING) {
             return KstatesSlot.Keywords(KstatesPosition.TRANSITION_HEADER)
         }
+        if (statement.lastOrNull()?.isAttach() == true) return KstatesSlot.Keywords(KstatesPosition.RIGHT_SIDE)
+        if (frame == null) headerPosition(statement)?.let { return KstatesSlot.Keywords(it) }
         if (statement.isNotEmpty() && statement.last().text != ")") return KstatesSlot.None
         val position = if (frame == null) KstatesPosition.TOP_LEVEL.takeIf { statement.isEmpty() } else positionIn(context.blocks, block)
-        return position?.let(KstatesSlot::Keywords) ?: KstatesSlot.None
+        val atObjectRule = position == KstatesPosition.ACTIONS && endsWithObjectRule(statement)
+        return (if (atObjectRule) KstatesPosition.OBJECT_RULE_END else position)?.let(KstatesSlot::Keywords) ?: KstatesSlot.None
     }
 
     /**
@@ -287,6 +316,45 @@ internal class KstatesSlots(private val caretContexts: CaretContextDetector) {
     /** True if this token is the keyword [text]. */
     private fun ContextToken.isKeyword(text: String): Boolean = kind == TokenKind.KEYWORD && this.text == text
 
+    /** True if this token is the keyword `ATTACH`, which is also written `attach`. */
+    private fun ContextToken.isAttach(): Boolean = kind == TokenKind.KEYWORD && text.uppercase() == ATTACH
+
+    /**
+     * The keyword position of a header in progress at top level: after `STATEMACHINE`, or after `STATEMACHINE "name"`.
+     * Null for any other statement.
+     */
+    private fun headerPosition(statement: List<ContextToken>): KstatesPosition? {
+        if (statement.firstOrNull()?.isKeyword(STATEMACHINE) != true) return null
+        return when {
+            statement.size == 1 -> KstatesPosition.MACHINE_HEADER
+            statement.size == 2 && statement[1].kind == TokenKind.STRING -> KstatesPosition.NAMED_MACHINE_HEADER
+            else -> null
+        }
+    }
+
+    /** True if [statement] is the header of an attachable state machine up to its list of types. */
+    private fun isAttachableHeader(statement: List<ContextToken>): Boolean {
+        val to = statement.indexOfFirst { it.isKeyword(TO) }
+        return statement.firstOrNull()?.isKeyword(STATEMACHINE) == true && to > 0 && statement[to - 1].isKeyword(ATTACHABLE)
+    }
+
+    /**
+     * True if [statement] ends with a whole `SETOBJ(…)` or `APPENDOBJ(…)`: its last operation is one of the two, and
+     * the parenthesis after it closes with the last token.
+     */
+    private fun endsWithObjectRule(statement: List<ContextToken>): Boolean {
+        val operation = statement.indexOfLast { it.kind == TokenKind.OPERATION }
+        if (operation < 0 || statement[operation].text.uppercase() !in KarpfenSyntax.KSTATES_RELATION_OPERATIONS) return false
+        var depth = 0
+        for (index in operation + 1 until statement.size) {
+            when (statement[index].text) {
+                "(" -> depth++
+                ")" -> if (--depth == 0) return index == statement.size - 1
+            }
+        }
+        return false
+    }
+
     /** The keywords and call names that the classification compares tokens with. */
     internal companion object {
         const val MACRO = "MACRO"
@@ -302,6 +370,10 @@ internal class KstatesSlots(private val caretContexts: CaretContextDetector) {
         const val AS = "AS"
         const val TO = "TO"
         const val ATTACHED = "ATTACHED"
+        const val ATTACHABLE = "ATTACHABLE"
+        const val ATTACH = "ATTACH"
+        const val EXCHANGE = "EXCHANGE"
+        const val STATEMACHINE = "STATEMACHINE"
         const val TRANSITIONS = "TRANSITIONS"
         const val TRANSITION = "TRANSITION"
 

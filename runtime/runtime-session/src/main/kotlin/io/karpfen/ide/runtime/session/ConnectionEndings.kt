@@ -30,8 +30,11 @@ internal sealed interface EndingVerdict {
      */
     data class FailsAndStops(val problem: DeployProblem) : EndingVerdict
 
-    /** Somebody else stopped the environment. The session reads the final model and is stopped. */
+    /** Somebody else stopped the environment. The session reads the final model, drops the environment and is stopped. */
     data object StoppedElsewhere : EndingVerdict
+
+    /** Somebody else dropped the environment. The session keeps the model it saw last and is stopped. */
+    data object DroppedElsewhere : EndingVerdict
 
     /**
      * The session has lost its environment for good.
@@ -58,10 +61,18 @@ internal sealed interface EndingVerdict {
  * | End | Session |
  * |---|---|
  * | handshake rejected | failed with `handshake-rejected`, and the environment is stopped |
- * | environment stopped | stopped, with the final model it reads |
- * | environment lost | failed with `environment-lost` |
+ * | environment stopped | stopped, with the final model it reads, and the environment dropped |
+ * | environment dropped | stopped, with the model it saw last |
+ * | environment lost, also because the runtime ended | failed with `environment-lost` |
  * | gave up reconnecting | unchanged, with the warning `connection-lost` |
  * | disconnected | unchanged, because the session disconnected itself |
+ *
+ * Somebody else stopped the environment when the runtime pushes the `engineStatus` notice of a stop that the session
+ * did not ask for. The runtime keeps that environment frozen and keeps the socket open. The session ends its run there,
+ * closes its link and drops the environment, because a session never continues a stopped environment.
+ *
+ * Somebody else dropped the environment when the runtime closes the socket with 1000 `Environment dropped` while the
+ * session neither stops nor drops it. The session's own drop comes after its connection ended, so it never gets here.
  *
  * After the connection gave up reconnecting, no push arrives any more. An observation that is on therefore stays
  * synchronizing, while pulls still read the model.
@@ -80,6 +91,7 @@ internal object ConnectionEndings {
                 ),
             )
             ConnectionEnd.EnvironmentStopped -> EndingVerdict.StoppedElsewhere
+            ConnectionEnd.EnvironmentDropped -> EndingVerdict.DroppedElsewhere
             is ConnectionEnd.EnvironmentLost -> EndingVerdict.Loses(PhaseStates.lost(environment, end.reason))
             is ConnectionEnd.GaveUp -> EndingVerdict.Warns(
                 DeployProblem(

@@ -16,6 +16,7 @@
 package io.karpfen.ide.notation.diagram.statechart
 
 import io.karpfen.ide.core.document.parse.OutlineNode
+import io.karpfen.ide.core.document.parse.SymbolDeclaration
 import io.karpfen.ide.core.document.parse.SymbolKind
 import io.karpfen.ide.core.text.TextRange
 
@@ -59,7 +60,9 @@ public object StatechartProjection {
         val transitions = machine.children
             .filter { it.kind == SymbolKind.TRANSITION || it.kind == SymbolKind.SPLIT || it.kind == SymbolKind.JOIN }
             .mapIndexed { index, node -> transition(text, node, index + 1, counts) }
-        return StatechartDiagram(machine.detail, states, transitions, machine.range)
+        val name = machine.name.takeUnless { it == SymbolDeclaration.ATTACHED_MACHINE_NAME }
+        val types = machine.detail?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() }.orEmpty()
+        return StatechartDiagram(name, types, states, transitions, machine.range)
     }
 
     /** The state of [node] with the states nested in it. Its history, breakpoints and tick limit are read from [text]. */

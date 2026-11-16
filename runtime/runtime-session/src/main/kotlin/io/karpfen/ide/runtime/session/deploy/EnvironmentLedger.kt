@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlin.time.Duration
 
 /** What became of an environment this IDE created. */
 public enum class LedgerDisposition {
@@ -41,8 +42,11 @@ public enum class LedgerDisposition {
     /** Left on the runtime halted. It was started, but its engine ended on its own. */
     LEFT_HALTED,
 
-    /** Stopped. It stays on the runtime, because the runtime cannot delete environments. */
+    /** Stopped, and left on the runtime frozen, because dropping it failed or was not tried. */
     STOPPED,
+
+    /** Dropped. The runtime keeps nothing of it. */
+    DROPPED,
 
     /** The runtime no longer knows it. */
     LOST,
@@ -60,6 +64,7 @@ public enum class LedgerDisposition {
                 EnvironmentPhase.Running -> LEFT_RUNNING
                 EnvironmentPhase.Halted -> LEFT_HALTED
                 EnvironmentPhase.Stopped -> STOPPED
+                EnvironmentPhase.Dropped -> DROPPED
                 is EnvironmentPhase.Lost -> LOST
                 is EnvironmentPhase.Uncertain -> UNKNOWN
             }
@@ -83,16 +88,15 @@ public data class LedgerEntry(
 ) {
     /**
      * The INFO that the environment stays on the runtime, with its key and phase, or null if it does not stay because
-     * the runtime no longer knows it.
+     * it was dropped or the runtime no longer knows it.
      */
     public fun leftBehind(): DeployProblem? {
-        if (disposition == LedgerDisposition.LOST) return null
+        if (disposition == LedgerDisposition.LOST || disposition == LedgerDisposition.DROPPED) return null
         val environment = key?.let { "Environment $it" } ?: "An environment of unknown key"
         return DeployProblem(
             Severity.INFO,
             DeployProblemCodes.ENVIRONMENT_LEFT_BEHIND,
-            "$environment stays on the runtime at ${endpoint.httpBase} (${describe(disposition)}); the runtime cannot " +
-                "delete environments. $note",
+            "$environment stays on the runtime at ${endpoint.httpBase} (${describe(disposition)}). $note",
             null,
         )
     }
@@ -105,13 +109,14 @@ public data class LedgerEntry(
             LedgerDisposition.LEFT_RUNNING -> "running"
             LedgerDisposition.LEFT_HALTED -> "halted"
             LedgerDisposition.STOPPED -> "stopped"
+            LedgerDisposition.DROPPED -> "dropped"
             LedgerDisposition.LOST -> "lost"
             LedgerDisposition.UNKNOWN -> "in an unknown phase"
         }
 }
 
 /**
- * The record of every environment this IDE process created and left on a runtime, in the order they were recorded. It
+ * The record of every environment this IDE process created, with what became of it, in the order they were recorded. It
  * is a plain class, not a singleton. The composition root holds one per process and hands it to whatever records.
  *
  * [record] may be called from any thread. [entries] is updated atomically.
@@ -141,8 +146,8 @@ public fun interface EnvironmentDisposer {
 }
 
 /**
- * Keeps environments on the runtime, because the runtime has no route to delete them. It records each one in [ledger]
- * with the phase it was left in. [LedgerEntry.leftBehind] is the INFO that tells the user so.
+ * Keeps environments on the runtime instead of dropping them. It records each one in [ledger] with the phase it was
+ * left in. [LedgerEntry.leftBehind] is the INFO that tells the user so.
  *
  * @param ledger the ledger the environments are recorded in.
  */
@@ -162,7 +167,31 @@ public class KeepEnvironments(private val ledger: EnvironmentLedger) : Environme
             EnvironmentPhase.Running -> "running"
             EnvironmentPhase.Halted -> "halted"
             EnvironmentPhase.Stopped -> "stopped"
+            EnvironmentPhase.Dropped -> "dropped"
             is EnvironmentPhase.Lost -> "lost (${phase.reason})"
             is EnvironmentPhase.Uncertain -> "uncertain (${phase.reason})"
         }
+}
+
+/**
+ * Drops environments, so that the runtime keeps nothing of a deployment that failed. It records each one in [ledger],
+ * as dropped, as lost when the runtime no longer knew it, or with the phase it was left in when the drop failed. Only
+ * that last entry has an INFO from [LedgerEntry.leftBehind], and its note says why the drop failed.
+ *
+ * @param ledger the ledger the environments are recorded in.
+ * @param bound how long a drop may take.
+ */
+public class DropEnvironments(private val ledger: EnvironmentLedger, bound: Duration) : EnvironmentDisposer {
+    /** Drops one environment. */
+    private val drop = EnvironmentDrop(bound)
+
+    override suspend fun dispose(environment: RuntimeEnvironment, endpoint: RuntimeEndpoint): LedgerEntry {
+        val entry = when (val result = drop.drop(environment, endpoint)) {
+            DropResult.Dropped -> LedgerEntry(endpoint, environment.key, LedgerDisposition.DROPPED, "Dropped after the deployment ended.")
+            DropResult.Gone -> LedgerEntry(endpoint, environment.key, LedgerDisposition.LOST, "The runtime no longer knew it when it was dropped.")
+            is DropResult.Kept -> LedgerEntry(endpoint, environment.key, LedgerDisposition.of(result.phase), result.why)
+        }
+        ledger.record(entry)
+        return entry
+    }
 }

@@ -47,12 +47,12 @@ class FrameRecorderTest {
 
         link.send("${RuntimeGoldens.CLIENT}:${RuntimeGoldens.ENVIRONMENT}:ak-1")
         RuntimeGoldens.PUSHES.forEach { fake.links.single().push(it) }
-        fake.links.single().closeByRuntime(1000, "Environment stopped")
+        fake.links.single().closeByRuntime(1001, "Runtime stopped")
         runCurrent()
 
         val forwarded = buildList { for (frame in link.incoming) add((frame as LinkFrame.Text).text) }
         assertEquals(RuntimeGoldens.PUSHES, forwarded)
-        assertEquals(LinkClosure(1000, "Environment stopped", byClient = false), link.closure.await())
+        assertEquals(LinkClosure(1001, "Runtime stopped", byClient = false), link.closure.await())
         assertEquals(emptyList(), recorder.violations())
     }
 

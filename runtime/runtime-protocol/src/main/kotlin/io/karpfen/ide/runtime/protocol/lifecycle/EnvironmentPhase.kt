@@ -94,11 +94,19 @@ public sealed interface EnvironmentPhase {
     public data object Halted : EnvironmentPhase
 
     /**
-     * Stopped. This phase is final. The client never restarts a stopped environment. A snapshot that reports it
+     * Stopped. This phase is final for the client, which never starts a stopped environment again. The runtime keeps
+     * the environment frozen until it ends, and a start would let it continue. A snapshot that reports it
      * running while the engine's last tick ends changes nothing. Only a runtime that no longer knows the environment
      * turns it into [Lost].
      */
     public data object Stopped : EnvironmentPhase
+
+    /**
+     * Dropped by the client. The runtime ended the engine and keeps nothing of the environment, and every later call
+     * with its key would answer as for an environment that does not exist. This phase is final, and the handle refuses
+     * every operation in it except another drop, which it answers locally.
+     */
+    public data object Dropped : EnvironmentPhase
 
     /**
      * A call may or may not have been applied, and the runtime could not be asked which. The next call that reads the

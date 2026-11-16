@@ -82,6 +82,9 @@ public enum class HighlightStyle {
     /** File path in an environment descriptor. */
     FILE_PATH,
 
+    /** Name of an attachable state machine. */
+    STATE_MACHINE_NAME,
+
     /** Embedded Python code. */
     EMBEDDED_CODE,
 
@@ -110,14 +113,14 @@ public enum class HighlightStyle {
     /**
      * True for the semantic styles, which come from the semantic spans of the parse outcome. There is one per
      * `SemanticKind`: type, primitive type, property, object, state, macro, event and binding names, event domains,
-     * model paths, descriptions, and the file paths of environment descriptors. False for the lexical styles, which
+     * model paths, descriptions, the file paths of environment descriptors and the names of attachable state machines. False for the lexical styles, which
      * come from token kinds. The editor carries the semantic layer of an older snapshot forward while the parse lags
      * behind the tokens, as described on [overlayHighlights].
      */
     public val isSemantic: Boolean
         get() = when (this) {
             TYPE_NAME, PRIMITIVE_TYPE, PROPERTY_NAME, OBJECT_NAME, STATE_NAME, MACRO_NAME, EVENT_NAME, EVENT_DOMAIN,
-            MODEL_PATH, DESCRIPTION, BINDING_NAME, FILE_PATH,
+            MODEL_PATH, DESCRIPTION, BINDING_NAME, FILE_PATH, STATE_MACHINE_NAME,
             -> true
             else -> false
         }

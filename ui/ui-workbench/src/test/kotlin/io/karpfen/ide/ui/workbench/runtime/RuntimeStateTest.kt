@@ -590,15 +590,15 @@ class RuntimeStateTest {
     }
 
     /**
-     * Programs what stopping the environment of [entry] needs. The runtime closes the link and reports the final
-     * model.
+     * Programs what stopping the environment of [entry] needs. The runtime pushes the notice of the stop, keeps the link
+     * open and reports the final model.
      */
     private fun TestWorkbench.programStop(descriptor: Path, entry: RunEntry, environment: String) {
         val clientId = assertNotNull(entry.session).clientId.value
         fakeRuntime.after(RuntimeRoute.STOP_ENVIRONMENT) {
             linksOf(clientId)
                 .filter { it.isOpen }
-                .forEach { it.closeByRuntime(WireNames.CLOSE_NORMAL, WireNames.REASON_ENVIRONMENT_STOPPED) }
+                .forEach { it.pushStopNotice() }
         }
         val final = RuntimeWireWriter.snapshot(environment, RuntimePhase.STOPPED, FINAL_REVISION, emptyMap(), rootsOf(descriptor))
         fakeRuntime.respond(RuntimeRoute.MODEL_SNAPSHOT, FakeResponse.json(final), mapOf(ENV_KEY to environment))

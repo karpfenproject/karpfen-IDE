@@ -85,7 +85,7 @@ class SessionUnderTest(private val runtime: RuntimeUnderTest, private val endpoi
 
     /**
      * Runs [scenario] against the runtime with its models below [root]. At its end the sessions it launched are shut
-     * down, so it leaves its environments stopped, and its workspaces are closed.
+     * down, which stops and drops their environments, and its workspaces are closed.
      */
     fun run(root: Path, scenario: suspend SessionScenario.() -> Unit) {
         runtime.run {
@@ -240,7 +240,10 @@ class SessionScenario(private val scope: RuntimeScenarioScope, val endpoint: Run
         }
         val roots = (body["roots"] as WireValue.WireArray).items.map { it as WireValue.WireObject }
         val mirror = MirrorReducer(prepared.schema, prepared.plan.modelObjectIds).replace(roots, revision).snapshot
-        return RawSnapshot((body["phase"] as WireValue.WireString).value, revision, stacks, mirror)
+        val instances = (body["stateMachines"] as? WireValue.WireObject)?.fields.orEmpty().associate { field ->
+            field.name to (field.value as? WireValue.WireString)?.value
+        }
+        return RawSnapshot((body["phase"] as WireValue.WireString).value, revision, stacks, mirror, instances)
     }
 
     /**
@@ -280,7 +283,7 @@ class SessionScenario(private val scope: RuntimeScenarioScope, val endpoint: Run
         assertEquals(emptyList(), MirrorComparison.differences(snapshot.mirror, model.value.mirror), "the mirror of $environmentOrNull. $diagnostics")
     }
 
-    /** Shuts every launched session down, which stops its environment, and closes the workspaces. */
+    /** Shuts every launched session down, which stops and drops its environment, and closes the workspaces. */
     suspend fun finish() {
         launched.forEach { it.shutdown() }
         workspaces.forEach { it.close() }
@@ -333,8 +336,16 @@ class RawObserver(val environment: EnvironmentKey, val clientId: ClientId, priva
  * @property revision its revision.
  * @property stacks the active stack of every machine that reported one.
  * @property mirror its roots, read as the session reads them.
+ * @property stateMachines its record of state machine instances: the key of every object with an instance and the name
+ *   of the definition the instance runs, or null for an attached state machine.
  */
-data class RawSnapshot(val phase: String, val revision: Long, val stacks: Map<String, List<String>>, val mirror: MirrorSnapshot)
+data class RawSnapshot(
+    val phase: String,
+    val revision: Long,
+    val stacks: Map<String, List<String>>,
+    val mirror: MirrorSnapshot,
+    val stateMachines: Map<String, String?> = emptyMap(),
+)
 
 /** The environment of this session, which every session has once its deployment created it. */
 val RuntimeSession.environment: EnvironmentKey

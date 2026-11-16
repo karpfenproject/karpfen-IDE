@@ -44,6 +44,30 @@ public data class MachineLayout(
 }
 
 /**
+ * What the IDE knows of one attachable state machine that a deployment hands to the environment as a definition. The
+ * environment builds an instance of it for an object at the start, when a rule creates or exchanges an object, and each
+ * instance starts in the same predicted stack. Immutable, and built during the preparation of a deployment like a
+ * [MachineLayout].
+ *
+ * @property name the name of the attachable state machine, which the runtime announces with each of its instances.
+ * @property file the file of the attachable state machine.
+ * @property topLevelStates the names of its top-level states in file order.
+ * @property initialStack the stack every instance enters when it starts.
+ */
+public data class DefinitionLayout(
+    public val name: String,
+    public val file: Path,
+    public val topLevelStates: List<String>,
+    public val initialStack: List<String>,
+) {
+    public companion object {
+        /** The layout of the attachable [machine] named [name] in [file]. */
+        public fun of(name: String, file: Path, machine: StateMachine): DefinitionLayout =
+            DefinitionLayout(name, file, machine.states.map { it.name }, InitialStackPredictor.predict(machine.states))
+    }
+}
+
+/**
  * The runtime's rule for the first stack of a machine, as in `StateMachineQueryHelper.getInitialStateStack`. At every
  * level it enters the state marked initial, or else the first state, and goes on recursively into its inner states.
  * Stateless.

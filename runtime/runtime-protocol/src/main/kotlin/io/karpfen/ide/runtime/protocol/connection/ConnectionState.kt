@@ -47,10 +47,17 @@ public sealed interface ConnectionEnd {
     public data class HandshakeRejected(public val rejection: HandshakeRejection) : ConnectionEnd
 
     /**
-     * The environment was stopped. Either the runtime closed the link with `Environment stopped`, or the handle saw the
-     * stop.
+     * The environment was stopped. Either the runtime pushed the `engineStatus` notice with the phase `stopped`, or the
+     * handle saw the stop. The environment stays frozen in the runtime until it is dropped or the runtime ends.
      */
     public data object EnvironmentStopped : ConnectionEnd
+
+    /**
+     * The environment was dropped. Either the runtime closed the socket with 1000 `Environment dropped`, or the handle
+     * saw its own drop. The runtime keeps nothing of the environment. Whoever dropped it, this client or another one,
+     * the end is the same; the client that dropped it knows that it did.
+     */
+    public data object EnvironmentDropped : ConnectionEnd
 
     /**
      * The runtime no longer knows the environment.

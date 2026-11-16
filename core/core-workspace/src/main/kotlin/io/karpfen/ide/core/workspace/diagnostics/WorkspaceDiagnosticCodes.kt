@@ -51,6 +51,13 @@ public object WorkspaceDiagnosticCodes {
     public const val DESCRIPTOR_MISSING_FILE: String = "descriptor-missing-file"
 
     /**
+     * A state machine named in an environment descriptor has the wrong form for its entry. An entry with `attachedTo`
+     * needs the attached form and an entry without it the attachable form, which makes a definition. That is an ERROR.
+     * A definition listed twice is a WARNING with the same code.
+     */
+    public const val DESCRIPTOR_STATE_MACHINE_FORM: String = "descriptor-state-machine-form"
+
+    /**
      * An implicit modeling context contains several domain metamodels. Each of them gets an INFO, and the
      * alphabetically first one is used.
      */

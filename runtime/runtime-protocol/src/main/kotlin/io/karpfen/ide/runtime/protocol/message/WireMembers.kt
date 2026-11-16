@@ -20,6 +20,30 @@ import io.karpfen.ide.runtime.protocol.catalogue.WireNames
 /** The text of the member [name] if it is a string, else null. */
 internal fun WireValue.WireObject.stringMember(name: String): String? = (this[name] as? WireValue.WireString)?.value
 
+/**
+ * The member [name] as a string or null: [NullableText.Present] with the text of a string or with null for a JSON
+ * `null`, or [NullableText.Absent] if the member is missing or of another type.
+ */
+internal fun WireValue.WireObject.nullableStringMember(name: String): NullableText =
+    when (val value = this[name]) {
+        is WireValue.WireString -> NullableText.Present(value.value)
+        WireValue.WireNull -> NullableText.Present(null)
+        else -> NullableText.Absent
+    }
+
+/** What [nullableStringMember] found. */
+internal sealed interface NullableText {
+    /**
+     * The member is a string or `null`.
+     *
+     * @property text the text, or null for `null`.
+     */
+    data class Present(val text: String?) : NullableText
+
+    /** The member is missing or neither a string nor `null`. */
+    data object Absent : NullableText
+}
+
 /** The member [name] if it is an object, else null. */
 internal fun WireValue.WireObject.objectMember(name: String): WireValue.WireObject? = this[name] as? WireValue.WireObject
 

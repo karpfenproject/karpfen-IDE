@@ -108,6 +108,7 @@ class FakeRuntimeTest {
             fake.exchange(health()),
             fake.exchange(get(RuntimeRoute.MODEL_SNAPSHOT, "envKey" to "env-1")),
             fake.exchange(post(RuntimeRoute.RUN_ENVIRONMENT, "envKey" to "env-1")),
+            fake.exchange(post(RuntimeRoute.DROP_ENVIRONMENT, "envKey" to "env-1")),
             fake.exchange(TextRequest(HttpVerb.GET, "/version", emptyList(), null)),
         )
 
@@ -119,6 +120,7 @@ class FakeRuntimeTest {
                 HttpOutcome.Answered(200, "ak-ide-b-1761555601234-2", FakeResponse.TEXT),
                 HttpOutcome.Answered(200, """{"status":"ok"}""", "application/json"),
                 HttpOutcome.Answered(404, "", null),
+                HttpOutcome.Answered(200, "", FakeResponse.TEXT),
                 HttpOutcome.Answered(200, "", FakeResponse.TEXT),
                 HttpOutcome.Answered(404, "", null),
             ),
@@ -216,15 +218,19 @@ class FakeRuntimeTest {
         fake.pushToClient("ide-a", RuntimeGoldens.OBJECT_CHANGED)
         assertTrue(fake.links[0].push(RuntimeGoldens.OBJECT_DELETED))
         assertTrue(fake.links[0].pushBinary(3))
-        fake.links[0].closeByRuntime(1000, "Environment stopped")
+        fake.links[0].closeByRuntime(1001, "Runtime stopped")
         fake.links[1].drop()
+        val third = connect(fake)
+        third.send("ide-c:env-1:ak-3")
+        fake.links[2].closeAsDropped()
 
         assertEquals(LinkFrame.Text(RuntimeGoldens.OBJECT_CHANGED), first.incoming.receive())
         assertEquals(LinkFrame.Text(RuntimeGoldens.OBJECT_DELETED), first.incoming.receive())
         assertEquals(LinkFrame.Binary(3), first.incoming.receive())
         assertTrue(first.incoming.receiveCatching().isClosed)
-        assertEquals(LinkClosure(1000, "Environment stopped", byClient = false), first.closure.await())
+        assertEquals(LinkClosure(1001, "Runtime stopped", byClient = false), first.closure.await())
         assertEquals(LinkClosure(null, null, byClient = false), second.closure.await())
+        assertEquals(LinkClosure(1000, "Environment dropped", byClient = false), third.closure.await())
         assertFalse(fake.links[0].push(RuntimeGoldens.STATE_CHANGE), "a closed link takes no frames")
     }
 

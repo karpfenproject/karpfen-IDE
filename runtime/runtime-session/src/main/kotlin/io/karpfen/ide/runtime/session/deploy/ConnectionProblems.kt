@@ -44,6 +44,10 @@ internal object ConnectionProblems {
                 DeployProblemCodes.CONNECTION_LOST,
                 "The connection ended because the environment was stopped.",
             )
+            ConnectionEnd.EnvironmentDropped -> error(
+                DeployProblemCodes.ENVIRONMENT_LOST,
+                "The environment was dropped by somebody else, so the runtime no longer knows it.",
+            )
             ConnectionEnd.Disconnected -> error(DeployProblemCodes.CONNECTION_LOST, "The connection was closed.")
         }
 

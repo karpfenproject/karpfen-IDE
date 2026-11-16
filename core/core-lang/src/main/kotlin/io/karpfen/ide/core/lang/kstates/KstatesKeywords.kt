@@ -56,6 +56,7 @@ internal object KstatesKeywords {
         "SETOBJ" to "set a relation",
         "APPENDOBJ" to "append to a relation",
         "DROPOBJ" to "remove an object",
+        "EXCHANGE" to "replace the state machine of an object",
     )
 
     /**
@@ -72,6 +73,17 @@ internal object KstatesKeywords {
     private val BY_POSITION: Map<KstatesPosition, List<Offer>> = mapOf(
         KstatesPosition.TOP_LEVEL to offers(
             Snippet("STATEMACHINE ATTACHED TO \"…\" { }", "STATEMACHINE ATTACHED TO \"\$0\" { }", detail = "state machine"),
+            Snippet(
+                "STATEMACHINE \"…\" ATTACHABLE TO \"…\" { }", "STATEMACHINE \"\$0\" ATTACHABLE TO \"\" { }",
+                detail = "attachable state machine",
+            ),
+        ),
+        KstatesPosition.MACHINE_HEADER to offers(
+            Snippet("ATTACHED TO \"…\"", "ATTACHED TO \"\$0\"", detail = "attached to the object of a type"),
+            Snippet("\"…\" ATTACHABLE TO \"…\"", "\"\$0\" ATTACHABLE TO \"\"", detail = "attachable to types, by name"),
+        ),
+        KstatesPosition.NAMED_MACHINE_HEADER to offers(
+            Snippet("ATTACHABLE TO \"…\"", "ATTACHABLE TO \"\$0\"", detail = "attachable to types"),
         ),
         KstatesPosition.MACHINE to offers(
             Snippet("STATES { }", "STATES { \$0 }", detail = "states block"),
@@ -107,6 +119,9 @@ internal object KstatesKeywords {
             ),
         ),
         KstatesPosition.ACTIONS to ACTIONS,
+        KstatesPosition.OBJECT_RULE_END to offers(
+            Snippet("ATTACH \"…\"", "ATTACH \"\$0\"", detail = "attach a state machine to the new object"),
+        ) + ACTIONS,
         KstatesPosition.TRANSITIONS to
             offers(Snippet("TRANSITION \"…\" -> \"…\" { }", "TRANSITION \"\$0\" -> \"\" { }", detail = "transition")) +
             offers(

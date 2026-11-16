@@ -131,7 +131,8 @@ internal sealed interface ConductorMessage {
      * The conductor's own stop of the environment ended.
      *
      * @property outcome the outcome of the stop call, or null if it took longer than its bound.
-     * @property leftBehind the ledger entry the stop recorded, or null if it recorded none.
+     * @property leftBehind the ledger entry of the environment that stays on the runtime because the drop after the stop
+     *   failed, or null if none stays.
      */
     data class StopFinished(val outcome: CallOutcome<Unit>?, val leftBehind: LedgerEntry?) : ConductorMessage
 }

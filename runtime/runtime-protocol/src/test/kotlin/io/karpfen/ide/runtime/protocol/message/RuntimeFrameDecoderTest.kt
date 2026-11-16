@@ -17,6 +17,7 @@ package io.karpfen.ide.runtime.protocol.message
 
 import io.karpfen.ide.runtime.protocol.catalogue.ClientId
 import io.karpfen.ide.runtime.protocol.catalogue.EnvironmentKey
+import io.karpfen.ide.runtime.protocol.golden.RuntimeGoldens
 import io.karpfen.ide.runtime.protocol.golden.RuntimeWireWriter
 import io.karpfen.ide.runtime.protocol.golden.fakeObject
 import kotlin.test.Test
@@ -86,6 +87,36 @@ class RuntimeFrameDecoderTest {
     }
 
     @Test
+    fun `stateMachineAttached and stateMachineDetached decode with a definition name or null for an attached state machine`() {
+        assertEquals(
+            RuntimePush.StateMachineAttached("gen_Bulb_0", "blinking", 61),
+            pushOf(RuntimeGoldens.STATE_MACHINE_ATTACHED).push,
+        )
+        assertEquals(
+            RuntimePush.StateMachineDetached("living room", null, 62),
+            pushOf(RuntimeGoldens.STATE_MACHINE_DETACHED).push,
+        )
+        assertEquals(
+            RuntimePush.StateMachineDetached("bulb", "glowing", 15),
+            pushOf(frame("stateMachineDetached", """{"modelElementId":"bulb","revision":15,"stateMachine":"glowing"}""")).push,
+        )
+    }
+
+    @Test
+    fun `a state machine push without its object, its name or its revision is malformed`() {
+        listOf(
+            """{"stateMachine":"blinking","revision":1}""",
+            """{"modelElementId":"bulb","revision":1}""",
+            """{"modelElementId":"bulb","stateMachine":3,"revision":1}""",
+            """{"modelElementId":"bulb","stateMachine":"blinking"}""",
+        ).forEach { payload ->
+            val violation = violationOf(frame("stateMachineAttached", payload))
+            assertEquals(ViolationKind.MALFORMED_PAYLOAD, violation.kind, payload)
+            assertEquals("stateMachineAttached", violation.messageType)
+        }
+    }
+
+    @Test
     fun `stateChange and domainEvent members are read in the order org json writes them`() {
         val state = RuntimeWireWriter.stateChangePayload("lamp", listOf("on", "bright"), 7)
         assertEquals(RuntimePush.StateChanged("lamp", listOf("on", "bright"), 7), pushOf(frame("stateChange", state)).push)
@@ -125,6 +156,22 @@ class RuntimeFrameDecoderTest {
     }
 
     @Test
+    fun `an engineStatus notice of a stop or a start decodes to the status with its phase`() {
+        val stopped = RuntimeWireWriter.engineStatusPayload(paused = true, waiting = true, phase = "stopped")
+        val running = RuntimeWireWriter.engineStatusPayload(paused = false, waiting = false, phase = "running")
+
+        assertEquals(
+            listOf(
+                RuntimePush.EngineStatusChanged(EngineStatus(paused = true, waiting = true, halt = null), RuntimePhase.STOPPED),
+                RuntimePush.EngineStatusChanged(EngineStatus(paused = false, waiting = false, halt = null), RuntimePhase.RUNNING),
+            ),
+            listOf(stopped, running).map { pushOf(frame("engineStatus", it)) }.onEach {
+                assertEquals(emptyList(), it.violations)
+            }.map { it.push },
+        )
+    }
+
+    @Test
     fun `an engineStatus payload that is not a status is malformed`() {
         listOf(
             "[]",
@@ -134,6 +181,8 @@ class RuntimeFrameDecoderTest {
             """{"paused":true,"waiting":true,"halt":"cars wait"}""",
             """{"paused":true,"waiting":true,"halt":{"modelElementId":"crossing","timing":"start","state":"cars wait"}}""",
             """{"paused":true,"waiting":true,"halt":{"timing":"entry","state":"cars wait"}}""",
+            """{"paused":false,"waiting":false,"phase":"halted"}""",
+            """{"paused":false,"waiting":false,"phase":true}""",
         ).forEach { payload ->
             val violation = violationOf(frame("engineStatus", payload))
             assertEquals(ViolationKind.MALFORMED_PAYLOAD, violation.kind, payload)

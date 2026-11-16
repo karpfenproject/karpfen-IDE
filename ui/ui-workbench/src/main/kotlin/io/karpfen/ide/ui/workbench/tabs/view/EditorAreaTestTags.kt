@@ -32,6 +32,9 @@ public object EditorAreaTestTags {
     /** The button of the view mode named [label], which is "Text", "Split" or "Diagram". */
     public fun viewMode(label: String): String = "Workbench.viewMode:$label"
 
+    /** The button below the editor that shows the states of the instance on the object with [key] in the diagram. */
+    public fun liveInstance(key: String): String = "Workbench.liveInstance:$key"
+
     /** The button below the editor that validates the whole project. */
     public const val VALIDATE: String = "Workbench.validate"
 

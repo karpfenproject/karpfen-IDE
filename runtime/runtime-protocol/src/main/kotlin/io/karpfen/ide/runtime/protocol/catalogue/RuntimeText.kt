@@ -28,6 +28,8 @@ package io.karpfen.ide.runtime.protocol.catalogue
  * - `{id}` is an object id.
  * - `{ms}` is a number of milliseconds.
  * - `{feature}` is a feature name.
+ * - `{machine}` is the name of an attachable state machine.
+ * - `{entries}` is a list of types with the state machines they behave after, as the runtime joins them.
  *
  * A body counts as one of these texts only if it is the whole text, as [match] checks. `{env}` and `{client}` match a
  * run of non-whitespace characters, which may be empty, because the runtime renders a present but empty parameter as
@@ -71,6 +73,38 @@ public enum class RuntimeText(public val template: String, public val kind: Reje
         RejectionKind.UNKNOWN_ATTACHMENT,
     ),
 
+    /**
+     * `runEnvironment` with types of the metamodel that behave after names no attachable state machine of the
+     * environment has (409). The entries read `'Bulb' behaves after 'glowing'`, joined with a comma.
+     */
+    MISSING_DEFINITION(
+        "Environment with key {env} has types that behave after state machines it does not hold: {entries}",
+        RejectionKind.MISSING_DEFINITION,
+    ),
+
+    /**
+     * `runEnvironment` with types that behave after attachable state machines that do not list them (409). The entries
+     * read `'Bulb' behaves after 'glowing', which is attachable to 'Lamp'`, joined with a semicolon.
+     */
+    UNATTACHABLE_DEFINITION(
+        "Environment with key {env} has types that behave after state machines not attachable to them: {entries}",
+        RejectionKind.UNATTACHABLE_DEFINITION,
+    ),
+
+    /** `setStateMachine` with `attachedTo` and a text of the attachable form (400). */
+    ATTACHED_FORM_REQUIRED(
+        "The state machine for '{element}' must have the attached form STATEMACHINE ATTACHED TO \"Type\", but it is the " +
+            "attachable state machine '{machine}'; upload an attachable state machine without attachedTo",
+        RejectionKind.ATTACHED_FORM_REQUIRED,
+    ),
+
+    /** `setStateMachine` without `attachedTo` and a text of the attached form (400). */
+    ATTACHABLE_FORM_REQUIRED(
+        "A state machine without attachedTo must have the attachable form STATEMACHINE \"name\" ATTACHABLE TO \"Type\"; " +
+            "give attachedTo for a state machine ATTACHED TO a type",
+        RejectionKind.ATTACHABLE_FORM_REQUIRED,
+    ),
+
     /** `startEnvironment` or `stopEnvironment` on a configuring environment (409). This text quotes the key. */
     NOT_ACTIVATED("Environment with key '{env}' has no execution thread", RejectionKind.NOT_ACTIVATED),
 
@@ -96,6 +130,12 @@ public enum class RuntimeText(public val template: String, public val kind: Reje
     NO_STATE_MACHINE_SOURCE(
         "No state machine source found for model element '{element}' in environment {env}",
         RejectionKind.NO_STATE_MACHINE_SOURCE,
+    ),
+
+    /** `observatory/statemachine` with a `name` that no attachable state machine of the environment has (400). */
+    NO_ATTACHABLE_STATE_MACHINE(
+        "No attachable state machine named '{machine}' in environment {env}",
+        RejectionKind.NO_ATTACHABLE_STATE_MACHINE,
     ),
 
     /** `observatory/model` of a configuring environment without a model (409). */

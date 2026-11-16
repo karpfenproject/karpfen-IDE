@@ -27,7 +27,9 @@ import io.karpfen.ide.runtime.session.plan.UploadRole
  */
 internal class UploadStep(private val upload: PlannedUpload) : DeployStep {
     init {
-        require(upload.role != UploadRole.STATE_MACHINE) { "a state machine is attached by its own step" }
+        require(upload.role != UploadRole.STATE_MACHINE && upload.role != UploadRole.DEFINITION) {
+            "a state machine is uploaded by its own step"
+        }
     }
 
     override val kind: DeployStepKind = when (upload.role) {
@@ -63,6 +65,25 @@ internal class AttachStep(private val upload: PlannedUpload) : DeployStep {
 
     override suspend fun execute(run: DeployRun): StepOutcome =
         run.settle(run.createdEnvironment.setStateMachine(attachedTo, upload.snapshot.text), upload)
+}
+
+/**
+ * Uploads one attachable state machine without an object key, so that the environment holds it as a definition under
+ * its name. The runtime checks at the activation that every type that behaves after a name has a definition of that
+ * name, so the definitions are uploaded before the activation, in descriptor order with the attached state machines.
+ *
+ * @param upload the definition.
+ */
+internal class DefineStep(private val upload: PlannedUpload) : DeployStep {
+    init {
+        require(upload.role == UploadRole.DEFINITION) { "only a definition is uploaded without a key: ${upload.role}" }
+    }
+
+    override val kind: DeployStepKind = DeployStepKind.DEFINE_STATE_MACHINE
+    override val title: String = "Uploading the definition ${upload.fileName}"
+
+    override suspend fun execute(run: DeployRun): StepOutcome =
+        run.settle(run.createdEnvironment.defineStateMachine(upload.snapshot.text), upload)
 }
 
 /**

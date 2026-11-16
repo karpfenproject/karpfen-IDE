@@ -44,8 +44,8 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
- * Runs the synthesized lamp headless against the real runtime that the live task is given, usually a throwaway
- * container of `runtime/live-runtime.sh test`. It stands in for `karpfen-ide run <folder> --bridge http.kbridge.json`
+ * Runs the synthesized lamp and the spares example headless against the real runtime that the live task is given,
+ * usually a throwaway container of `runtime/live-runtime.sh test`. It stands in for `karpfen-ide run <folder> --bridge http.kbridge.json`
  * in a terminal: the run starts an HTTP bridge on a port of this machine, and the wiring is the production wiring of
  * [HeadlessLaunch] on a thread of its own, except that [RunningRuntimeHosts] hand it the live runtime in place of the
  * IDE's Docker container.
@@ -53,7 +53,8 @@ import kotlin.test.assertTrue
  * The test reads what the run writes. Once the run and its bridge run, it presses the wall switch
  * through the bridge and waits until the lamp is reported on. Then it runs the shutdown sequence as a terminate
  * signal would, through the one hook that the launch registered, and checks that the run shut down, ended with 0 and
- * let go of the bridge's port.
+ * let go of the bridge's port. The run of the spares example shows each bulb with the definition its instance runs,
+ * and after a request to the bridge the bulb in the lamp with the definition it was exchanged for.
  */
 @LiveRuntime
 class LiveHeadlessRunTest {
@@ -114,6 +115,59 @@ class LiveHeadlessRunTest {
             assertEquals("Running lamp.kenv.json with http.kbridge.json", lines(output).first())
             assertTrue(lines(errors).none { it.startsWith("karpfen-ide:") }, "${lines(errors)}")
             assertFailsWith<ConnectException>("the port of the bridge is free again") { post(port, "/press") }
+        } finally {
+            withContext(Dispatchers.IO) {
+                if (running.isAlive) {
+                    hooks.forEach { it.run() }
+                    running.join()
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `a headless run of the spares example shows the instances of its definitions and the exchange of one`() = runtime.run {
+        val root = dir.resolve("spares").toAbsolutePath().normalize()
+        val examples = Path.of(checkNotNull(System.getProperty("karpfen.examples")) { "the build names the examples" })
+        examples.resolve("spares").toFile().copyRecursively(root.toFile())
+        val port = freePort()
+        val bridge = Files.writeString(
+            root.resolve("http.kbridge.json"),
+            """
+            {
+              "kind": "http",
+              "settings": { "port": "$port" },
+              "inbound": [ { "from": "/flicker", "event": "service/flicker" } ]
+            }
+            """.trimIndent(),
+        )
+        val output = ByteArrayOutputStream()
+        val errors = ByteArrayOutputStream()
+        val console = HeadlessConsole(PrintStream(output, true, Charsets.UTF_8), PrintStream(errors, true, Charsets.UTF_8))
+        val hooks = CopyOnWriteArrayList<Thread>()
+        val launch = HeadlessLaunch(console, ExitSequence { hooks += it }, RunningRuntimeHosts(runtime.endpoint))
+        val status = AtomicInteger(NOT_ENDED)
+        val running = thread(name = "live-headless-spares") {
+            status.set(launch.run(HeadlessCommand.Run(root, bridges = listOf(bridge))))
+        }
+        try {
+            eventually("both bulbs lit by their instances of glowing", patience.deploy) {
+                assertTrue("bulb (glowing): lit" in lines(output) && "spare (glowing): lit" in lines(output), "${lines(output)} ${lines(errors)}")
+            }
+
+            assertEquals(ACCEPTED, post(port, "/flicker"), diagnostics)
+            eventually("the bulb in the lamp running flickering") {
+                assertTrue(lines(output).any { it.startsWith("bulb (flickering): ") }, "${lines(output)} ${lines(errors)}")
+            }
+
+            withContext(Dispatchers.IO) {
+                hooks.single().run()
+                running.join()
+            }
+            println(lines(output).joinToString(separator = "\n", prefix = "What the headless run of spares printed:\n"))
+            assertEquals(HeadlessExitCodes.OK, status.get(), "${lines(output)} ${lines(errors)}")
+            assertEquals("Running spares.kenv.json with http.kbridge.json", lines(output).first())
+            assertTrue(lines(output).any { it.startsWith("Uploading the definition glowing.kstates: done") }, "${lines(output)}")
         } finally {
             withContext(Dispatchers.IO) {
                 if (running.isAlive) {

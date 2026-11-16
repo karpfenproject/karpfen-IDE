@@ -24,6 +24,7 @@ import io.karpfen.ide.runtime.protocol.conformance.SynthesizedModel
 import io.karpfen.ide.runtime.protocol.connection.ConnectionEnd
 import io.karpfen.ide.runtime.protocol.connection.ConnectionState
 import io.karpfen.ide.runtime.protocol.connection.ReconnectPolicy
+import io.karpfen.ide.runtime.protocol.fake.FakeClose
 import io.karpfen.ide.runtime.protocol.fake.FakeResponse
 import io.karpfen.ide.runtime.protocol.message.RuntimePhase
 import io.karpfen.ide.runtime.protocol.transport.TransportFailure
@@ -66,14 +67,16 @@ import kotlin.time.Duration.Companion.seconds
  * Covers the lifecycle of a session after its deployment, end to end against the fake runtime, which answers only what
  * each test programs.
  *
- * A stop ends the connection, finalizes the model and records the environment once. An event sent after the stop never
- * overtakes it. Closing and shutting down in every state leave the ledger entry that the state calls for. Closing right
- * when a stop begins still stops. Cancelling the scope a session was launched in closes it. A stop is bounded as the
- * deploy timing says.
+ * A stop ends the connection, finalizes the model, drops the environment and records it once. After the drop the
+ * session asks the runtime nothing more. A drop that fails ends the run all the same, with a note. An event sent after
+ * the stop never overtakes it. Closing and shutting down in every state leave the ledger entry that the state calls
+ * for. Closing right when a stop begins still stops and drops. Cancelling the scope a session was launched in closes
+ * it. A stop is bounded as the deploy timing says.
  *
  * The environment's phase drives the state until the session stopped. A snapshot can show the engine halted, a call
  * without answer makes the phase uncertain, and a restart loses the environment. A stopped session stays stopped,
- * whatever a later read reports. A stop that the session did not make is settled by reading the final model. A
+ * whatever a later read reports. A stop that the session did not make is settled by reading the final model and
+ * dropping the environment, and a drop that the session did not make ends the run with the model it saw last. A
  * connection that gives up is a warning, and after it pulls never make the model live.
  *
  * Forcing a state reaches the runtime. A refusal comes back with the runtime's text, and events that got no reaction
@@ -89,7 +92,7 @@ class RuntimeSessionLifecycleTest {
     enum class Situation { DEPLOYING, READY, RUNNING, HALTED, STOPPING, STOPPED, FAILED, CLOSED }
 
     @Test
-    fun `a stop ends the connection, finalizes the model and records the environment once`() = runTest {
+    fun `a stop ends the connection, finalizes the model, then drops the environment and records it once`() = runTest {
         val rig = SessionRig(this, root)
         val deployment = rig.prepared(SynthesizedModel.LAMP)
         val session = rig.running(deployment)
@@ -103,13 +106,14 @@ class RuntimeSessionLifecycleTest {
         assertEquals(SyncStatus.Final(3), session.model.value.sync)
         assertEquals(RuntimePhase.STOPPED, session.model.value.phase)
         assertEquals(ObservationMode.OFF, session.model.value.mode)
-        assertEquals(listOf(LedgerDisposition.STOPPED), rig.ledger.entries.value.map { it.disposition })
+        assertEquals(listOf(LedgerDisposition.DROPPED), rig.ledger.entries.value.map { it.disposition })
+        val ending = rig.fake.requests.map { it.route }.dropWhile { it != RuntimeRoute.STOP_ENVIRONMENT }
+        assertEquals(listOf(RuntimeRoute.STOP_ENVIRONMENT, RuntimeRoute.MODEL_SNAPSHOT, RuntimeRoute.DROP_ENVIRONMENT), ending)
+        assertEquals(listOf("env-1"), rig.fake.requests(RuntimeRoute.DROP_ENVIRONMENT).map { it.parameter(SessionRig.ENV_KEY) })
         assertIs<InjectionAvailability.Unavailable>(session.events.availability.value)
-        rig.programSnapshot(deployment, "env-1", RuntimePhase.STOPPED, 3)
-        assertEquals(SessionCommandOutcome.Done, session.pull(), "a stopped environment can still be pulled")
         assertIs<SessionCommandOutcome.Refused>(session.start())
         session.close()
-        assertEquals(listOf(LedgerDisposition.STOPPED), rig.ledger.entries.value.map { it.disposition })
+        assertEquals(listOf(LedgerDisposition.DROPPED), rig.ledger.entries.value.map { it.disposition })
     }
 
     @Test
@@ -117,7 +121,7 @@ class RuntimeSessionLifecycleTest {
         val rig = SessionRig(this, root)
         val deployment = rig.prepared(SynthesizedModel.LAMP)
         val session = rig.running(deployment)
-        closeLinkOnStop(rig, session)
+        pushNoticeOnStop(rig, session)
         rig.programSnapshot(deployment, "env-1", RuntimePhase.RUNNING, 3)
 
         assertEquals(SessionCommandOutcome.Done, session.stop())
@@ -125,25 +129,23 @@ class RuntimeSessionLifecycleTest {
         val stopped = SessionState.Stopped(session.progress.value.environment!!)
         assertEquals(stopped, session.state.value)
         assertEquals(SyncStatus.Final(3), session.model.value.sync)
-        rig.programSnapshot(deployment, "env-1", RuntimePhase.RUNNING, 3)
-        assertEquals(SessionCommandOutcome.Done, session.pull())
-        assertEquals(stopped, session.state.value)
-        val refused = SessionCommandOutcome.Refused(stopped, "Forcing the state of 'lamp' is not possible while the environment is stopped.")
+        val refused = SessionCommandOutcome.Refused(stopped, "Forcing the state of 'lamp' is not possible while the run has ended.")
         assertEquals(refused, session.forceState("lamp", "on"))
         assertIs<SessionCommandOutcome.Refused>(session.stop())
         assertEquals(emptyList(), rig.fake.requests(RuntimeRoute.SET_ACTIVE_STATE))
         assertEquals(1, rig.fake.requests(RuntimeRoute.STOP_ENVIRONMENT).size)
+        assertEquals(1, rig.fake.requests(RuntimeRoute.DROP_ENVIRONMENT).size)
         assertIs<InjectionAvailability.Unavailable>(session.events.availability.value)
         session.close()
-        assertEquals(listOf(LedgerDisposition.STOPPED), rig.ledger.entries.value.map { it.disposition })
+        assertEquals(listOf(LedgerDisposition.DROPPED), rig.ledger.entries.value.map { it.disposition })
     }
 
     @Test
-    fun `a stopped session stays stopped while the engine's last tick holds the tick boundary, and a later pull finalizes it`() = runTest {
+    fun `a stopped session stays stopped while the engine's last tick holds the tick boundary, and the drop follows all the same`() = runTest {
         val rig = SessionRig(this, root)
         val deployment = rig.prepared(SynthesizedModel.LAMP)
         val session = rig.running(deployment)
-        closeLinkOnStop(rig, session)
+        pushNoticeOnStop(rig, session)
         val noBoundary =
             FakeResponse.rejected(FakeResponse.CONFLICT, RuntimeText.TICK_BOUNDARY_TIMEOUT, mapOf("env" to "env-1", "ms" to "10000"))
         rig.fake.respond(RuntimeRoute.MODEL_SNAPSHOT, noBoundary)
@@ -152,37 +154,121 @@ class RuntimeSessionLifecycleTest {
 
         val stopped = SessionState.Stopped(session.progress.value.environment!!)
         assertEquals(stopped, session.state.value)
-        rig.fake.respond(RuntimeRoute.MODEL_SNAPSHOT, noBoundary)
         assertIs<SessionCommandOutcome.Refused>(session.pull())
-        assertEquals(stopped, session.state.value)
         assertIs<SessionCommandOutcome.Refused>(session.forceState("lamp", "on"))
         assertIs<SessionCommandOutcome.Refused>(session.stop())
-        rig.programSnapshot(deployment, "env-1", RuntimePhase.STOPPED, 4)
-        assertEquals(SessionCommandOutcome.Done, session.pull())
-        assertEquals(SyncStatus.Final(4), session.model.value.sync)
         assertEquals(stopped, session.state.value)
         assertEquals(emptyList(), rig.fake.requests(RuntimeRoute.SET_ACTIVE_STATE))
         assertEquals(1, rig.fake.requests(RuntimeRoute.STOP_ENVIRONMENT).size)
+        assertEquals(1, rig.fake.requests(RuntimeRoute.DROP_ENVIRONMENT).size)
+        assertEquals(listOf(LedgerDisposition.DROPPED), rig.ledger.entries.value.map { it.disposition })
         session.close()
     }
 
     @Test
-    fun `a stopped session stays stopped when the runtime forgets the environment afterwards`() = runTest {
+    fun `after the drop the session asks the runtime nothing more, and its model stays as it read it last`() = runTest {
         val rig = SessionRig(this, root)
         val deployment = rig.prepared(SynthesizedModel.LAMP)
         val session = rig.running(deployment)
         programStop(rig, deployment, session)
         assertEquals(SessionCommandOutcome.Done, session.stop())
+        val requests = rig.fake.requests.size
+        val model = session.model.value
+
+        val stopped = session.state.value
+        assertEquals(SessionCommandOutcome.Refused(stopped, "Pulling the model is not possible while the run has ended."), session.pull())
+        assertIs<SessionCommandOutcome.Refused>(session.setObservation(true))
+        assertIs<SessionCommandOutcome.Refused>(session.setObservation(false))
+        assertIs<SessionCommandOutcome.Refused>(session.start())
+        assertIs<InjectionOutcome.Unavailable>(session.events.inject(InjectionRequest("switch", "press", PayloadKind.NONE, "")))
+        session.shutdown()
+
+        assertEquals(requests, rig.fake.requests.size, "${rig.fake.requests.drop(requests)}")
+        assertEquals(model, session.model.value)
+        assertEquals(listOf(LedgerDisposition.DROPPED), rig.ledger.entries.value.map { it.disposition })
+    }
+
+    @Test
+    fun `a drop the runtime cannot make ends the run all the same, notes why and records the environment as it stays`() = runTest {
+        val rig = SessionRig(this, root)
+        val deployment = rig.prepared(SynthesizedModel.LAMP)
+        val session = rig.running(deployment)
+        programStop(rig, deployment, session)
+        rig.fake.respond(RuntimeRoute.DROP_ENVIRONMENT, FakeResponse(FakeResponse.NOT_FOUND))
+
+        assertEquals(SessionCommandOutcome.Done, session.stop())
+
+        assertIs<SessionState.Stopped>(session.state.value)
+        assertEquals(SyncStatus.Final(3), session.model.value.sync)
+        val entry = rig.ledger.entries.value.single()
+        assertEquals(LedgerDisposition.STOPPED, entry.disposition)
+        val why = "The runtime at ${SessionRig.ENDPOINT.httpBase} cannot drop environments, so it is older than the IDE; " +
+            "the environment env-1 stays there."
+        assertEquals("Stopped by the session. $why", entry.note)
+        runCurrent()
+        assertTrue(why in session.journal().filterIsInstance<SessionActivity.Note>().map { it.text })
+        session.close()
+    }
+
+    @Test
+    fun `a drop that finds the environment gone already notes it and records it as lost`() = runTest {
+        val rig = SessionRig(this, root)
+        val deployment = rig.prepared(SynthesizedModel.LAMP)
+        val session = rig.running(deployment)
+        programStop(rig, deployment, session)
         rig.fake.respond(
-            RuntimeRoute.MODEL_SNAPSHOT,
+            RuntimeRoute.DROP_ENVIRONMENT,
             FakeResponse.rejected(FakeResponse.BAD_REQUEST, RuntimeText.UNKNOWN_ENVIRONMENT, mapOf("env" to "env-1")),
         )
 
-        assertIs<SessionCommandOutcome.Failed>(session.pull())
+        assertEquals(SessionCommandOutcome.Done, session.stop())
 
-        assertEquals(SessionState.Stopped(session.progress.value.environment!!), session.state.value)
-        assertEquals(emptyList(), session.problems.value.filter { it.code == DeployProblemCodes.ENVIRONMENT_LOST })
-        assertEquals(listOf(LedgerDisposition.STOPPED), rig.ledger.entries.value.map { it.disposition })
+        assertIs<SessionState.Stopped>(session.state.value)
+        assertEquals(listOf(LedgerDisposition.LOST), rig.ledger.entries.value.map { it.disposition })
+        runCurrent()
+        val notes = session.journal().filterIsInstance<SessionActivity.Note>().map { it.text }
+        assertTrue("The environment env-1 was gone from the runtime already when the session dropped it." in notes, "$notes")
+        session.close()
+    }
+
+    @Test
+    fun `a drop that somebody else made ends the run with a note and the model the session saw last, and nothing is sent`() = runTest {
+        val rig = SessionRig(this, root)
+        val deployment = rig.prepared(SynthesizedModel.LAMP)
+        val session = rig.running(deployment)
+        val requests = rig.fake.requests.size
+        val model = session.model.value
+
+        rig.linkOf(session).closeAsDropped()
+        val stopped = assertIs<SessionState.Stopped>(rig.awaitState(session) { it is SessionState.Stopped })
+
+        assertEquals(ConnectionState.Ended(ConnectionEnd.EnvironmentDropped), session.connection.value)
+        assertEquals(model.stacks, session.model.value.stacks)
+        assertEquals(listOf(LedgerDisposition.DROPPED), rig.ledger.entries.value.map { it.disposition })
+        assertEquals(SessionCommandOutcome.Refused(stopped, "Pulling the model is not possible while the run has ended."), session.pull())
+        session.shutdown()
+        assertEquals(requests, rig.fake.requests.size, "${rig.fake.requests.drop(requests)}")
+        val notes = session.journal().filterIsInstance<SessionActivity.Note>().map { it.text }
+        assertTrue(
+            "The environment env-1 was dropped by somebody else than the session, so the run ended. The runtime keeps nothing " +
+                "of it; the model shows what the session saw last." in notes,
+            "$notes",
+        )
+    }
+
+    @Test
+    fun `a runtime that ends while the session runs fails it as lost, and the session still tries to drop the environment`() = runTest {
+        val rig = SessionRig(this, root)
+        val session = rig.running(rig.prepared(SynthesizedModel.LAMP))
+
+        rig.linkOf(session).closeByRuntime(WireNames.CLOSE_GOING_AWAY, WireNames.REASON_RUNTIME_STOPPED)
+        val failed = assertIs<SessionState.Failed>(rig.awaitState(session) { it is SessionState.Failed })
+        advanceTimeBy(1.minutes)
+        runCurrent()
+
+        assertEquals(DeployProblemCodes.ENVIRONMENT_LOST, failed.problems.single().code)
+        assertEquals(1, rig.fake.requests(RuntimeRoute.DROP_ENVIRONMENT).size)
+        assertEquals(listOf(LedgerDisposition.LOST), rig.ledger.entries.value.map { it.disposition })
         session.close()
     }
 
@@ -213,23 +299,25 @@ class RuntimeSessionLifecycleTest {
         assertEquals(SessionState.Closed, session.state.value)
         assertIs<InjectionAvailability.Unavailable>(session.events.availability.value)
         val expected = when (situation) {
-            Situation.DEPLOYING -> listOf(LedgerDisposition.LEFT_CONFIGURED)
+            Situation.DEPLOYING -> listOf(LedgerDisposition.DROPPED)
             Situation.READY -> listOf(LedgerDisposition.LEFT_ACTIVATED)
             Situation.RUNNING -> listOf(LedgerDisposition.LEFT_RUNNING)
             Situation.HALTED -> listOf(LedgerDisposition.LEFT_HALTED)
-            Situation.STOPPING, Situation.STOPPED, Situation.CLOSED -> listOf(LedgerDisposition.STOPPED)
+            Situation.STOPPING, Situation.STOPPED, Situation.CLOSED -> listOf(LedgerDisposition.DROPPED)
             Situation.FAILED -> emptyList()
         }
         assertEquals(expected, rig.ledger.entries.value.map { it.disposition })
         val stops = if (situation == Situation.STOPPING || situation == Situation.STOPPED || situation == Situation.CLOSED) 1 else 0
         assertEquals(stops, rig.fake.requests(RuntimeRoute.STOP_ENVIRONMENT).size, "closing never stops a deployed environment")
+        val drops = if (situation == Situation.DEPLOYING) 1 else stops
+        assertEquals(drops, rig.fake.requests(RuntimeRoute.DROP_ENVIRONMENT).size, "only a stop and a deployment's cleanup drop")
         assertTrue(rig.fake.links.none { it.isOpen }, "no link stays open")
         assertEquals(SessionCommandOutcome.Refused(SessionState.Closed, "The session is closed."), session.pull())
     }
 
     @ParameterizedTest
     @EnumSource(Situation::class)
-    fun `shutting down stops what is activated, running or halted, then closes`(situation: Situation) = runTest {
+    fun `shutting down stops and drops what is activated, running or halted, then closes`(situation: Situation) = runTest {
         val rig = SessionRig(this, root)
         val session = sessionIn(situation, rig)
 
@@ -238,7 +326,8 @@ class RuntimeSessionLifecycleTest {
         assertEquals(SessionState.Closed, session.state.value)
         val stopped = situation != Situation.FAILED
         assertEquals(if (stopped) 1 else 0, rig.fake.requests(RuntimeRoute.STOP_ENVIRONMENT).size)
-        assertEquals(if (stopped) listOf(LedgerDisposition.STOPPED) else emptyList(), rig.ledger.entries.value.map { it.disposition })
+        assertEquals(if (stopped) 1 else 0, rig.fake.requests(RuntimeRoute.DROP_ENVIRONMENT).size)
+        assertEquals(if (stopped) listOf(LedgerDisposition.DROPPED) else emptyList(), rig.ledger.entries.value.map { it.disposition })
         assertTrue(rig.fake.links.none { it.isOpen }, "no link stays open")
     }
 
@@ -298,23 +387,33 @@ class RuntimeSessionLifecycleTest {
         assertEquals(DeployProblemCodes.ENVIRONMENT_LOST, failed.problems.single().code)
         assertEquals(listOf(LedgerDisposition.LOST), rig.ledger.entries.value.map { it.disposition })
         assertIs<ConnectionState.Ended>(session.connection.value)
+        advanceTimeBy(1.minutes)
+        runCurrent()
+        assertEquals(emptyList(), rig.fake.requests(RuntimeRoute.DROP_ENVIRONMENT), "a lost environment is not dropped")
         session.close()
         assertEquals(listOf(LedgerDisposition.LOST), rig.ledger.entries.value.map { it.disposition })
     }
 
     @Test
-    fun `a stop the session did not make is settled by reading the final model`() = runTest {
+    fun `a stop the session did not make is settled on the runtime's notice by reading the final model, closing the link and dropping`() = runTest {
         val rig = SessionRig(this, root)
         val deployment = rig.prepared(SynthesizedModel.LAMP)
         val session = rig.running(deployment)
         rig.programSnapshot(deployment, "env-1", RuntimePhase.STOPPED, 4)
 
-        rig.linkOf(session).closeByRuntime(WireNames.CLOSE_NORMAL, WireNames.REASON_ENVIRONMENT_STOPPED)
+        val link = rig.linkOf(session)
+        link.pushStopNotice()
         assertIs<SessionState.Stopped>(rig.awaitState(session) { it is SessionState.Stopped })
 
         assertEquals(SyncStatus.Final(4), session.model.value.sync)
         assertEquals(emptyList(), rig.fake.requests(RuntimeRoute.STOP_ENVIRONMENT))
-        assertEquals(listOf(LedgerDisposition.STOPPED), rig.ledger.entries.value.map { it.disposition })
+        assertEquals(1, rig.fake.requests(RuntimeRoute.DROP_ENVIRONMENT).size)
+        assertEquals(listOf(LedgerDisposition.DROPPED), rig.ledger.entries.value.map { it.disposition })
+        assertEquals(listOf(FakeClose(WireNames.CLOSE_NORMAL, "Client closed the connection")), link.clientCloses, "the session closes the open link")
+        runCurrent()
+        val notes = session.journal().filterIsInstance<SessionActivity.Note>().map { it.text }
+        assertTrue("The runtime reports that the environment stopped." in notes, "$notes")
+        assertTrue(notes.any { it.startsWith("The environment env-1 was stopped by somebody else than the session, so the run ended.") }, "$notes")
         session.close()
     }
 
@@ -369,7 +468,7 @@ class RuntimeSessionLifecycleTest {
     }
 
     @Test
-    fun `closing right when a stop begins still stops the environment and records it`() = runTest {
+    fun `closing right when a stop begins still stops and drops the environment and records it`() = runTest {
         val rig = SessionRig(this, root)
         val deployment = rig.prepared(SynthesizedModel.LAMP)
         val session = rig.running(deployment)
@@ -386,7 +485,8 @@ class RuntimeSessionLifecycleTest {
         assertEquals(SessionCommandOutcome.Refused(SessionState.Closed, "The session is closed."), outcome)
         assertEquals(SessionState.Closed, session.state.value)
         assertEquals(1, rig.fake.requests(RuntimeRoute.STOP_ENVIRONMENT).size)
-        assertEquals(listOf(LedgerDisposition.STOPPED), rig.ledger.entries.value.map { it.disposition })
+        assertEquals(1, rig.fake.requests(RuntimeRoute.DROP_ENVIRONMENT).size)
+        assertEquals(listOf(LedgerDisposition.DROPPED), rig.ledger.entries.value.map { it.disposition })
         assertTrue(rig.fake.links.none { it.isOpen }, "no link stays open")
     }
 
@@ -401,7 +501,7 @@ class RuntimeSessionLifecycleTest {
         assertEquals(SessionCommandOutcome.Done, session.stop())
 
         assertIs<SessionState.Stopped>(session.state.value)
-        assertEquals(listOf(LedgerDisposition.STOPPED), rig.ledger.entries.value.map { it.disposition })
+        assertEquals(listOf(LedgerDisposition.DROPPED), rig.ledger.entries.value.map { it.disposition })
         assertTrue(session.problems.value.none { it.code == DeployProblemCodes.RUNTIME_NO_ANSWER }, "${session.problems.value}")
         session.close()
     }
@@ -441,17 +541,18 @@ class RuntimeSessionLifecycleTest {
     }
 
     /**
-     * Programs the answers of a stop of [session]. The runtime closes the link, and the final model is at revision 3.
+     * Programs the answers of a stop of [session]. The runtime pushes the notice of the stop and keeps the link open, and
+     * the final model is at revision 3.
      */
     private fun programStop(rig: SessionRig, deployment: SessionRig.Deployment, session: RuntimeSession) {
-        closeLinkOnStop(rig, session)
+        pushNoticeOnStop(rig, session)
         rig.programSnapshot(deployment, "env-1", RuntimePhase.STOPPED, 3)
     }
 
-    /** Programs the runtime to close the open links of [session] after the next stop, as the runtime does. */
-    private fun closeLinkOnStop(rig: SessionRig, session: RuntimeSession) {
+    /** Programs the runtime to push the notice of the next stop on the open links of [session], as the runtime does. */
+    private fun pushNoticeOnStop(rig: SessionRig, session: RuntimeSession) {
         rig.fake.after(RuntimeRoute.STOP_ENVIRONMENT) {
-            linksOf(session.clientId.value).filter { it.isOpen }.forEach { it.closeByRuntime(WireNames.CLOSE_NORMAL, WireNames.REASON_ENVIRONMENT_STOPPED) }
+            linksOf(session.clientId.value).filter { it.isOpen }.forEach { it.pushStopNotice() }
         }
     }
 

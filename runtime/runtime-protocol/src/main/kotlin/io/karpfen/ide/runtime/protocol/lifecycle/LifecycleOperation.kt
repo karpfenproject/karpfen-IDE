@@ -31,7 +31,7 @@ public enum class LifecycleOperation {
     /** Upload the model. */
     SET_MODEL,
 
-    /** Attach a state machine to an object key. */
+    /** Attach a state machine to an object key, or keep an attachable state machine under its name. */
     SET_STATE_MACHINE,
 
     /** Set the tick delay. */
@@ -58,11 +58,17 @@ public enum class LifecycleOperation {
     /** Stop the environment. */
     STOP,
 
+    /** Drop the environment, so that the runtime keeps nothing of it. */
+    DROP,
+
     /** Force the active state of a machine. */
     FORCE_STATE,
 
     /** Read the uploaded text of a state machine. */
     READ_STATE_MACHINE_SOURCE,
+
+    /** Read the attached state machines, the attachable ones and the instances. */
+    READ_STATE_MACHINES,
 
     /** Read a snapshot of the model. */
     READ_SNAPSHOT,

@@ -40,6 +40,8 @@ internal object PlanChecks {
     /** The preflight checks for what the runtime would mishandle or do unexpectedly, run after the gate passed. */
     fun preflight(): List<PlanCheck> = listOf(
         UnknownAttachmentCheck(),
+        DefinitionNotListedCheck(),
+        AttachedDefinitionNotListedCheck(),
         DuplicateAttachmentCheck(),
         AttachmentTypeCheck(),
         TickDelayRangeCheck(),

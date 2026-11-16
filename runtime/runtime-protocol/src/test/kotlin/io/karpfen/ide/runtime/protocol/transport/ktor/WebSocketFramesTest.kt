@@ -42,14 +42,14 @@ class WebSocketFramesTest {
     fun `control frames are not handed to the link`() {
         assertNull(WebSocketFrames.linkFrameOf(Frame.Ping(byteArrayOf())))
         assertNull(WebSocketFrames.linkFrameOf(Frame.Pong(byteArrayOf())))
-        assertNull(WebSocketFrames.linkFrameOf(Frame.Close(CloseReason(1000, "Environment stopped"))))
+        assertNull(WebSocketFrames.linkFrameOf(Frame.Close(CloseReason(1001, "Runtime stopped"))))
     }
 
     @Test
     fun `a close reason becomes the closure with its code and message, and none a closure without code`() {
         assertEquals(
-            LinkClosure(1000, "Environment stopped", byClient = false),
-            WebSocketFrames.closureOf(CloseReason(1000, "Environment stopped"), byClient = false),
+            LinkClosure(1001, "Runtime stopped", byClient = false),
+            WebSocketFrames.closureOf(CloseReason(1001, "Runtime stopped"), byClient = false),
         )
         assertEquals(
             LinkClosure(1003, "Invalid credentials", byClient = false),

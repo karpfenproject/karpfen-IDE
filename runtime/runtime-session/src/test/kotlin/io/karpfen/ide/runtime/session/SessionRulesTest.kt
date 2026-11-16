@@ -46,6 +46,7 @@ class SessionRulesTest {
         assertEquals(SessionState.Halted(KEY), halted.state)
         assertEquals(DeployProblemCodes.ENGINE_HALTED to Severity.ERROR, halted.problem?.let { it.code to it.severity })
         assertEquals(PhaseVerdict.Becomes(SessionState.Stopped(KEY), null), PhaseStates.of(EnvironmentPhase.Stopped, KEY))
+        assertEquals(PhaseVerdict.Becomes(SessionState.Stopped(KEY), null), PhaseStates.of(EnvironmentPhase.Dropped, KEY))
         val uncertain = assertIs<PhaseVerdict.Keeps>(
             PhaseStates.of(EnvironmentPhase.Uncertain(setOf(PhaseKind.ACTIVATED, PhaseKind.RUNNING), "the start got no answer.", Uploads.NONE), KEY),
         )
@@ -61,6 +62,7 @@ class SessionRulesTest {
         )
         assertEquals(DeployProblemCodes.HANDSHAKE_REJECTED to Severity.ERROR, rejected.problem.code to rejected.problem.severity)
         assertEquals(EndingVerdict.StoppedElsewhere, ConnectionEndings.of(ConnectionEnd.EnvironmentStopped, KEY))
+        assertEquals(EndingVerdict.DroppedElsewhere, ConnectionEndings.of(ConnectionEnd.EnvironmentDropped, KEY))
         val lost = assertIs<EndingVerdict.Loses>(ConnectionEndings.of(ConnectionEnd.EnvironmentLost("the listing lacks it"), KEY))
         assertEquals(DeployProblemCodes.ENVIRONMENT_LOST, lost.problem.code)
         val gaveUp = assertIs<EndingVerdict.Warns>(ConnectionEndings.of(ConnectionEnd.GaveUp(20, "Connection refused"), KEY))
@@ -79,7 +81,7 @@ class SessionRulesTest {
                 SessionState.Running(KEY) to COMMANDS - SessionCommand.Start,
                 SessionState.Halted(KEY) to listOf(SessionCommand.Stop, SessionCommand.SetObservation(on = false), SessionCommand.Pull),
                 SessionState.Stopping(KEY) to emptyList(),
-                SessionState.Stopped(KEY) to listOf(SessionCommand.Pull),
+                SessionState.Stopped(KEY) to emptyList(),
                 FAILED to emptyList(),
                 SessionState.Closed to emptyList(),
             ),

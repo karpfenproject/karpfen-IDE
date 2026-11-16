@@ -20,6 +20,7 @@ import io.karpfen.ide.runtime.protocol.catalogue.ClientId
 import io.karpfen.ide.runtime.protocol.catalogue.FeatureName
 import io.karpfen.ide.runtime.protocol.connection.ConnectionState
 import io.karpfen.ide.runtime.session.deploy.CleanupBounds
+import io.karpfen.ide.runtime.session.deploy.EnvironmentDrop
 import io.karpfen.ide.runtime.session.deploy.DeployOptions
 import io.karpfen.ide.runtime.session.deploy.DeployProgress
 import io.karpfen.ide.runtime.session.deploy.Deployer
@@ -105,8 +106,13 @@ internal class DefaultRuntimeSession(
     /** Records the environment once and settles a close that races the deployment or a stop. */
     private val departure = EnvironmentDeparture(ledger, client.endpoint)
 
-    /** The time bounds of stopping and disconnecting. They are the same as those of a deployment's cleanup. */
+    /** The time bounds of stopping, disconnecting and dropping. They are the same as those of a deployment's cleanup. */
     private val bounds = CleanupBounds.of(options.deployTiming)
+
+    /** Drops the environment at the end of the run and notes in the journal when that fails. */
+    private val dropper = EnvironmentDropper(EnvironmentDrop(bounds.drop), departure, client.endpoint) { text ->
+        router.record(SessionActivity.Note(text, clock.elapsed()))
+    }
 
     /** The conductor of the commands. */
     private val conductor = SessionConductor(
@@ -116,13 +122,16 @@ internal class DefaultRuntimeSession(
         status = status,
         departure = departure,
         calls = SessionCalls(router, FailureLocator(prepared.plan, client.endpoint), status, clock),
-        stopper = EnvironmentStopper(router, inbox, departure, bounds, scope),
+        stopper = EnvironmentStopper(router, inbox, departure, dropper, bounds, scope),
+        dropper = dropper,
         clock = clock,
         scope = scope,
     )
 
     /** The deployment. */
-    private val deployment = SessionDeployment(prepared, client, clientId, deployOptions, deployer, router, inbox, departure, bounds, scope)
+    private val deployment = SessionDeployment(
+        prepared, client, clientId, deployOptions, deployer, router, inbox, departure, dropper, bounds, scope,
+    )
 
     override val state: StateFlow<SessionState>
         get() = status.state
