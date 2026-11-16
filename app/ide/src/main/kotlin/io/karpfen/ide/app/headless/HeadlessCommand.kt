@@ -32,8 +32,8 @@ internal sealed interface HeadlessCommand {
     data class Validate(val folder: Path, val format: OutputFormat = OutputFormat.TEXT) : HeadlessCommand
 
     /**
-     * `karpfen-ide run <folder> [--descriptor <file>] [--bridge <file>]... [--capture] [--verbose]`: runs the project in
-     * [folder] until it is stopped.
+     * `karpfen-ide run <folder> [--descriptor <file>] [--bridge <file>]... [--capture] [--no-result-cache]
+     * [--verbose]`: runs the project in [folder] until it is stopped.
      *
      * @property folder the project folder, absolute and normalized. It is an existing directory.
      * @property descriptor the environment descriptor to run, resolved against [folder] and normalized, or null to
@@ -41,6 +41,8 @@ internal sealed interface HeadlessCommand {
      * @property bridges the bridge files to start with the run, resolved against [folder] and normalized, in the
      *   order they were named, each once. Empty starts no bridge.
      * @property capture whether the run is captured to a file in the project.
+     * @property resultCaching whether the runtime answers calls of Python code from its result cache. It is on unless
+     *   `--no-result-cache` is given, whatever the project remembers from the run dialog of the window.
      * @property verbose whether every line of the runtime's log is printed too.
      */
     data class Run(
@@ -48,6 +50,7 @@ internal sealed interface HeadlessCommand {
         val descriptor: Path? = null,
         val bridges: List<Path> = emptyList(),
         val capture: Boolean = false,
+        val resultCaching: Boolean = true,
         val verbose: Boolean = false,
     ) : HeadlessCommand
 
@@ -73,9 +76,11 @@ internal sealed interface HeadlessCommand {
          *
          * Unlike the window, a headless command is strict: an unknown option, a missing, second or empty folder, a
          * folder that [isDirectory] rejects, an option that lacks its value, a second `--descriptor` or `--format`, a
-         * format other than `text` or `json`, a bridge named twice, an option that the command does not take, and a
-         * path the file system cannot represent are all [Invalid]. Options may stand before and after the folder. A value follows its option as the next argument or
-         * after `=`, as in `--bridge=http.kbridge.json`. `--` ends the options, so a folder may start with `-`.
+         * format other than `text` or `json`, a bridge named twice, an option that the command does not take, a flag
+         * such as `--capture` or `--no-result-cache` given a value with `=`, and a path the file system cannot
+         * represent are all [Invalid]. Options may stand before and after the folder. A value follows its option as the
+         * next argument or after `=`, as in `--bridge=http.kbridge.json`. `--` ends the options, so a folder may start
+         * with `-`.
          */
         fun parse(args: List<String>, isDirectory: (Path) -> Boolean = Files::isDirectory): HeadlessCommand? = when (args.firstOrNull()) {
             VALIDATE -> HeadlessArguments(VALIDATE, args.drop(1), isDirectory).parse()
@@ -99,6 +104,7 @@ private class HeadlessArguments(
     private var format: OutputFormat? = null
     private val bridges = ArrayList<String>()
     private var capture = false
+    private var resultCaching = true
     private var verbose = false
     private var optionsEnded = false
 
@@ -114,6 +120,7 @@ private class HeadlessArguments(
                 arg in HELP_FLAGS -> return HeadlessCommand.Help
                 option !in OPTIONS.getValue(command) -> refusal(arg, option)
                 arg == CAPTURE -> null.also { capture = true }
+                arg == NO_RESULT_CACHE -> null.also { resultCaching = false }
                 arg == VERBOSE -> null.also { verbose = true }
                 option in VALUE_OPTIONS -> {
                     val value = if ('=' in arg) arg.substringAfter('=') else args.getOrNull(++index)
@@ -138,7 +145,7 @@ private class HeadlessArguments(
         val resolvedBridges = bridges.map { root.resolve(pathOf(it) ?: return HeadlessCommand.Invalid("invalid path '$it'")).normalize() }
         val twice = resolvedBridges.groupBy { it }.filterValues { it.size > 1 }.keys.firstOrNull()
         if (twice != null) return HeadlessCommand.Invalid("the bridge ${root.relativize(twice)} is named twice")
-        return HeadlessCommand.Run(root, resolvedDescriptor, resolvedBridges, capture, verbose)
+        return HeadlessCommand.Run(root, resolvedDescriptor, resolvedBridges, capture, resultCaching, verbose)
     }
 
     /**
@@ -192,6 +199,9 @@ private class HeadlessArguments(
         /** The option that captures the run to a file. */
         const val CAPTURE = "--capture"
 
+        /** The option that switches the result cache of Python code off for the run. */
+        const val NO_RESULT_CACHE = "--no-result-cache"
+
         /** The option that prints every line of the runtime's log. */
         const val VERBOSE = "--verbose"
 
@@ -210,7 +220,7 @@ private class HeadlessArguments(
         /** The options each command takes, by the word of the command. */
         val OPTIONS: Map<String, Set<String>> = mapOf(
             HeadlessCommand.VALIDATE to setOf(FORMAT),
-            HeadlessCommand.RUN to setOf(DESCRIPTOR, BRIDGE, CAPTURE, VERBOSE),
+            HeadlessCommand.RUN to setOf(DESCRIPTOR, BRIDGE, CAPTURE, NO_RESULT_CACHE, VERBOSE),
         )
 
         /** The options that ask for the usage. */

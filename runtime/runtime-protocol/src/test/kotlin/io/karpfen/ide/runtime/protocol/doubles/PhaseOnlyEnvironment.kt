@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.runtime.protocol.doubles
 
+import io.karpfen.ide.runtime.protocol.api.RunMetrics
 import io.karpfen.ide.runtime.protocol.api.StateMachineHoldings
 import io.karpfen.ide.runtime.protocol.catalogue.AccessKey
 import io.karpfen.ide.runtime.protocol.catalogue.ClientId
@@ -76,6 +77,8 @@ class PhaseOnlyEnvironment(
 
     override suspend fun setEventTtl(milliseconds: Long): CallOutcome<Unit> = refuse(LifecycleOperation.SET_EVENT_TTL)
 
+    override suspend fun setResultCaching(enabled: Boolean): CallOutcome<Unit> = refuse(LifecycleOperation.SET_RESULT_CACHING)
+
     override suspend fun registerObjectObserver(client: ClientId, objectId: String): CallOutcome<Unit> =
         refuse(LifecycleOperation.REGISTER_OBJECT_OBSERVER)
 
@@ -101,6 +104,8 @@ class PhaseOnlyEnvironment(
     override suspend fun stateMachines(): CallOutcome<StateMachineHoldings> = refuse(LifecycleOperation.READ_STATE_MACHINES)
 
     override suspend fun snapshot(): CallOutcome<RuntimeModelSnapshot> = refuse(LifecycleOperation.READ_SNAPSHOT)
+
+    override suspend fun metrics(): CallOutcome<RunMetrics> = refuse(LifecycleOperation.READ_METRICS)
 
     override suspend fun subscribeModel(client: ClientId): CallOutcome<Unit> = refuse(LifecycleOperation.SUBSCRIBE_MODEL)
 

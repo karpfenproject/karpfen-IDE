@@ -31,7 +31,8 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * How a deployment ends and whether it brings a debugger along. Immutable.
+ * How a deployment ends, whether it brings a debugger along and whether the runtime keeps results of Python code.
+ * Immutable.
  *
  * @property start true to start the environment after activating it. Otherwise it stays activated and ready to start.
  * @property observe true to switch observation on as part of the deployment. Otherwise the model is read back once.
@@ -39,11 +40,15 @@ import kotlin.time.Duration.Companion.seconds
  *   project has breakpoints switched on, so the session offers a debugger. False leaves `Breakpoint` off whatever the
  *   plan lists. The engine then reads the breakpoints of the state machines and never halts at them, and the session
  *   has no debugger. The other runtime features of the plan are switched on either way.
+ * @property resultCaching true to let the runtime answer a call of Python code from its result cache when the same code
+ *   ran before with the same values. False makes it run every such call, which suits code that reads the clock or draws
+ *   random numbers. The deployment sends the choice before the activation either way.
  */
 public data class DeployOptions(
     public val start: Boolean = true,
     public val observe: Boolean = true,
     public val debugger: Boolean = true,
+    public val resultCaching: Boolean = true,
 ) {
     /**
      * [plan] as a deployment with these options carries it out. It is [plan] itself with [debugger] on, and [plan]

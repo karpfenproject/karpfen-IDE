@@ -17,6 +17,10 @@ package io.karpfen.ide.runtime.session.deploy
 
 import io.karpfen.ide.runtime.protocol.RuntimeClient
 import io.karpfen.ide.runtime.protocol.api.ActiveEnvironment
+import io.karpfen.ide.runtime.protocol.api.CallTally
+import io.karpfen.ide.runtime.protocol.api.CodeWay
+import io.karpfen.ide.runtime.protocol.api.RunMetrics
+import io.karpfen.ide.runtime.protocol.api.TickDurations
 import io.karpfen.ide.runtime.protocol.api.RuntimeFailure
 import io.karpfen.ide.runtime.protocol.api.RuntimeResult
 import io.karpfen.ide.runtime.protocol.catalogue.AccessKey
@@ -228,6 +232,8 @@ internal class ScriptedEnvironment(override val key: EnvironmentKey, private val
 
     override suspend fun setEventTtl(milliseconds: Long): CallOutcome<Unit> = outcome("setEventTtl", milliseconds) { }
 
+    override suspend fun setResultCaching(enabled: Boolean): CallOutcome<Unit> = outcome("setResultCaching", enabled) { }
+
     override suspend fun registerObjectObserver(client: ClientId, objectId: String): CallOutcome<Unit> =
         outcome("registerObjectObserver", client, objectId) { }
 
@@ -255,6 +261,20 @@ internal class ScriptedEnvironment(override val key: EnvironmentKey, private val
         outcome("stateMachines") { StateMachineHoldings(emptyList(), emptyList(), emptyList()) }
 
     override suspend fun snapshot(): CallOutcome<RuntimeModelSnapshot> = outcome("snapshot") { modelAsRead() }
+
+    override suspend fun metrics(): CallOutcome<RunMetrics> =
+        outcome("metrics") {
+            RunMetrics(
+                key,
+                runtimePhase(),
+                ticks = 0,
+                tickMs = TickDurations(total = 0.0, mean = 0.0, max = 0.0, recent = emptyList()),
+                pythonMs = 0.0,
+                outsidePythonMs = 0.0,
+                calls = CodeWay.entries.associateWith { CallTally(count = 0, ms = 0.0) },
+                resultCaching = true,
+            )
+        }
 
     override suspend fun subscribeModel(client: ClientId): CallOutcome<Unit> = outcome("subscribeModel", client) { }
 

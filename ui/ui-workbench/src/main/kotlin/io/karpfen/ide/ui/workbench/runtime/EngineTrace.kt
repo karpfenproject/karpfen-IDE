@@ -107,8 +107,11 @@ public object EngineTrace {
     /** The detail that names the paths a join, a forced state or an exchange ends, separated by commas. */
     internal const val ENDS: String = "ends"
 
-    /** The kinds that report an error. */
-    internal val ERRORS = setOf("ACTION_ERROR", "ENGINE_ERROR")
+    /**
+     * The kinds that report an error: an action that failed, a clause of a condition that failed and counts as false,
+     * and an error of the engine as a whole.
+     */
+    internal val ERRORS = setOf("ACTION_ERROR", "CONDITION_ERROR", "ENGINE_ERROR")
 
     /** A trace line: time, environment and machine in brackets, the kind, the message and the optional details. */
     private val LINE = Regex("""^\[(\d{2}:\d{2}:\d{2}\.\d{3})] \[([^\]]*)] \[([^\]]*)] ([A-Z_]+): (.*)$""")

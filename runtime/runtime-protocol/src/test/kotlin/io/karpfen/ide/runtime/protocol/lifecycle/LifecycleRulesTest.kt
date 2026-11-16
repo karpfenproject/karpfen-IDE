@@ -34,6 +34,7 @@ import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation.INJECT_EVENT
 import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation.ISSUE_ACCESS_KEY
 import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation.MESSAGE_FEATURE
 import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation.READ_ACTIVE_FEATURES
+import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation.READ_METRICS
 import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation.READ_SNAPSHOT
 import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation.READ_STATE_MACHINE_SOURCE
 import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation.READ_STATE_MACHINES
@@ -43,6 +44,7 @@ import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation.SET_EVENT_DE
 import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation.SET_EVENT_TTL
 import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation.SET_METAMODEL
 import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation.SET_MODEL
+import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation.SET_RESULT_CACHING
 import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation.SET_STATE_MACHINE
 import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation.SET_TICK_DELAY
 import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation.START
@@ -81,9 +83,12 @@ class LifecycleRulesTest {
     private val lost = EnvironmentPhase.Lost("the runtime restarted")
 
     /** The configuring calls that need nothing uploaded before. */
-    private val configuringCalls = setOf(SET_STATE_MACHINE, SET_TICK_DELAY, SET_EVENT_TTL, REGISTER_OBJECT_OBSERVER, REGISTER_DOMAIN_LISTENER)
+    private val configuringCalls =
+        setOf(SET_STATE_MACHINE, SET_TICK_DELAY, SET_EVENT_TTL, SET_RESULT_CACHING, REGISTER_OBJECT_OBSERVER, REGISTER_DOMAIN_LISTENER)
     /** The reads, allowed unless the environment is lost. */
     private val reads = setOf(READ_STATE_MACHINE_SOURCE, READ_STATE_MACHINES, READ_SNAPSHOT)
+    /** The reads allowed from the activation on, unless the environment is lost: the reads and the run's numbers. */
+    private val readsSinceActivation = reads + READ_METRICS
     /** The feature operations, allowed in every phase of an existing environment. */
     private val features = setOf(ACTIVATE_FEATURE, DEACTIVATE_FEATURE, READ_ACTIVE_FEATURES, MESSAGE_FEATURE)
 
@@ -104,12 +109,12 @@ class LifecycleRulesTest {
         EnvironmentPhase.Configuring(nothing.copy(model = true)) to
             features + configuringCalls + reads + setOf(ISSUE_ACCESS_KEY, SUBSCRIBE_MODEL, UNSUBSCRIBE_MODEL, DROP),
         EnvironmentPhase.Activated to
-            features + reads + setOf(ISSUE_ACCESS_KEY, START, STOP, FORCE_STATE, SUBSCRIBE_MODEL, UNSUBSCRIBE_MODEL, INJECT_EVENT, DROP),
+            features + readsSinceActivation + setOf(ISSUE_ACCESS_KEY, START, STOP, FORCE_STATE, SUBSCRIBE_MODEL, UNSUBSCRIBE_MODEL, INJECT_EVENT, DROP),
         EnvironmentPhase.Running to
-            features + reads + setOf(ISSUE_ACCESS_KEY, STOP, FORCE_STATE, SUBSCRIBE_MODEL, UNSUBSCRIBE_MODEL, INJECT_EVENT, DROP),
-        EnvironmentPhase.Halted to features + reads + setOf(ISSUE_ACCESS_KEY, STOP, SUBSCRIBE_MODEL, UNSUBSCRIBE_MODEL, DROP),
-        EnvironmentPhase.Stopped to features + reads + setOf(UNSUBSCRIBE_MODEL, DROP),
-        uncertain to features + reads + setOf(STOP, UNSUBSCRIBE_MODEL, DROP),
+            features + readsSinceActivation + setOf(ISSUE_ACCESS_KEY, STOP, FORCE_STATE, SUBSCRIBE_MODEL, UNSUBSCRIBE_MODEL, INJECT_EVENT, DROP),
+        EnvironmentPhase.Halted to features + readsSinceActivation + setOf(ISSUE_ACCESS_KEY, STOP, SUBSCRIBE_MODEL, UNSUBSCRIBE_MODEL, DROP),
+        EnvironmentPhase.Stopped to features + readsSinceActivation + setOf(UNSUBSCRIBE_MODEL, DROP),
+        uncertain to features + readsSinceActivation + setOf(STOP, UNSUBSCRIBE_MODEL, DROP),
         lost to emptySet(),
         EnvironmentPhase.Dropped to emptySet(),
     )
@@ -175,6 +180,7 @@ class LifecycleRulesTest {
             SET_STATE_MACHINE to nothing.copy(machines = setOf("lamp")),
             SET_TICK_DELAY to nothing.copy(tickDelay = true),
             SET_EVENT_TTL to nothing.copy(eventTtl = true),
+            SET_RESULT_CACHING to nothing.copy(resultCaching = true),
             REGISTER_OBJECT_OBSERVER to nothing.copy(observers = 1),
             REGISTER_DOMAIN_LISTENER to nothing.copy(listeners = 1),
         )

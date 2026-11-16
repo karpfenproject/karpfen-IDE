@@ -25,7 +25,8 @@ import kotlin.coroutines.cancellation.CancellationException
 /**
  * The steps of deploying a plan, in the order they run. The deployment checks the runtime, creates the environment and
  * connects. It uploads the metamodel, the event definitions and the model, and then, in descriptor order, attaches
- * each attached state machine and uploads each definition and each fragment. It sets the tick delay and the event time to live, listens to the event domains and switches on the
+ * each attached state machine and uploads each definition and each fragment. It sets the tick delay and the event time
+ * to live, switches the result cache on or off as the options say, listens to the event domains and switches on the
  * runtime features the state machines need, as the options apply them to the plan. Then it activates, observes, starts
  * and confirms the start. Steps that the plan or the options do not need are still present and are skipped, so the
  * progress always shows the same steps. Stateless.
@@ -51,6 +52,7 @@ internal object DeploySteps {
             }
             add(TickDelayStep(plan.configuration.tickDelayMs))
             add(EventTtlStep(plan.configuration.eventTtlMs))
+            add(ResultCachingStep(options.resultCaching))
             add(
                 if (plan.domains.isEmpty()) {
                     SkippedStep(DeployStepKind.LISTEN_DOMAINS, "Listening to the event domains", "The state machines use no event domain")

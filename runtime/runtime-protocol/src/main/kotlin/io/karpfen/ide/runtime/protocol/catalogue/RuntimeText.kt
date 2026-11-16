@@ -46,13 +46,19 @@ public enum class RuntimeText(public val template: String, public val kind: Reje
     /** A query parameter is missing (400). */
     MISSING_PARAMETER("Missing required parameter: {name}", RejectionKind.MISSING_PARAMETER),
 
-    /** The parameter `milliseconds` or `ttlMs` is missing or not a number (400). */
+    /**
+     * The parameter `milliseconds` or `ttlMs` is missing or not a whole number, or the parameter `enabled` is missing
+     * or neither `true` nor `false` (400).
+     */
     INVALID_PARAMETER("Missing or invalid required parameter: {name}", RejectionKind.INVALID_PARAMETER),
 
     /** The environment does not exist (400). */
     UNKNOWN_ENVIRONMENT("Environment with key {env} does not exist", RejectionKind.UNKNOWN_ENVIRONMENT),
 
-    /** The environment is active, so setters, observers, listeners and a second activation are refused (409). */
+    /**
+     * The environment is active, so setters, the switch of the result cache among them, observers, listeners and a
+     * second activation are refused (409).
+     */
     ALREADY_ACTIVE(
         "Environment with key {env} is already active and cannot be modified in the intended way.",
         RejectionKind.ALREADY_ACTIVE,
@@ -121,7 +127,7 @@ public enum class RuntimeText(public val template: String, public val kind: Reje
      */
     NO_EXECUTION_THREAD("Environment with key {env} has no execution thread", RejectionKind.NO_EXECUTION_THREAD),
 
-    /** `setActiveState` on an environment that is not active (409). */
+    /** `setActiveState` or `observatory/metrics` on an environment that is not active (409). */
     NOT_ACTIVE("Environment with key {env} is not active", RejectionKind.NOT_ACTIVE),
 
     /** `setActiveState` for a model element without a state machine (400). */

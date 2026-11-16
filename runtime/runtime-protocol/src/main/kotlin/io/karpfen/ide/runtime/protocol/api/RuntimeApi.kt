@@ -57,6 +57,9 @@ internal interface RuntimeApi {
     /** `POST /setTickDelay`: sets the tick delay of [environment] to [milliseconds]. */
     suspend fun setTickDelay(environment: EnvironmentKey, milliseconds: Int): RuntimeResult<Unit>
 
+    /** `POST /setResultCaching`: switches the result cache of [environment] on if [enabled] is true, off otherwise. */
+    suspend fun setResultCaching(environment: EnvironmentKey, enabled: Boolean): RuntimeResult<Unit>
+
     /** `POST /setActiveState`: forces the machine attached to [modelElement] of [environment] into [state]. */
     suspend fun setActiveState(environment: EnvironmentKey, modelElement: String, state: String): RuntimeResult<Unit>
 
@@ -131,6 +134,9 @@ internal interface RuntimeApi {
 
     /** `POST /observatory/unsubscribeModel`: ends the model subscription of [client] to [environment]. */
     suspend fun unsubscribeModel(environment: EnvironmentKey, client: ClientId): RuntimeResult<Unit>
+
+    /** `GET /observatory/metrics`: the numbers of the ticks and the calls of code of [environment]. */
+    suspend fun runMetrics(environment: EnvironmentKey): RuntimeResult<RunMetrics>
 
     /**
      * Checks that the runtime has the routes of IDE support. It calls `GET /observatory/model` without parameters. A

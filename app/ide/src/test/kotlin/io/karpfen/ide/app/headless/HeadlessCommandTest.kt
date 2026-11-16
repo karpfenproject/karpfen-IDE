@@ -72,7 +72,7 @@ class HeadlessCommandTest {
     fun `run reads every option before and after the folder, with values as the next argument or after an equals sign`() {
         val command = parse(
             "run", "--capture", "project", "--descriptor", "lamp/lamp.kenv.json",
-            "--bridge=http.kbridge.json", "--bridge", "lab/ros.kbridge.json", "--verbose",
+            "--bridge=http.kbridge.json", "--bridge", "lab/ros.kbridge.json", "--no-result-cache", "--verbose",
         )
 
         assertEquals(
@@ -81,6 +81,7 @@ class HeadlessCommandTest {
                 descriptor = project.resolve("lamp/lamp.kenv.json"),
                 bridges = listOf(project.resolve("http.kbridge.json"), project.resolve("lab/ros.kbridge.json")),
                 capture = true,
+                resultCaching = false,
                 verbose = true,
             ),
             command,
@@ -130,6 +131,11 @@ class HeadlessCommandTest {
         assertEquals(HeadlessCommand.Invalid("unknown option '--bogus'"), parse("run", "project", "--bogus"))
         assertEquals(HeadlessCommand.Invalid("unknown option '--capture=yes'"), parse("run", "project", "--capture=yes"))
         assertEquals(HeadlessCommand.Invalid("validate takes no option '--capture'"), parse("validate", "project", "--capture"))
+        assertEquals(HeadlessCommand.Invalid("unknown option '--no-result-cache=on'"), parse("run", "project", "--no-result-cache=on"))
+        assertEquals(
+            HeadlessCommand.Invalid("validate takes no option '--no-result-cache'"),
+            parse("validate", "project", "--no-result-cache"),
+        )
         assertEquals(HeadlessCommand.Invalid("unknown option '--bogus'"), parse("validate", "project", "--bogus"))
         assertEquals(
             HeadlessCommand.Invalid("validate takes no option '--descriptor'"),

@@ -132,13 +132,14 @@ class DialogStateTest {
     }
 
     @Test
-    fun `the run dialog accepts ticked bridges of its list with or without the capture, and nothing else`() {
+    fun `the run dialog accepts ticked bridges of its list with or without the capture and the cache, and nothing else`() {
         val root = path.parent
         val bridges = listOf(root.resolve("a.kbridge.json"), root.resolve("lab/b.kbridge.json"))
         val request = DialogRequest.ConfigureRun(root, bridges, preselected = setOf(1), capture = true)
 
         assertTrue(request.accepts(DialogResponse.RunWith(setOf(0, 1), capture = false)))
         assertTrue(request.accepts(DialogResponse.RunWith(emptySet(), capture = true)))
+        assertTrue(request.accepts(DialogResponse.RunWith(emptySet(), capture = true, resultCaching = false)))
         assertTrue(request.accepts(DialogResponse.Cancel))
         assertFalse(request.accepts(DialogResponse.RunWith(setOf(2), capture = false)), "there is no third bridge")
         assertFalse(request.accepts(DialogResponse.Chosen(0)))
@@ -148,17 +149,24 @@ class DialogStateTest {
         assertEquals("Run", presentation.title)
         assertEquals(listOf("a.kbridge.json", "lab/b.kbridge.json"), presentation.ticks?.map { it.replace('\\', '/') })
         assertEquals(setOf(1), presentation.preticked)
-        assertEquals("Capture run to file", presentation.option)
-        assertTrue(presentation.optionTicked)
+        assertEquals(listOf("Capture run to file", "Cache results of Python code"), presentation.options)
+        assertEquals(setOf(0, 1), presentation.optionsTicked)
         assertEquals(DialogResponse.RunWith(setOf(1), capture = true), presentation.responseFor(DialogChoice.SubmitRun, ""))
         assertEquals(
             DialogResponse.RunWith(setOf(0), capture = false),
-            presentation.responseFor(DialogChoice.SubmitRun, "", ticked = setOf(0), optioned = false),
+            presentation.responseFor(DialogChoice.SubmitRun, "", ticked = setOf(0), optioned = setOf(1)),
         )
+        assertEquals(
+            DialogResponse.RunWith(setOf(0), capture = true, resultCaching = false),
+            presentation.responseFor(DialogChoice.SubmitRun, "", ticked = setOf(0), optioned = setOf(0)),
+        )
+        val uncached = DialogPresentation.of(DialogRequest.ConfigureRun(root, bridges, capture = false, resultCaching = false))
+        assertEquals(emptySet(), uncached.optionsTicked)
+        assertEquals(DialogResponse.RunWith(emptySet(), capture = false, resultCaching = false), uncached.responseFor(DialogChoice.SubmitRun, ""))
 
         val alone = DialogPresentation.of(DialogRequest.ConfigureRun(root, emptyList()))
         assertEquals(emptyList(), alone.ticks)
-        assertFalse(alone.optionTicked)
+        assertEquals(setOf(1), alone.optionsTicked, "only the cache is on by default")
         assertFalse("bridge" in alone.message, alone.message)
         assertEquals(DialogResponse.RunWith(emptySet(), capture = false), alone.responseFor(DialogChoice.SubmitRun, ""))
     }

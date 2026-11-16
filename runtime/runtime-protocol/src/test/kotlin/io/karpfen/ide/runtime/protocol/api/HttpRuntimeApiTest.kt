@@ -27,6 +27,7 @@ import io.karpfen.ide.runtime.protocol.catalogue.RuntimeText
 import io.karpfen.ide.runtime.protocol.catalogue.UploadError
 import io.karpfen.ide.runtime.protocol.catalogue.UploadRejection
 import io.karpfen.ide.runtime.protocol.doubles.ScriptedHttp
+import io.karpfen.ide.runtime.protocol.golden.RuntimeGoldens
 import io.karpfen.ide.runtime.protocol.golden.RuntimeWireWriter
 import io.karpfen.ide.runtime.protocol.message.RuntimeModelSnapshot
 import io.karpfen.ide.runtime.protocol.message.RuntimePhase
@@ -86,6 +87,8 @@ class HttpRuntimeApiTest {
                 put("/setStateMachine", listOf("envKey" to environment.value), "definition"),
             suspend { api.setTickDelay(environment, 50); Unit } to
                 post("/setTickDelay", "envKey" to environment.value, "milliseconds" to "50"),
+            suspend { api.setResultCaching(environment, false); Unit } to
+                post("/setResultCaching", "envKey" to environment.value, "enabled" to "false"),
             suspend { api.setActiveState(environment, "living room", "full power"); Unit } to
                 post("/setActiveState", "envKey" to environment.value, "modelElement" to "living room", "state" to "full power"),
             suspend { api.setEventTtl(environment, 3000); Unit } to post("/setEventTtl", "envKey" to environment.value, "ttlMs" to "3000"),
@@ -124,6 +127,7 @@ class HttpRuntimeApiTest {
                 post("/observatory/subscribeModel", "envKey" to environment.value, "clientId" to client.value),
             suspend { api.unsubscribeModel(environment, client); Unit } to
                 post("/observatory/unsubscribeModel", "envKey" to environment.value, "clientId" to client.value),
+            suspend { api.runMetrics(environment); Unit } to get("/observatory/metrics", "envKey" to environment.value),
             suspend { api.createEnvironment(); Unit } to post("/createEnvironment"),
         )
 
@@ -293,6 +297,53 @@ class HttpRuntimeApiTest {
         val foreign = assertIs<RuntimeFailure.ProtocolViolated>(assertFailure(api.modelSnapshot(environment)))
         assertTrue("env-1" in foreign.violation.detail, foreign.violation.detail)
         assertIs<RuntimeFailure.ProtocolViolated>(assertFailure(api.modelSnapshot(environment)))
+    }
+
+    @Test
+    fun `the run's numbers are read by member name and must be of the requested environment`() = runTest {
+        val api = api()
+        val own = RuntimeGoldens.METRICS.replace(RuntimeGoldens.ENVIRONMENT, environment.value)
+        http.ok(own)
+            .ok(RuntimeGoldens.METRICS)
+            .ok(own.replace(""""cache":{"count":0,"ms":0}""", """"cache":{"count":-1,"ms":0}"""))
+            .ok(own.replace(""","resultCaching":true""", ""))
+
+        val metrics = assertIs<RuntimeResult.Ok<RunMetrics>>(api.runMetrics(environment)).value
+        assertEquals(
+            RunMetrics(
+                environment,
+                RuntimePhase.RUNNING,
+                ticks = 3,
+                tickMs = TickDurations(total = 58.307912, mean = 19.435971, max = 58.127, recent = listOf(58.127, 0.051904, 0.129008)),
+                pythonMs = 57.686084,
+                outsidePythonMs = 0.621828,
+                calls = mapOf(
+                    CodeWay.COMPUTED to CallTally(7, 0.071204),
+                    CodeWay.OPEN_PROCESS to CallTally(4, 57.686084),
+                    CodeWay.CACHE to CallTally(0, 0.0),
+                ),
+                resultCaching = true,
+            ),
+            metrics,
+        )
+        val foreign = assertIs<RuntimeFailure.ProtocolViolated>(assertFailure(api.runMetrics(environment)))
+        assertTrue(RuntimeGoldens.ENVIRONMENT in foreign.violation.detail, foreign.violation.detail)
+        assertIs<RuntimeFailure.ProtocolViolated>(assertFailure(api.runMetrics(environment)))
+        assertIs<RuntimeFailure.ProtocolViolated>(assertFailure(api.runMetrics(environment)))
+    }
+
+    @Test
+    fun `members of the numbers that the client does not know are ignored, also a way of code it does not know`() = runTest {
+        val api = api()
+        http.ok(
+            RuntimeGoldens.METRICS.replace(RuntimeGoldens.ENVIRONMENT, environment.value)
+                .replace(""""ticks":3,""", """"ticks":3,"future":[1,2],""")
+                .replace(""""calls":{""", """"calls":{"elsewhere":{"count":1,"ms":2.5},"""),
+        )
+
+        val metrics = assertIs<RuntimeResult.Ok<RunMetrics>>(api.runMetrics(environment)).value
+        assertEquals(3, metrics.ticks)
+        assertEquals(CodeWay.entries.toSet(), metrics.calls.keys)
     }
 
     @Test

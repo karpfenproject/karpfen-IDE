@@ -29,8 +29,11 @@ public object WorkbenchDialogTestTags {
     /** The box at [index] of the dialog's list of boxes, as shown when the user ticks the bridges to start. */
     public fun tick(index: Int): String = "Workbench.dialog.tick:$index"
 
-    /** The single box below the list of boxes, as shown when the user chooses whether to capture a run to a file. */
-    public const val OPTION: String = "Workbench.dialog.option"
+    /**
+     * The box at [index] of the options below the list of boxes, as shown when the user chooses whether to capture a
+     * run to a file and whether the runtime caches results of Python code.
+     */
+    public fun option(index: Int): String = "Workbench.dialog.option:$index"
 
     /** The list of findings, as shown by the report of a validation. */
     public const val FINDINGS: String = "Workbench.dialog.findings"

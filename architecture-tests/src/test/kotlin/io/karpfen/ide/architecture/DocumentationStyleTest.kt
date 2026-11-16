@@ -39,7 +39,8 @@ import kotlin.test.assertTrue
  *
  * The reference is the documentation for the users of karpfen. Its files are fixed by the joint tree of the three
  * karpfen repositories ([REFERENCE_FILES]), and each of them keeps the form that [ReferenceMarkdown] checks: numbered
- * headings in order, code blocks that name their language, and prose without bold, dashes and arrows.
+ * headings in order, code blocks that name their language, and prose without bold, dashes and arrows, whose only
+ * stars are those around the names that the IDE shows on screen.
  *
  * Documentation is written for a human reader in plain sentences. It names what it refers to in words instead of by
  * an id that has to be looked up in another document. [ReferenceIds] lists the ids that are rejected. It also does

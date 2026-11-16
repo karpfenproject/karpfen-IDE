@@ -19,13 +19,13 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * Covers the 28 routes of [RuntimeRoute] for the runtime with IDE support, in the order of its route files. Each route
+ * Covers the 30 routes of [RuntimeRoute] for the runtime with IDE support, in the order of its route files. Each route
  * has its verb, path, parameters in the order the runtime checks them, body, answer and timeout class.
  */
 class RuntimeRouteTest {
 
     @Test
-    fun `the catalogue holds the 28 routes in the order of the runtime's route files`() {
+    fun `the catalogue holds the 30 routes in the order of the runtime's route files`() {
         assertEquals(
             listOf(
                 "POST /createEnvironment" to emptyList(),
@@ -34,6 +34,7 @@ class RuntimeRouteTest {
                 "PUT /setEventDefinitions" to listOf("envKey"),
                 "PUT /setStateMachine" to listOf("envKey", "attachedTo"),
                 "POST /setTickDelay" to listOf("envKey", "milliseconds"),
+                "POST /setResultCaching" to listOf("envKey", "enabled"),
                 "POST /setActiveState" to listOf("envKey", "modelElement", "state"),
                 "POST /setEventTtl" to listOf("envKey", "ttlMs"),
                 "POST /registerObjectObserver" to listOf("envKey", "clientId", "objectId"),
@@ -56,6 +57,7 @@ class RuntimeRouteTest {
                 "GET /observatory/model" to listOf("envKey"),
                 "POST /observatory/subscribeModel" to listOf("envKey", "clientId"),
                 "POST /observatory/unsubscribeModel" to listOf("envKey", "clientId"),
+                "GET /observatory/metrics" to listOf("envKey"),
             ),
             RuntimeRoute.entries.map { "${it.verb} ${it.path}" to it.parameters },
         )
@@ -93,12 +95,13 @@ class RuntimeRouteTest {
                 RuntimeRoute.GET_ACTIVE_FEATURES to ResponseKind.FEATURE_NAMES,
                 RuntimeRoute.SEND_MESSAGE_TO_FEATURE to ResponseKind.FEATURE_ANSWER,
                 RuntimeRoute.MODEL_SNAPSHOT to ResponseKind.MODEL_SNAPSHOT,
+                RuntimeRoute.RUN_METRICS to ResponseKind.RUN_METRICS,
             ),
             RuntimeRoute.entries.filter { it.response != ResponseKind.EMPTY }.associateWith { it.response },
         )
         assertEquals(
             mapOf(
-                TimeoutClass.QUICK to 21,
+                TimeoutClass.QUICK to 23,
                 TimeoutClass.UPLOAD to 4,
                 TimeoutClass.STOP to 2,
                 TimeoutClass.SNAPSHOT to 1,

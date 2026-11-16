@@ -98,7 +98,7 @@ internal fun WorkbenchDialogs(request: DialogRequest<*>?, onRespond: (DialogResp
     }
     var selected by remember(request) { mutableStateOf(presentation.preselected) }
     var ticked by remember(request) { mutableStateOf(presentation.preticked) }
-    var optioned by remember(request) { mutableStateOf(presentation.optionTicked) }
+    var optioned by remember(request) { mutableStateOf(presentation.optionsTicked) }
     val stops = remember(request) { List(presentation.buttons.size + 1) { FocusRequester() } }
     val order = DialogFocusOrder.of(presentation, text.text)
     fun Modifier.focusStop(stop: Int): Modifier = focusRequester(stops[stop]).focusProperties {
@@ -173,9 +173,13 @@ internal fun WorkbenchDialogs(request: DialogRequest<*>?, onRespond: (DialogResp
                     }
                 }
             }
-            presentation.option?.let { label ->
+            presentation.options.takeIf { it.isNotEmpty() }?.let { options ->
                 Spacer(Modifier.height(8.dp))
-                TickRow(label, optioned, WorkbenchDialogTestTags.OPTION) { optioned = !optioned }
+                options.forEachIndexed { index, label ->
+                    TickRow(label, index in optioned, WorkbenchDialogTestTags.option(index)) {
+                        optioned = if (index in optioned) optioned - index else optioned + index
+                    }
+                }
             }
             presentation.findings?.takeIf { it.isNotEmpty() }?.let { findings ->
                 Spacer(Modifier.height(8.dp))

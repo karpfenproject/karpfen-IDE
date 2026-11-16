@@ -40,6 +40,9 @@ public enum class LifecycleOperation {
     /** Set the event time to live. */
     SET_EVENT_TTL,
 
+    /** Switch the result cache on or off. */
+    SET_RESULT_CACHING,
+
     /** Register an object observer. */
     REGISTER_OBJECT_OBSERVER,
 
@@ -72,6 +75,9 @@ public enum class LifecycleOperation {
 
     /** Read a snapshot of the model. */
     READ_SNAPSHOT,
+
+    /** Read the numbers of the ticks and the calls of code. */
+    READ_METRICS,
 
     /** Subscribe to every object and stack change. */
     SUBSCRIBE_MODEL,

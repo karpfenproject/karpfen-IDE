@@ -118,6 +118,26 @@ class ProjectSettingsFileTest {
     }
 
     @Test
+    fun `the result cache is one line after the capture while it is off and no line while it is on`() {
+        val uncached = settings.copy(capture = true, resultCaching = false)
+
+        val text = ProjectSettingsFile.format(uncached)
+
+        assertEquals("resultCache = off", text.lines().dropWhile { !it.startsWith("capture") }.drop(1).first())
+        assertEquals(uncached, ProjectSettingsFile.parse(text))
+        assertEquals(true, ProjectSettings().resultCaching, "the cache is on by default")
+        assertEquals(emptyList(), ProjectSettingsFile.format(settings).lines().filter { it.startsWith("resultCache") })
+    }
+
+    @Test
+    fun `a result cache line that is not off counts as on`() {
+        assertEquals(false, ProjectSettingsFile.parse("resultCache = OFF\n").resultCaching)
+        assertEquals(true, ProjectSettingsFile.parse("resultCache = on\n").resultCaching)
+        assertEquals(true, ProjectSettingsFile.parse("resultCache = no\n").resultCaching)
+        assertEquals(emptyList(), ProjectSettingsFile.parse("resultCache = no\n").otherLines, "the line is known, so it is not kept")
+    }
+
+    @Test
     fun `a capture line that is not on counts as off`() {
         assertEquals(true, ProjectSettingsFile.parse("capture = ON\n").capture)
         assertEquals(false, ProjectSettingsFile.parse("capture = off\n").capture)

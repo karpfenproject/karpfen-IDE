@@ -70,6 +70,9 @@ internal class HttpRuntimeApi(
     override suspend fun setTickDelay(environment: EnvironmentKey, milliseconds: Int): RuntimeResult<Unit> =
         call(RuntimeRoute.SET_TICK_DELAY, listOf(environment.value, milliseconds.toString()), null, SuccessBodies.EMPTY)
 
+    override suspend fun setResultCaching(environment: EnvironmentKey, enabled: Boolean): RuntimeResult<Unit> =
+        call(RuntimeRoute.SET_RESULT_CACHING, listOf(environment.value, enabled.toString()), null, SuccessBodies.EMPTY)
+
     override suspend fun setActiveState(environment: EnvironmentKey, modelElement: String, state: String): RuntimeResult<Unit> =
         call(RuntimeRoute.SET_ACTIVE_STATE, listOf(environment.value, modelElement, state), null, SuccessBodies.EMPTY)
 
@@ -144,6 +147,9 @@ internal class HttpRuntimeApi(
 
     override suspend fun unsubscribeModel(environment: EnvironmentKey, client: ClientId): RuntimeResult<Unit> =
         call(RuntimeRoute.UNSUBSCRIBE_MODEL, listOf(environment.value, client.value), null, SuccessBodies.EMPTY)
+
+    override suspend fun runMetrics(environment: EnvironmentKey): RuntimeResult<RunMetrics> =
+        call(RuntimeRoute.RUN_METRICS, listOf(environment.value), null, SuccessBodies.metrics(environment))
 
     override suspend fun probeSnapshotRoute(): RuntimeResult<Unit> {
         val route = RuntimeRoute.MODEL_SNAPSHOT

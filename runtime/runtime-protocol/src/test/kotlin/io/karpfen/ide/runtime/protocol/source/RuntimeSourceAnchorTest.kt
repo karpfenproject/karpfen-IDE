@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.runtime.protocol.source
 
+import io.karpfen.ide.runtime.protocol.api.CodeWay
 import io.karpfen.ide.runtime.protocol.catalogue.FeatureName
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeRoute
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeText
@@ -39,6 +40,7 @@ import kotlin.test.assertTrue
  * - The reads of inbound event frames and the detection of their payload format.
  * - The observatory's eviction and wildcard.
  * - The members and phases of the snapshot with its wait for a tick boundary.
+ * - The members of the run's numbers and the names of the ways code runs.
  * - The decisive lines of the runtime's JSON writer.
  * - The members of the `stateChange` and `domainEvent` payloads.
  * - The names of the language features and the separator of the feature lists.
@@ -80,11 +82,12 @@ class RuntimeSourceAnchorTest {
     }
 
     @Test
-    fun `the two numeric parameters are converted as the catalogue assumes`() {
+    fun `the numeric and the boolean parameters are converted as the catalogue assumes`() {
         assertAnchored(
             listOf(
                 SourceAnchor(HTTP_ROUTES, "call.request.queryParameters[\"milliseconds\"]?.toIntOrNull()"),
                 SourceAnchor(HTTP_ROUTES, "call.request.queryParameters[\"ttlMs\"]?.toLongOrNull()"),
+                SourceAnchor(HTTP_ROUTES, "call.request.queryParameters[\"enabled\"]?.toBooleanStrictOrNull()"),
             ),
         )
     }
@@ -129,6 +132,8 @@ class RuntimeSourceAnchorTest {
                 SourceAnchor(HTTP_ROUTES, "else -> HttpStatusCode.InternalServerError"),
                 SourceAnchor(HTTP_ROUTES, "call.respond(status, e.message ?: \"Unexpected error\")"),
                 SourceAnchor(OBSERVATION_ROUTES, "errors.respond(call, e)"),
+                SourceAnchor(METRICS_ROUTES, "errors.respond(call, e)"),
+                SourceAnchor(METRICS_ROUTES, "call.respondText(metrics.metrics(envKey).toJson(), ContentType.Application.Json)"),
                 SourceAnchor(KTOR_SERVER, "HTTPRoutes::respondWithError"),
                 SourceAnchor(
                     OBSERVATION_ROUTES,
@@ -248,6 +253,31 @@ class RuntimeSourceAnchorTest {
                     SourceAnchor(MODEL_SNAPSHOT, "\${roots.joinToString(\",\")}"),
                     SourceAnchor(SNAPSHOT_SERVICE, "ModelSnapshot(envKey, EnvironmentPhase.CONFIGURING, 0L, emptyMap(), roots)"),
                     SourceAnchor(SNAPSHOT_SERVICE, "model.objects.map(ModelJsonWriter::write)"),
+                ),
+        )
+    }
+
+    @Test
+    fun `the run's numbers are written with the members the metrics reader takes and the ways of code it knows`() {
+        val metrics = checkout.text(METRICS_SERVICE)
+        val members = listOf(
+            WireNames.ENVIRONMENT_KEY, WireNames.PHASE, WireNames.METRICS_TICKS, WireNames.METRICS_TICK_MS, WireNames.METRICS_TOTAL,
+            WireNames.METRICS_MEAN, WireNames.METRICS_MAX, WireNames.METRICS_RECENT, WireNames.METRICS_PYTHON_MS,
+            WireNames.METRICS_OUTSIDE_PYTHON_MS, WireNames.METRICS_CALLS, WireNames.METRICS_RESULT_CACHING,
+        )
+        val positions = members.map { metrics.indexOf("\\\"$it\\\":") }
+
+        assertTrue(positions.none { it < 0 }, "members missing from $METRICS_SERVICE: ${members.filterIndexed { i, _ -> positions[i] < 0 }}")
+        assertEquals(positions.sorted(), positions, "the members of the numbers are written in another order")
+        assertAnchored(
+            CodeWay.entries.map { SourceAnchor(METRICS_RECORDER, "${it.name}(\"${it.wireName}\")") } +
+                listOf(
+                    SourceAnchor(
+                        METRICS_SERVICE,
+                        "\"\${ModelJsonWriter.quote(way.wireName)}:{\\\"${WireNames.METRICS_COUNT}\\\":\${call.count}," +
+                            "\\\"${WireNames.METRICS_MS}\\\":\${ms(call.nanos)}}\"",
+                    ),
+                    SourceAnchor(METRICS_SERVICE, "throw IllegalStateException(\"Environment with key \$envKey is not active\")"),
                 ),
         )
     }
@@ -443,6 +473,9 @@ class RuntimeSourceAnchorTest {
         const val SNAPSHOT_SERVICE = "$SERVER/observation/ModelSnapshotService.kt"
         const val SUBSCRIPTION_SERVICE = "$SERVER/observation/ModelSubscriptionService.kt"
         const val MODEL_SNAPSHOT = "$SERVER/observation/ModelSnapshot.kt"
+        const val METRICS_ROUTES = "$SERVER/observation/RunMetricsRoutes.kt"
+        const val METRICS_SERVICE = "$SERVER/observation/RunMetricsService.kt"
+        const val METRICS_RECORDER = "$ENGINE/metrics/RunMetricsRecorder.kt"
         const val STATE_MACHINE_HOLDINGS = "$SERVER/server/StateMachineHoldings.kt"
         const val ENVIRONMENT_PHASE = "$SERVER/observation/EnvironmentPhase.kt"
         const val SESSION_MANAGER = "$SERVER/websocket/ClientSessionManager.kt"
@@ -461,11 +494,16 @@ class RuntimeSourceAnchorTest {
         /** The routes the runtime's model observation adds, declared in their own file. */
         val OBSERVATION = setOf(RuntimeRoute.MODEL_SNAPSHOT, RuntimeRoute.SUBSCRIBE_MODEL, RuntimeRoute.UNSUBSCRIBE_MODEL)
 
-        /** The parameters that must also be numbers, refused with the text of an invalid parameter. */
-        val NUMERIC_PARAMETERS = setOf("milliseconds", "ttlMs")
+        /** The parameters that must also be numbers or booleans, refused with the text of an invalid parameter. */
+        val NUMERIC_PARAMETERS = setOf("milliseconds", "ttlMs", "enabled")
 
         /** The file that declares [route]. */
-        fun fileOf(route: RuntimeRoute): String = if (route in OBSERVATION) OBSERVATION_ROUTES else HTTP_ROUTES
+        fun fileOf(route: RuntimeRoute): String =
+            when (route) {
+                in OBSERVATION -> OBSERVATION_ROUTES
+                RuntimeRoute.RUN_METRICS -> METRICS_ROUTES
+                else -> HTTP_ROUTES
+            }
 
         /** A string literal of [text] rendered with Kotlin template expressions as the runtime writes it. */
         fun literal(text: RuntimeText, expressions: Map<String, String>): String = "\"${text.render(expressions)}\""
@@ -488,6 +526,7 @@ class RuntimeSourceAnchorTest {
                 SourceAnchor(API_SERVICE, literal(RuntimeText.UNKNOWN_ENVIRONMENT, ENV)),
                 SourceAnchor(SNAPSHOT_SERVICE, literal(RuntimeText.UNKNOWN_ENVIRONMENT, ENV)),
                 SourceAnchor(SUBSCRIPTION_SERVICE, literal(RuntimeText.UNKNOWN_ENVIRONMENT, ENV)),
+                SourceAnchor(METRICS_SERVICE, literal(RuntimeText.UNKNOWN_ENVIRONMENT, ENV)),
             ),
             RuntimeText.ALREADY_ACTIVE to listOf(
                 SourceAnchor(API_SERVICE, literal(RuntimeText.ALREADY_ACTIVE, ENV)),
@@ -526,7 +565,10 @@ class RuntimeSourceAnchorTest {
             ),
             RuntimeText.NOT_ACTIVATED to listOf(SourceAnchor(ENVIRONMENT_HANDLER, literal(RuntimeText.NOT_ACTIVATED, ENV))),
             RuntimeText.NO_EXECUTION_THREAD to listOf(SourceAnchor(API_SERVICE, literal(RuntimeText.NO_EXECUTION_THREAD, ENV))),
-            RuntimeText.NOT_ACTIVE to listOf(SourceAnchor(API_SERVICE, literal(RuntimeText.NOT_ACTIVE, ENV))),
+            RuntimeText.NOT_ACTIVE to listOf(
+                SourceAnchor(API_SERVICE, literal(RuntimeText.NOT_ACTIVE, ENV)),
+                SourceAnchor(METRICS_SERVICE, literal(RuntimeText.NOT_ACTIVE, ENV)),
+            ),
             RuntimeText.UNKNOWN_STATE_MACHINE to listOf(
                 SourceAnchor(API_SERVICE, literal(RuntimeText.UNKNOWN_STATE_MACHINE, ENV + ("element" to "\$modelElement"))),
             ),

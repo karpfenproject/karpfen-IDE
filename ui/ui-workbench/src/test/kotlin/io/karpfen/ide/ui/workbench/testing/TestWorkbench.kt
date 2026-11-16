@@ -213,11 +213,12 @@ class TestWorkbench(
     }
 
     /**
-     * Settles, asserts that the run dialog is shown, answers it with the [bridges] ticked by their positions and the
-     * capture box set to [capture], and settles again. Returns the dialog as it was shown.
+     * Settles, asserts that the run dialog is shown, answers it with the [bridges] ticked by their positions, the
+     * capture box set to [capture] and the cache box set to [resultCaching], and settles again. Returns the dialog as
+     * it was shown.
      */
-    fun answerRun(bridges: Set<Int> = emptySet(), capture: Boolean = false): DialogRequest.ConfigureRun =
-        answer(DialogRequest.ConfigureRun::class, DialogResponse.RunWith(bridges, capture))
+    fun answerRun(bridges: Set<Int> = emptySet(), capture: Boolean = false, resultCaching: Boolean = true): DialogRequest.ConfigureRun =
+        answer(DialogRequest.ConfigureRun::class, DialogResponse.RunWith(bridges, capture, resultCaching))
 
     /** Asserts that no dialog is shown. */
     fun assertNoDialog() {

@@ -22,8 +22,9 @@ import io.karpfen.ide.ui.workbench.settings.SettingsRepository
 
 /**
  * Asks how to run a descriptor of [workspace] and remembers the answer in the project. The run dialog lists the bridge
- * files of the workspace with the bridges of the last run ticked, and the box that captures the run to a file, ticked
- * if the last run was captured. The choice is written to the settings only if it differs from what they hold.
+ * files of the workspace with the bridges of the last run ticked, the box that captures the run to a file, ticked if the
+ * last run was captured, and the box that keeps the result cache of Python code on, ticked unless the last run had it
+ * off. The choice is written to the settings only if it differs from what they hold.
  *
  * Use the class from the UI thread only.
  *
@@ -42,11 +43,13 @@ internal class RunChoiceFlow(
         val stored = settings.settings.value
         val last = stored.activeBridges.toSet()
         val ticked = files.filter { BridgeLoader.nameOf(root, it) in last }.toSet()
-        val choice = support.configureRun(root, files, ticked, stored.captureRuns) ?: return null
+        val choice = support.configureRun(root, files, ticked, stored.captureRuns, stored.resultCaching) ?: return null
         val names = choice.bridges.map { BridgeLoader.nameOf(root, it) }
         val current = settings.settings.value
-        if (names != current.activeBridges || choice.capture != current.captureRuns) {
-            settings.update { it.copy(activeBridges = names, captureRuns = choice.capture) }
+        val changed = names != current.activeBridges || choice.capture != current.captureRuns ||
+            choice.resultCaching != current.resultCaching
+        if (changed) {
+            settings.update { it.copy(activeBridges = names, captureRuns = choice.capture, resultCaching = choice.resultCaching) }
         }
         return choice
     }

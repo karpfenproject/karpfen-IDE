@@ -163,6 +163,42 @@ public object WireNames {
     /** The root objects of the model, a member of the snapshot. */
     public const val ROOTS: String = "roots"
 
+    /** The number of ticks since the first start, a member of the answer of `GET /observatory/metrics`. */
+    public const val METRICS_TICKS: String = "ticks"
+
+    /** The durations of the ticks, a member of the answer of `GET /observatory/metrics`. */
+    public const val METRICS_TICK_MS: String = "tickMs"
+
+    /** The sum of all tick durations, a member of [METRICS_TICK_MS]. */
+    public const val METRICS_TOTAL: String = "total"
+
+    /** The mean tick duration, a member of [METRICS_TICK_MS]. */
+    public const val METRICS_MEAN: String = "mean"
+
+    /** The longest tick duration, a member of [METRICS_TICK_MS]. */
+    public const val METRICS_MAX: String = "max"
+
+    /** The durations of the latest ticks from the oldest to the newest, a member of [METRICS_TICK_MS]. */
+    public const val METRICS_RECENT: String = "recent"
+
+    /** The time the ticks waited for Python, a member of the answer of `GET /observatory/metrics`. */
+    public const val METRICS_PYTHON_MS: String = "pythonMs"
+
+    /** The time the ticks spent with everything but Python, a member of the answer of `GET /observatory/metrics`. */
+    public const val METRICS_OUTSIDE_PYTHON_MS: String = "outsidePythonMs"
+
+    /** The calls of code by the way they ran, a member of the answer of `GET /observatory/metrics`. */
+    public const val METRICS_CALLS: String = "calls"
+
+    /** The number of calls of one way, a member of each entry of [METRICS_CALLS]. */
+    public const val METRICS_COUNT: String = "count"
+
+    /** The time the calls of one way took together, a member of each entry of [METRICS_CALLS]. */
+    public const val METRICS_MS: String = "ms"
+
+    /** Whether the result cache is on, a member of the answer of `GET /observatory/metrics`. */
+    public const val METRICS_RESULT_CACHING: String = "resultCaching"
+
     /** The payload format of an event without a payload. */
     public const val FORMAT_NONE: String = "none"
 

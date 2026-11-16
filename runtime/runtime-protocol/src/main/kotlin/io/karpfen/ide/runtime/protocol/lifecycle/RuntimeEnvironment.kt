@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.runtime.protocol.lifecycle
 
+import io.karpfen.ide.runtime.protocol.api.RunMetrics
 import io.karpfen.ide.runtime.protocol.api.StateMachineHoldings
 import io.karpfen.ide.runtime.protocol.catalogue.AccessKey
 import io.karpfen.ide.runtime.protocol.catalogue.ClientId
@@ -106,6 +107,13 @@ public interface RuntimeEnvironment {
     public suspend fun setEventTtl(milliseconds: Long): CallOutcome<Unit>
 
     /**
+     * Switches the result cache on if [enabled] is true, off otherwise. The runtime then keeps or does not keep the
+     * results of conditions and actions written in Python for calls with the same inputs. The cache is on in a new
+     * environment. It is allowed while configuring, because activation freezes the switch.
+     */
+    public suspend fun setResultCaching(enabled: Boolean): CallOutcome<Unit>
+
+    /**
      * Registers [client] as an observer of the object [objectId]. It is allowed while configuring, because activation
      * freezes the observers.
      */
@@ -126,7 +134,7 @@ public interface RuntimeEnvironment {
 
     /**
      * Activates the environment. The runtime builds its engine over the uploaded texts and freezes the tick delay, the
-     * time to live, the observers and the listeners. It is allowed once, while configuring with a metamodel and a
+     * time to live, the switch of the result cache, the observers and the listeners. It is allowed once, while configuring with a metamodel and a
      * model. It completes even when the caller is cancelled.
      */
     public suspend fun activate(): CallOutcome<Unit>
@@ -179,6 +187,14 @@ public interface RuntimeEnvironment {
      * last tick as running.
      */
     public suspend fun snapshot(): CallOutcome<RuntimeModelSnapshot>
+
+    /**
+     * Reads the numbers of the environment since its activation: the ticks and their durations, the time spent in
+     * Python and outside, the calls of code by the way the runtime served them and whether the result cache is on. It
+     * is allowed from the activation on, unless the environment is lost or dropped. It is refused while configuring,
+     * because the runtime counts only from the activation on. The answer leaves the phase as it is.
+     */
+    public suspend fun metrics(): CallOutcome<RunMetrics>
 
     /**
      * Subscribes [client] to every object and stack change of the environment. The runtime answers only once a

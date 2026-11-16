@@ -107,7 +107,7 @@ dsl-tools 2.0 and never reads or writes `~/.m2`.
 
 ```bash
 karpfen-ide validate <folder> [--format text|json]
-karpfen-ide run <folder> [--descriptor <file>] [--bridge <file>]... [--capture] [--verbose]
+karpfen-ide run <folder> [--descriptor <file>] [--bridge <file>]... [--capture] [--no-result-cache] [--verbose]
 ```
 
 The IDE is its own command-line tool. `validate` runs the same validation of the whole project as Validate in the
@@ -185,12 +185,15 @@ generated from these files, so they keep a fixed form:
 - A link inside a repository is relative. A link into another repository goes to the file on `main` on GitHub. The
   text of a link to a section starts with its number and title.
 - There is no front matter, no HTML, no image and no table of contents in a file.
+- A name that the reader has to find on screen, such as a menu entry, a button, a checkbox or the title of a tool
+  window or a dialog, is written in single stars exactly as the screen shows it, as in `*Run > Start Runtime*`, and the
+  website prints it in italics. No other star stands outside code in backticks, and a heading holds none.
 
 `ReferenceMarkdownTest` checks this form here. `ReferenceExamplesTest` in karpfen-dsl-tools reads the examples of
 chapter 2 with the real readers. Write the reference for someone who has not seen the code: what a thing is, how to
 use it, what happens and what goes wrong, each rule with the smallest example that shows it. Keep out what only a
-developer of karpfen needs. The reference uses one term per thing, no bold and no italics, no sales words, no
-sentence that announces or sums up, and no contrast with a claim nobody made.
+developer of karpfen needs. The reference uses one term per thing, no bold and no italics other than these names, no
+sales words, no sentence that announces or sums up, and no contrast with a claim nobody made.
 
 Write plain and simple English in short sentences. Name things in words, never by an id from another document or a
 numbered step of a plan. Do not use the em dash, the en dash, the middle dot, the bullet or the Unicode arrows.
@@ -306,6 +309,9 @@ Three things differ from the window on purpose.
   host from `.karpfenproject` and keeps every change in memory. It never reads or writes the settings of the user.
 - There is no debugger. The run is launched with `RunChoice(debugger = false)`, and `DeployOptions.applyTo` then
   leaves the runtime feature Breakpoint out of the plan, so the engine can never halt with nobody to resume it.
+- The result cache of Python code is on unless `--no-result-cache` is given. The line `resultCache = off` that the
+  run dialog leaves in `.karpfenproject` does not count, because a headless run takes its choices from the command
+  line only.
 - The command line is strict. The window ignores a wrong argument with a warning, so a typo never keeps it from
   starting. A headless command ends with status 2 and the usage instead.
 
@@ -482,7 +488,9 @@ the client is tested against.
 
 A run deploys what is on disk, never unsaved editor text. The Run action saves every open file first. The descriptor
 holds the whole deploy configuration, so a run can be repeated without the IDE's state. Every deployment sends the
-tick delay and the event time to live. A stopped environment is final for the IDE. Running again creates a new one.
+tick delay, the event time to live and the choice of the result cache, which `DeployOptions.resultCaching` carries
+from the run dialog or the command line. The runtime caches results of Python code by default, and the step sends
+`true` as well, so a run never depends on that default. A stopped environment is final for the IDE. Running again creates a new one.
 
 ### Product choices
 

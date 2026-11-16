@@ -59,7 +59,8 @@ class RuntimeSessionDeploymentTest {
                 RuntimeRoute.HEALTH, RuntimeRoute.MODEL_SNAPSHOT, RuntimeRoute.CREATE_ENVIRONMENT,
                 RuntimeRoute.REGISTER_CLIENT_FOR_WEB_SOCKET, RuntimeRoute.SET_METAMODEL, RuntimeRoute.SET_EVENT_DEFINITIONS,
                 RuntimeRoute.SET_MODEL, RuntimeRoute.SET_STATE_MACHINE, RuntimeRoute.SET_STATE_MACHINE, RuntimeRoute.SET_TICK_DELAY,
-                RuntimeRoute.SET_EVENT_TTL, RuntimeRoute.REGISTER_DOMAIN_LISTENER, RuntimeRoute.REGISTER_DOMAIN_LISTENER,
+                RuntimeRoute.SET_EVENT_TTL, RuntimeRoute.SET_RESULT_CACHING, RuntimeRoute.REGISTER_DOMAIN_LISTENER,
+                RuntimeRoute.REGISTER_DOMAIN_LISTENER,
                 RuntimeRoute.RUN_ENVIRONMENT, RuntimeRoute.SUBSCRIBE_MODEL, RuntimeRoute.MODEL_SNAPSHOT,
                 RuntimeRoute.START_ENVIRONMENT, RuntimeRoute.MODEL_SNAPSHOT,
             ),
@@ -68,6 +69,7 @@ class RuntimeSessionDeploymentTest {
         assertEquals(listOf("lamp", "wallSwitch"), rig.fake.requests(RuntimeRoute.SET_STATE_MACHINE).map { it.parameter("attachedTo") })
         assertEquals(listOf("50"), rig.fake.requests(RuntimeRoute.SET_TICK_DELAY).map { it.parameter("milliseconds") })
         assertEquals(listOf("30000"), rig.fake.requests(RuntimeRoute.SET_EVENT_TTL).map { it.parameter("ttlMs") })
+        assertEquals(listOf("true"), rig.fake.requests(RuntimeRoute.SET_RESULT_CACHING).map { it.parameter("enabled") })
         assertEquals(listOf("service", "switch"), rig.fake.requests(RuntimeRoute.REGISTER_DOMAIN_LISTENER).map { it.parameter("domain") })
         assertTrue(
             rig.fake.requests(RuntimeRoute.REGISTER_DOMAIN_LISTENER).all { it.parameter("clientId") == session.clientId.value },

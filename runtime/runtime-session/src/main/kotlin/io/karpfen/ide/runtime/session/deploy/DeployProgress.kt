@@ -54,6 +54,9 @@ public enum class DeployStepKind {
     /** Sets the event time to live of the deploy configuration. */
     SET_EVENT_TTL,
 
+    /** Switches the result cache of Python code on or off, as the deploy options say. */
+    SET_RESULT_CACHING,
+
     /** Registers a listener for every event domain the state machines use. It is skipped when there are none. */
     LISTEN_DOMAINS,
 

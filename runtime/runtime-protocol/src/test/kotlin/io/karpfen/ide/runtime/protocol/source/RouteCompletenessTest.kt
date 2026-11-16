@@ -21,9 +21,9 @@ import kotlin.test.assertEquals
 
 /**
  * Covers the completeness of the route catalogue. The routes the runtime declares in its `HTTPRoutes.kt`, followed by
- * those of its `ModelObservationRoutes.kt`, are exactly the catalogue's routes in the catalogue's order. So a route the
- * runtime adds, removes or renames fails here before any client code meets it. The KDoc of [RuntimeSourceAnchorTest]
- * describes what to do when the karpfen-runtime submodule moves.
+ * those of its `ModelObservationRoutes.kt` and its `RunMetricsRoutes.kt`, are exactly the catalogue's routes in the
+ * catalogue's order. So a route the runtime adds, removes or renames fails here before any client code meets it. The
+ * KDoc of [RuntimeSourceAnchorTest] describes what to do when the karpfen-runtime submodule moves.
  */
 class RouteCompletenessTest {
 
@@ -31,7 +31,7 @@ class RouteCompletenessTest {
 
     @Test
     fun `the runtime declares exactly the catalogue's routes in the catalogue's order`() {
-        val declared = listOf(HTTP_ROUTES, OBSERVATION_ROUTES).flatMap { file ->
+        val declared = listOf(HTTP_ROUTES, OBSERVATION_ROUTES, METRICS_ROUTES).flatMap { file ->
             RouteDeclarations.of(checkout.text(file)).routes.map { "${it.verb} ${it.path}" }
         }
 
@@ -64,5 +64,8 @@ class RouteCompletenessTest {
 
         /** The runtime's file of the model observation routes. */
         const val OBSERVATION_ROUTES = "src/main/kotlin/io/karpfen/observation/ModelObservationRoutes.kt"
+
+        /** The runtime's file of the route of the run's numbers. */
+        const val METRICS_ROUTES = "src/main/kotlin/io/karpfen/observation/RunMetricsRoutes.kt"
     }
 }

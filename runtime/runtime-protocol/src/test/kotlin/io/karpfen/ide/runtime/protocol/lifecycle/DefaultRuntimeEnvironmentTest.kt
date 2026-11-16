@@ -16,6 +16,7 @@
 package io.karpfen.ide.runtime.protocol.lifecycle
 
 import io.karpfen.ide.runtime.protocol.api.HttpRuntimeApi
+import io.karpfen.ide.runtime.protocol.api.RunMetrics
 import io.karpfen.ide.runtime.protocol.api.RuntimeFailure
 import io.karpfen.ide.runtime.protocol.api.RuntimeTimeouts
 import io.karpfen.ide.runtime.protocol.catalogue.AccessKey
@@ -26,6 +27,7 @@ import io.karpfen.ide.runtime.protocol.catalogue.RejectionKind
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeRoute
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeText
 import io.karpfen.ide.runtime.protocol.doubles.ScriptedHttp
+import io.karpfen.ide.runtime.protocol.golden.RuntimeGoldens
 import io.karpfen.ide.runtime.protocol.golden.RuntimeWireWriter
 import io.karpfen.ide.runtime.protocol.message.RuntimeModelSnapshot
 import io.karpfen.ide.runtime.protocol.message.RuntimePhase
@@ -129,6 +131,7 @@ class DefaultRuntimeEnvironmentTest {
             handle.setStateMachine("living room", "machine"),
             handle.setTickDelay(50),
             handle.setEventTtl(3000),
+            handle.setResultCaching(false),
             handle.registerObjectObserver(client, "lamp"),
             handle.registerDomainListener(client, "public"),
             handle.registerDomainListener(client, "control"),
@@ -144,6 +147,7 @@ class DefaultRuntimeEnvironmentTest {
                     machines = setOf("living room"),
                     tickDelay = true,
                     eventTtl = true,
+                    resultCaching = true,
                     observers = 1,
                     listeners = 2,
                 ),
@@ -154,12 +158,35 @@ class DefaultRuntimeEnvironmentTest {
         assertEquals(
             listOf(
                 "/setMetamodel", "/setEventDefinitions", "/setModel", "/setStateMachine", "/setTickDelay", "/setEventTtl",
-                "/registerObjectObserver", "/registerDomainListener", "/registerDomainListener",
+                "/setResultCaching", "/registerObjectObserver", "/registerDomainListener", "/registerDomainListener",
             ),
             http.paths,
         )
         assertEquals(listOf("envKey" to environment.value, "attachedTo" to "living room"), http.requests[3].query)
         assertEquals("machine", http.requests[3].body)
+    }
+
+    @Test
+    fun `the result cache is switched only while configuring, and the numbers are read only from the activation on`() = runTest {
+        val handle = handle()
+        configure(handle)
+
+        val early = handle.metrics()
+        assertEquals(CallOutcome.Done(Unit), handle.setResultCaching(true))
+        assertEquals(CallOutcome.Done(Unit), handle.activate())
+        val late = handle.setResultCaching(false)
+        http.ok(RuntimeGoldens.METRICS.replace(RuntimeGoldens.ENVIRONMENT, environment.value))
+        val metrics = assertIs<CallOutcome.Done<RunMetrics>>(handle.metrics()).value
+
+        assertEquals(LifecycleOperation.READ_METRICS, assertIs<CallOutcome.Refused>(early).refusal.operation)
+        assertEquals(LifecycleOperation.SET_RESULT_CACHING, assertIs<CallOutcome.Refused>(late).refusal.operation)
+        assertEquals(3, metrics.ticks)
+        assertEquals(EnvironmentPhase.Activated, handle.phase.value)
+        assertEquals(
+            listOf("/setMetamodel", "/setModel", "/setResultCaching", "/runEnvironment", "/observatory/metrics"),
+            http.paths,
+        )
+        assertEquals(listOf("envKey" to environment.value, "enabled" to "true"), http.requests[2].query)
     }
 
     @Test
