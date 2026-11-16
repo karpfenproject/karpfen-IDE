@@ -21,6 +21,7 @@ import io.karpfen.ide.core.document.parse.SemanticKind
 import io.karpfen.ide.core.document.parse.SymbolDeclaration
 import io.karpfen.ide.core.document.parse.SymbolKind
 import io.karpfen.ide.core.text.TextRange
+import org.antlr.v4.runtime.ParserRuleContext
 
 /**
  * Walks a KStates tree into one STATEMACHINE outline node. Its children are the states, the transitions and the
@@ -32,8 +33,11 @@ import io.karpfen.ide.core.text.TextRange
  *   STATE_MACHINE_NAME span, and the declaration selects the name. Its type name is the first listed type, `A`, which
  *   the model paths of the machine start from in completion and hover. Its outline detail lists every type, as in
  *   `A, B`.
+ * - `STATEMACHINE "name" FRAGMENT`: the fragment is declared as a FRAGMENT named `name` with a STATE_MACHINE_NAME
+ *   span, and the declaration selects the name, or the keyword `FRAGMENT` while the name is missing. It has no type.
+ *   Its outline node is a FRAGMENT node with the detail `FRAGMENT`.
  * The form follows the keyword, as the reader of dsl-tools decides it. A name in front of `ATTACHED` or a missing name
- * in front of `ATTACHABLE` is a finding of that reader, and the walker still declares what the text says.
+ * in front of `ATTACHABLE` or `FRAGMENT` is a finding of that reader, and the walker still declares what the text says.
  *
  * The class coordinates one walker per block over the shared [KstatesReferences] rules. [KstatesStateWalker] walks the
  * states together with [KstatesActionWalker], [KstatesTransitionWalker] walks the transitions, and
@@ -47,8 +51,32 @@ internal class KstatesTreeWalker(private val tree: ParsedTree<*>, private val co
     private val transitions = KstatesTransitionWalker(tree, collector, references)
     private val macros = KstatesMacroWalker(tree, collector)
 
-    /** The outline of [file], which is the state machine if the text has one. */
-    fun walk(file: KstatesParser.Kstates_fileContext): List<OutlineNode> = listOfNotNull(file.statemachine()?.let(::machine))
+    /**
+     * The outline of [file], which is the state machine or the fragment if the text has one. [file] is the tree of
+     * either entry rule of the grammar.
+     */
+    fun walk(file: ParserRuleContext): List<OutlineNode> = when (file) {
+        is KstatesParser.Kstates_fileContext -> listOfNotNull(file.statemachine()?.let(::machine))
+        is KstatesParser.Fragment_fileContext -> listOfNotNull(file.fragment_machine()?.let(::fragment))
+        else -> emptyList()
+    }
+
+    /** Records the fragment of [ctx] and returns its outline node. */
+    private fun fragment(ctx: KstatesParser.Fragment_machineContext): OutlineNode {
+        val children = states.walk(ctx.states_block()) + transitions.walk(ctx.transitions_block()) + macros.walk(ctx.macros_block())
+        val range = tree.rangeOf(ctx)
+        val keyword = tree.rangeOf(tree.terminal(ctx, KstatesParser.FRAGMENT))
+            ?: tree.rangeOf(tree.terminal(ctx, KstatesParser.STATEMACHINE))
+            ?: TextRange.empty(range.start)
+        val name = tree.quoted(tree.terminal(ctx.statemachine_name(), KstatesParser.STRING))
+        val node = outlineNode(SymbolKind.FRAGMENT, name?.value.orEmpty(), FRAGMENT_DETAIL, range, name?.inner ?: keyword, children)
+        if (name == null) {
+            collector.declare(SymbolKind.FRAGMENT, "", keyword, node.range, container = null)
+        } else {
+            collector.declare(SymbolKind.FRAGMENT, name, node.range, container = null, span = SemanticKind.STATE_MACHINE_NAME)
+        }
+        return node
+    }
 
     /** Records the state machine of [ctx] and returns its outline node. */
     private fun machine(ctx: KstatesParser.StatemachineContext): OutlineNode {
@@ -85,5 +113,8 @@ internal class KstatesTreeWalker(private val tree: ParsedTree<*>, private val co
          * because that form gives the machine no name.
          */
         const val MACHINE_NAME = SymbolDeclaration.ATTACHED_MACHINE_NAME
+
+        /** The detail of the outline node of a fragment, its keyword. */
+        const val FRAGMENT_DETAIL = "FRAGMENT"
     }
 }

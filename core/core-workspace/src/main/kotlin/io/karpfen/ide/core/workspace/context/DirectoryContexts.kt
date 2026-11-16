@@ -30,7 +30,8 @@ import java.nio.file.Path
  * The implicit contexts of a workspace, built by the rules on [ContextResolver]. Every directory of [tree] without a
  * descriptor forms one context. A directory that contains a `*.kenv.json`, readable or not, is covered by it and forms
  * none. The context holds the karpfen files directly inside the directory that are not [covered] by an explicit
- * context. If none are left, there is no context. The contexts come in directory path order.
+ * context, its state machines and its fragments (`*.frag.kstates`) alike. If none are left, there is no context. The
+ * contexts come in directory path order.
  *
  * So a file that a descriptor in another directory names is analyzed once, in the context of that descriptor. It is
  * never reported as a file without a metamodel. Within a directory the files are taken in tree order. So
@@ -57,7 +58,7 @@ internal class DirectoryContexts(private val tree: WorkspaceTree, private val co
         val metamodels = ofKind(FileKind.KMETA)
         val chosen = metamodels.firstOrNull()
         val models = ofKind(FileKind.KMODEL)
-        val machines = ofKind(FileKind.KSTATES)
+        val machines = files.filter { it.kind.isStateMachine }
         if (metamodels.size > 1) {
             val names = metamodels.joinToString(", ") { it.name }
             metamodels.forEach { metamodel ->

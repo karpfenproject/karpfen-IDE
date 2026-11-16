@@ -25,12 +25,13 @@ import io.karpfen.ide.core.text.TextRange
  *   object of type `T` shows as `:T`. A transition shows as `a -> b`, `a -> b, c` or `a, b -> c`. A block shows as
  *   `ENTRY` or `DO`. A descriptor KEY shows its key. A descriptor ENTRY shows its first string, which is the file of a
  *   state machine entry, or else its position, such as `[0]`. An attached STATEMACHINE shows as `STATEMACHINE`, an
- *   attachable one by its name.
+ *   attachable one and a FRAGMENT by its name.
  * @property detail optional secondary text that depends on the [kind]. A TYPE shows its description. A SIMPLE_PROPERTY
  *   shows its primitive, such as `number`. A HAS_RELATION or KNOWS_RELATION shows its target, such as `Vector` or
  *   `list(Obstacle)`. An OBJECT shows its type name. A PROPERTY_ASSIGNMENT shows its value. A KNOWS_ASSIGNMENT shows
  *   the key of the target object. A STATEMACHINE shows its `ATTACHED TO` type, or the types after `ATTACHABLE TO` joined
- *   by commas, as in `Bulb, Lamp`. A MACRO shows its RETURNS expression. A
+ *   by commas, as in `Bulb, Lamp`. A FRAGMENT shows `FRAGMENT`. A container STATE shows `USE` and the name of its
+ *   fragment, as in `USE bulb test`, and a final STATE shows `FINAL`. A MACRO shows its RETURNS expression. A
  *   MACRO_PARAMETER shows its parameter type. A BINDING shows the macro name. A KEY shows its value when that is a
  *   string, a number or a literal. All other nodes have null. Where a node also has a [SymbolDeclaration.typeName],
  *   both hold the same type.

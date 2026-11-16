@@ -26,7 +26,8 @@ import kotlin.test.assertTrue
  * Adapters isolate foreign APIs. Three rules confine them.
  *
  * ANTLR and the parsers that dsl-tools generates from its grammars are only reached from the ANTLR adapter package
- * [KarpfenModules.ANTLR_ADAPTER_PACKAGE].
+ * [KarpfenModules.ANTLR_ADAPTER_PACKAGE]. So is [KSTATES_ENTRY_RULE], the part of dsl-tools that chooses the entry rule
+ * of the generated KStates parser for a text, because it only serves a caller that drives that parser.
  *
  * Everything else of dsl-tools, except its semantic model, is only reached from the dsl adapter package
  * [KarpfenModules.DSL_ADAPTER_PACKAGE]. So no other package sees ANTLR types, dsl-tools readers, diagnostics or
@@ -56,8 +57,14 @@ class ForeignApiConfinementTest {
         /** The root package of logback, the logging backend of the application. */
         const val LOGBACK = "ch.qos.logback"
 
-        /** The packages that only the ANTLR adapter package may use. */
-        val ANTLR_PACKAGES = listOf(ANTLR_RUNTIME, GENERATED_PARSERS)
+        /**
+         * The class of dsl-tools that picks the entry rule of the generated KStates parser, a fragment or another
+         * state machine. It works on the generated parser and belongs with it.
+         */
+        const val KSTATES_ENTRY_RULE = "$DSL_TOOLS.parser.KstatesEntryRule"
+
+        /** The packages and classes that only the ANTLR adapter package may use. */
+        val ANTLR_PACKAGES = listOf(ANTLR_RUNTIME, GENERATED_PARSERS, KSTATES_ENTRY_RULE)
 
         /** The semantic model of dsl-tools: metamodels, models and state machines, which every package may use. */
         val DSL_TOOLS_SEMANTIC_MODEL = listOf("$DSL_TOOLS.meta", "$DSL_TOOLS.instance", "$DSL_TOOLS.states")
@@ -75,7 +82,7 @@ class ForeignApiConfinementTest {
          * them.
          */
         fun usesAdaptedDslTools(name: String): Boolean =
-            name.isWithin(DSL_TOOLS) && !name.isWithinAny(DSL_TOOLS_SEMANTIC_MODEL + GENERATED_PARSERS)
+            name.isWithin(DSL_TOOLS) && !name.isWithinAny(DSL_TOOLS_SEMANTIC_MODEL + GENERATED_PARSERS + KSTATES_ENTRY_RULE)
 
         /** True if [name] lies within logback, which only the logging packages may use. */
         fun usesLogback(name: String): Boolean = name.isWithin(LOGBACK)
@@ -171,6 +178,8 @@ class ForeignApiConfinementTest {
         assertTrue(usesAntlr("io.karpfen.dsl.grammar.kstates.KstatesLexer"))
         assertTrue(usesAntlr("io.karpfen.dsl.grammar.kmeta.*"))
         assertTrue(usesAntlr("org.antlr.v4.runtime.Token"))
+        assertTrue(usesAntlr("io.karpfen.dsl.parser.KstatesEntryRule"))
+        assertFalse(usesAdaptedDslTools("io.karpfen.dsl.parser.KstatesEntryRule"), "the ANTLR rule confines the entry rule")
         val adapted = listOf(
             "io.karpfen.dsl.reader.kmodel.KmodelReader",
             "io.karpfen.dsl.reader.ParseResult",

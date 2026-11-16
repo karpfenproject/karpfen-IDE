@@ -74,7 +74,8 @@ class ExamplesSyntaxTest {
             kstatesDeclarations,
         )
         assertEquals(
-            ReferenceKind.entries.toSet() - ReferenceKind.PROPERTY_KEY - ReferenceKind.OBJECT - ReferenceKind.STATE_MACHINE,
+            ReferenceKind.entries.toSet() - ReferenceKind.PROPERTY_KEY - ReferenceKind.OBJECT - ReferenceKind.STATE_MACHINE -
+                ReferenceKind.FRAGMENT,
             kstatesReferences,
         )
     }

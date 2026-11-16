@@ -34,7 +34,7 @@ import java.nio.file.Path
  * collaborators per run. [AnalyzedFiles] loads, tokenizes and parses each file once. [ContextReader] does the
  * dsl-tools reads of one context and of the loose state machines. The project diagnostics start with the diagnostics
  * of the resolution, and the reads add their DSL_TOOLS diagnostics. [StateMachineForms] adds the findings about the
- * form of each state machine of a descriptor.
+ * form of each state machine of a descriptor, and [FragmentFileNames] those about the names of fragment files.
  *
  * The analyzer of a workspace remembers the reads of its runs in a [ReadMemory]. So a run reads only the files whose
  * text, metamodel or set of language features changed since. Each run forgets the reads of the files that are neither
@@ -58,6 +58,7 @@ internal class DefaultProjectAnalyzer(
         val files = AnalyzedFiles(languages, sources, diagnostics)
         val reads = ContextReader(reader, memory, diagnostics, languageFeatures)
         val forms = StateMachineForms(diagnostics)
+        val fileNames = FragmentFileNames(diagnostics)
         val contexts = resolution.contexts.map { context ->
             val contextFiles = LinkedHashMap<Path, AnalyzedFile>()
             for (path in context.files) files.get(path)?.let { contextFiles[path] = it }
@@ -67,6 +68,7 @@ internal class DefaultProjectAnalyzer(
         val looseFiles = LinkedHashMap<Path, AnalyzedFile>()
         for (path in resolution.looseFiles) files.get(path)?.let { looseFiles[path] = it }
         looseFiles.values.forEach { reads.readLoose(it) }
+        (contexts.flatMap { it.files.values } + looseFiles.values).distinctBy { it.path }.forEach(fileNames::check)
         memory.retainOnly(resolution.contexts.flatMapTo(HashSet()) { it.files } + resolution.looseFiles)
         return ProjectAnalysis(generation, contexts, diagnostics.build(), looseFiles, languageFeatures)
     }

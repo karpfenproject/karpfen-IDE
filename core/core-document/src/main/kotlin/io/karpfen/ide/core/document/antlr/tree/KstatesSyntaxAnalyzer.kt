@@ -17,6 +17,7 @@ package io.karpfen.ide.core.document.antlr.tree
 
 import io.karpfen.dsl.grammar.kstates.KstatesLexer
 import io.karpfen.dsl.grammar.kstates.KstatesParser
+import io.karpfen.dsl.parser.KstatesEntryRule
 import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.document.antlr.DslGrammar
 import io.karpfen.ide.core.document.parse.SyntaxAnalysis
@@ -24,7 +25,10 @@ import io.karpfen.ide.core.document.parse.SyntaxAnalyzer
 import io.karpfen.ide.core.text.TextSnapshot
 
 /**
- * Parses KStates with the generated dsl-tools [KstatesParser] and its default error recovery. The parser reads a
+ * Parses KStates with the generated dsl-tools [KstatesParser] and its default error recovery. The grammar has two entry
+ * rules, one for a fragment and one for the attached and the attachable form, and dsl-tools' [KstatesEntryRule] picks
+ * the rule by the first tokens of the text, exactly as the readers of dsl-tools do. So a fragment parses without
+ * syntax errors, and the other two forms recover from errors as before. The parser reads a
  * `CommonTokenStream` of `KarpfenLexers.create`, and one `IdeErrorListener` is attached to both lexer and parser. The
  * analyzer then walks the tree into outline, index, folding and semantic spans. It tolerates the "missing" tokens that
  * ANTLR conjures, which have negative indices, and error nodes. Token offsets are converted with `CodePointOffsets`.
@@ -42,7 +46,7 @@ import io.karpfen.ide.core.text.TextSnapshot
 internal class KstatesSyntaxAnalyzer : SyntaxAnalyzer {
     override val language: KarpfenLanguage = KarpfenLanguage.KSTATES
 
-    private val parser = TreeParser(DslGrammar.KSTATES, ::KstatesParser, KstatesParser::kstates_file)
+    private val parser = TreeParser(DslGrammar.KSTATES, ::KstatesParser, KstatesEntryRule::parse)
 
     override fun analyze(snapshot: TextSnapshot): SyntaxAnalysis {
         val tree = parser.parse(snapshot)

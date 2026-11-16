@@ -31,7 +31,7 @@ import java.nio.file.Path
  * The template context holds the directory's context. That is its explicit context if a descriptor covers the
  * directory, and its implicit context otherwise. It also holds the types of the context's metamodel, the objects of
  * its first model, the `ATTACHED TO` type of each state machine, the event domains that the state machines use and the
- * state machines that have the attachable form.
+ * state machines that have the attachable form or are fragments.
  */
 internal object TemplateContextBuilder {
 
@@ -47,7 +47,7 @@ internal object TemplateContextBuilder {
             objects = context.models.firstOrNull()?.let(symbols::objectsOf).orEmpty(),
             stateMachineTypes = machines.mapNotNull { file -> symbols.attachedTypeOf(file)?.let { file to it } }.toMap(),
             eventDomains = symbols.eventDomainsOf(machines),
-            definitions = machines.filterTo(HashSet(), symbols::isAttachable),
+            definitions = machines.filterTo(HashSet()) { symbols.isAttachable(it) || symbols.isFragment(it) },
         )
     }
 }

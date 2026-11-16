@@ -31,13 +31,14 @@ import io.karpfen.ide.core.lang.symbols.DocumentDeclarations
 import io.karpfen.ide.core.lang.symbols.MemberKind
 import io.karpfen.ide.core.lang.symbols.TypeCatalog
 import io.karpfen.ide.core.lang.symbols.TypeOrigin
+import io.karpfen.ide.core.lang.symbols.UsableFragments
 import io.karpfen.ide.core.text.TextRange
 
 /**
  * Completion in KStates. It offers the following.
- * - Structural keywords by position from [KstatesKeywords]. These are STATE, INITIAL STATE, ENTRY, DO, TRANSITION,
- *   SPLIT, JOIN, NOT LOOPING, CONDITION, EVENT, EVAL, VALUE, MACRO, TAKES, RETURNS, DEFINITION, the action operations,
- *   IF IN SCOPE and WITH … AS. The constructs of the optional language features are offered only while
+ * - Structural keywords by position from [KstatesKeywords]. These are STATE, INITIAL STATE, CONTAINER STATE,
+ *   FINAL STATE, ENTRY, DO, TRANSITION, SPLIT, JOIN, NOT LOOPING, CONDITION, EVENT, EVAL, VALUE, DONE, MACRO, TAKES,
+ *   RETURNS, DEFINITION, the action operations, IF IN SCOPE and WITH … AS, and the header of a fragment. The constructs of the optional language features are offered only while
  *   `ProjectAnalysis.languageFeatures` of the request's project has them switched on.
  * - State names inside transition strings.
  * - Macro names inside `MACRO("` and after `@` in EVAL.
@@ -45,6 +46,7 @@ import io.karpfen.ide.core.text.TextRange
  * - The rest of the header after `STATEMACHINE`, and an `ATTACH` clause after `SETOBJ` or `APPENDOBJ`, while dynamic
  *   attachment is on.
  * - The attachable state machines of the context after `ATTACH "` and in the second argument of `EXCHANGE(`.
+ * - The fragments of the project after `USE "`, except the one the document declares itself.
  * - Domain types and primitives at TAKES and RETURNS.
  * - Model paths through [paths] in the strings of actions, VALUE, IF IN SCOPE and macro arguments, and after `$(` in
  *   EVAL. The item replaces the segment under the caret.
@@ -67,6 +69,7 @@ internal class KstatesCompletionProvider(
             is KstatesSlot.MacroName -> if (slot.isDeclaration) emptyList() else macros(request, slot.range)
             is KstatesSlot.StateMachineName ->
                 if (slot.isDeclaration) emptyList() else AttachableMachines(request).items(slot.range, suitedType = null)
+            is KstatesSlot.FragmentName -> UsableFragments(request).items(slot.range)
             is KstatesSlot.TypeName -> typeNames(request, slot)
             is KstatesSlot.ModelPath -> pathSegments(request, context, slot.range)
             is KstatesSlot.RelationKey -> relations(request, context, slot)

@@ -37,11 +37,11 @@ public enum class EditorViewMode(public val label: String) {
 
     public companion object {
         /**
-         * The diagram that files of [kind] have, or null if they have none. A state machine has a statechart, a
-         * metamodel a class diagram, and a model an object diagram.
+         * The diagram that files of [kind] have, or null if they have none. A state machine and a fragment have a
+         * statechart, a metamodel a class diagram, and a model an object diagram.
          */
         public fun diagramOf(kind: FileKind): DiagramKind? = when (kind) {
-            FileKind.KSTATES -> DiagramKind.STATECHART
+            FileKind.KSTATES, FileKind.FRAGMENT -> DiagramKind.STATECHART
             FileKind.KMETA, FileKind.EVENTS_KMETA -> DiagramKind.TYPES
             FileKind.KMODEL -> DiagramKind.OBJECTS
             else -> null

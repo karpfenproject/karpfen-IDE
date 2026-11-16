@@ -52,8 +52,8 @@ public object WorkspaceDiagnosticCodes {
 
     /**
      * A state machine named in an environment descriptor has the wrong form for its entry. An entry with `attachedTo`
-     * needs the attached form and an entry without it the attachable form, which makes a definition. That is an ERROR.
-     * A definition listed twice is a WARNING with the same code.
+     * needs the attached form, and an entry without it the attachable form, which makes a definition, or the form of a
+     * fragment. That is an ERROR. A definition or a fragment listed twice is a WARNING with the same code.
      */
     public const val DESCRIPTOR_STATE_MACHINE_FORM: String = "descriptor-state-machine-form"
 
@@ -65,4 +65,10 @@ public object WorkspaceDiagnosticCodes {
 
     /** A modeling context has models or state machines but no metamodel to analyze them with. It is an INFO. */
     public const val CONTEXT_NO_METAMODEL: String = "context-no-metamodel"
+
+    /**
+     * A fragment is not in a file named after it, `<name>.frag.kstates`, or a `.frag.kstates` file holds a state
+     * machine that is no fragment. It is a WARNING.
+     */
+    public const val FRAGMENT_FILE_NAME: String = "fragment-file-name"
 }

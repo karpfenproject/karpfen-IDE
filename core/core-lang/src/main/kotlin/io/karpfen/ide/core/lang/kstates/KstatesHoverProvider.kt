@@ -25,6 +25,7 @@ import io.karpfen.ide.core.lang.symbols.AttachableMachines
 import io.karpfen.ide.core.lang.symbols.DocumentDeclarations
 import io.karpfen.ide.core.lang.symbols.TypeCatalog
 import io.karpfen.ide.core.lang.symbols.TypeOrigin
+import io.karpfen.ide.core.lang.symbols.UsableFragments
 
 /**
  * Hover in KStates.
@@ -37,6 +38,7 @@ import io.karpfen.ide.core.lang.symbols.TypeOrigin
  * - On a WITH binding or a TAKES parameter it shows its type.
  * - On the name of an attachable state machine it shows the machine with its types, such as
  *   `state machine "blinking" attachable to Bulb, Lamp`.
+ * - On the name after `USE` it shows the fragment with its file, such as `fragment "bulb test" in bulb test.frag.kstates`.
  */
 internal class KstatesHoverProvider(
     private val slots: KstatesSlots,
@@ -65,6 +67,7 @@ internal class KstatesHoverProvider(
                 ?.let { Hover(slot.range, "parameter ${slot.name}: ${it.declaration.typeName.orEmpty()}") }
             is KstatesSlot.StateMachineName -> AttachableMachines(request).named(slot.name).firstOrNull()
                 ?.let { Hover(slot.range, it.hoverText) }
+            is KstatesSlot.FragmentName -> UsableFragments(request).hoverText(slot.name)?.let { Hover(slot.range, it) }
             is KstatesSlot.Keywords, is KstatesSlot.EventDomain, KstatesSlot.None -> null
         }
     }

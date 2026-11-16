@@ -232,6 +232,63 @@ class KstatesSyntaxAnalyzerTest {
     }
 
     @Test
+    fun `a fragment parses with its own entry rule, declares its name and outlines container and final states`() {
+        val fragment = """
+            STATEMACHINE "bulb test" FRAGMENT {
+                STATES {
+                    INITIAL CONTAINER STATE "wiring" USE "wiring test" { }
+                    STATE "lit" { }
+                    FINAL STATE "passed" { }
+                }
+                TRANSITIONS {
+                    TRANSITION "wiring" -> "lit" { CONDITION { DONE } }
+                    TRANSITION "lit" -> "passed" { }
+                }
+            }
+        """.trimIndent()
+        val result = analyze(KarpfenLanguage.KSTATES, fragment)
+        checkInvariants(fragment, result, "fragment")
+
+        assertEquals(emptyList(), result.syntaxDiagnostics)
+        val declaration = result.index.declarationsOf(SymbolKind.FRAGMENT).single()
+        assertEquals("bulb test", fragment.at(declaration.nameRange))
+        assertEquals(emptyList(), result.index.declarationsOf(SymbolKind.STATEMACHINE))
+        val uses = result.index.referencesOf(ReferenceKind.FRAGMENT)
+        assertEquals(listOf("wiring test"), uses.map { fragment.at(it.range) })
+        val outline = result.outline.single()
+        assertEquals(Triple(SymbolKind.FRAGMENT, "bulb test", "FRAGMENT"), Triple(outline.kind, outline.name, outline.detail))
+        assertEquals(
+            listOf("wiring" to "USE wiring test", "lit" to null, "passed" to "FINAL"),
+            outline.children.filter { it.kind == SymbolKind.STATE }.map { it.name to it.detail },
+        )
+        assertTrue(
+            result.semanticSpans.filter { it.kind == SemanticKind.STATE_MACHINE_NAME }.map { fragment.at(it.range) }
+                .containsAll(listOf("bulb test", "wiring test")),
+        )
+    }
+
+    @Test
+    fun `a state machine with a container state keeps its form and references the fragment it uses`() {
+        val machine = """
+            STATEMACHINE ATTACHED TO "Lamp" {
+                STATES {
+                    INITIAL STATE "off" { }
+                    CONTAINER STATE "self test" USE "bulb test" { }
+                }
+                TRANSITIONS {
+                    TRANSITION "self test" -> "off" { CONDITION { DONE } }
+                }
+            }
+        """.trimIndent()
+        val result = analyze(KarpfenLanguage.KSTATES, machine)
+
+        assertEquals(emptyList(), result.syntaxDiagnostics)
+        assertEquals("Lamp", result.index.declarationsOf(SymbolKind.STATEMACHINE).single().typeName)
+        assertEquals(listOf("bulb test"), result.index.referencesOf(ReferenceKind.FRAGMENT).map { it.name })
+        assertEquals("USE bulb test", result.outline.single().children.first { it.name == "self test" }.detail)
+    }
+
+    @Test
     fun `an attached state machine keeps its declaration named after the keyword`() {
         val machine = index.declarationsOf(SymbolKind.STATEMACHINE).single()
 

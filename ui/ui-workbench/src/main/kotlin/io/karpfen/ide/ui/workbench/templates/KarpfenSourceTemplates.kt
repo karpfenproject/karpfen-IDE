@@ -16,7 +16,7 @@
 package io.karpfen.ide.ui.workbench.templates
 
 /**
- * The contents of new KMeta, KModel and KStates files, as [FileTemplates] documents them. Each tokenizes and parses
+ * The contents of new KMeta, KModel and KStates files and of new fragments, as [FileTemplates] documents them. Each tokenizes and parses
  * without diagnostics. It is pure.
  *
  * Names come from the file's base name. The example type of a metamodel is the base name in PascalCase, as [typeName]
@@ -65,6 +65,25 @@ internal object KarpfenSourceTemplates {
             |}
             |""".trimMargin()
     }
+
+    /**
+     * A fragment named [baseName] with an initial state, a final state and a transition from the one to the other, so
+     * that it reads without findings on its own.
+     */
+    fun fragment(baseName: String): String =
+        """
+            |STATEMACHINE "${quoted(baseName)}" FRAGMENT {
+            |
+            |    STATES {
+            |        INITIAL STATE "start" { }
+            |        FINAL STATE "done" { }
+            |    }
+            |
+            |    TRANSITIONS {
+            |        TRANSITION "start" -> "done" { }
+            |    }
+            |}
+            |""".trimMargin()
 
     /**
      * [baseName] in PascalCase, built from its letters and digits. For example, `cleaning_robot` becomes
