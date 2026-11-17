@@ -364,16 +364,17 @@ note over the drawing says what failed. New code in the view follows the same ru
 A graphical edit is a small text edit, so comments and formatting survive and the text stays the only thing that is
 written. A `DiagramActions` tells what the user can do at a point of a diagram, as `DiagramAction`s: one that changes
 the model at once, one that first needs a click on a box, one that first needs a choice among a few names, which the
-canvas shows as a second menu, and one that first needs a name. A `Follow` changes nothing and hands a name of the
-model, such as the fragment of a container state, to the host of the pane, which opens the file of that name. A
-`DiagramActions` may also name the action of a double click, which is one of its menu entries. The canvas shows them as
-the context menu and runs the chain. The last action gives a `DiagramChange`, a list of text edits against the text
-the diagram was derived from, which `DiagramState.source` holds. `DiagramPane` applies it as one undoable change, and
-only while the document is still at that text. `StatechartEdits` makes the edits of a state machine and
-`StructureEdits` those of a metamodel and a model, both with `TextBlocks`, which puts a statement at the end of a
-block and takes a construct out with its lines. A new type becomes the first type of its file, because the last type
-of a metamodel is its root type. A change can also say what it
-means for the layout by hand: a new state is placed where the user clicked, and a renamed state keeps its place.
+canvas shows as a second menu, and one that first needs a name. The second menu may hold an action above the names and
+one below them, such as the container state without a fragment and the fragment typed in by name. A `Follow` changes
+nothing and hands a name of the model, such as the fragment of a container state, to the host of the pane, which opens
+the file of that name. A `DiagramActions` may also name the action of a double click, which is one of its menu
+entries. The canvas shows them as the context menu and runs the chain. The last action gives a `DiagramChange`, a
+list of text edits against the text the diagram was derived from, which `DiagramState.source` holds. `DiagramPane`
+applies it as one undoable change, and only while the document is still at that text. `StatechartEdits` makes the
+edits of a state machine and `StructureEdits` those of a metamodel and a model, both with `TextBlocks`, which puts a
+statement at the end of a block and takes a construct out with its lines. A new type becomes the first type of its
+file, because the last type of a metamodel is its root type. A change can also say what it means for the layout by
+hand: a new state is placed where the user clicked, and a renamed state keeps its place.
 
 While a run is live, an open statechart shows it, and nothing else of the diagrams does. `DiagramLives` in
 ui-workbench tells what the selected run adds to the diagram of the active file, as a `DiagramLive`: the active states
