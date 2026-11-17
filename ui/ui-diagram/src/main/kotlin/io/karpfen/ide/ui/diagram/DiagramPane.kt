@@ -18,6 +18,7 @@ package io.karpfen.ide.ui.diagram
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -153,7 +154,9 @@ private fun <D : Any, L : DiagramLayout> NotationPane(
 
 /**
  * The view of the diagram [state] of the kind [notation], arranged through [editing]. It draws the diagram, says so
- * when there is none, and shows the note of a stale diagram over the drawing.
+ * when there is none, and shows the note of a stale diagram over the drawing. A diagram with nothing to draw, which a
+ * text without types, objects or states gives, still has its canvas, so that the menu of the canvas can add the first
+ * element, and a muted text in the middle says that there is nothing to draw yet.
  *
  * A change the user makes to the model through the diagram goes to [onChange] as edits of the text the diagram was
  * derived from. It answers whether the text took the change. The context menu offers what the notation's actions
@@ -180,17 +183,12 @@ internal fun <D : Any, L : DiagramLayout> DiagramView(
     val diagram = state.diagram
     val faults = remember(notation, diagram) { DiagramFaults() }
     Box(modifier.fillMaxSize().background(colors.window).testTag(DiagramViewTestTags.VIEW)) {
-        val empty = diagram == null || faults.guard("looking at the diagram", { true }) { notation.arrangement.isEmpty(diagram) }
-        if (diagram == null || empty) {
-            Text(
-                notation.nothingToDraw,
-                color = colors.textMuted,
-                style = KarpfenTheme.typography.uiSmall,
-                modifier = Modifier.align(Alignment.Center).padding(16.dp).testTag(DiagramViewTestTags.EMPTY),
-            )
+        if (diagram == null) {
+            Muted(notation.nothingToDraw)
         } else {
             val actions = remember(notation, languageFeatures) { notation.actions(languageFeatures) }
             DiagramCanvas(notation, actions, diagram, editing, faults, state.source?.text, active, pause, cellEditor, onChange, onSelect, onFollow)
+            if (faults.guard("looking at the diagram", { false }) { notation.arrangement.isEmpty(diagram) }) Muted(NOTHING_YET)
         }
         val fault = state.problem?.let { "The diagram could not be derived from the text: $it. This is the last diagram that could." } ?: faults.note
         Column(
@@ -201,6 +199,17 @@ internal fun <D : Any, L : DiagramLayout> DiagramView(
             if (fault != null) SelectionContainer { Note(fault, DiagramViewTestTags.FAULT) }
         }
     }
+}
+
+/** The muted [text] in the middle of the view that says why there is nothing to see. */
+@Composable
+private fun BoxScope.Muted(text: String) {
+    Text(
+        text,
+        color = KarpfenTheme.colors.textMuted,
+        style = KarpfenTheme.typography.uiSmall,
+        modifier = Modifier.align(Alignment.Center).padding(16.dp).testTag(DiagramViewTestTags.EMPTY),
+    )
 }
 
 /** A note over the drawing that says [text]. */
@@ -223,6 +232,12 @@ private const val BUTTONS_ROOM = 170
 
 /** The name of the edits that a diagram makes to the text, as the undo history records them. */
 private const val DIAGRAM_EDIT = "diagram"
+
+/**
+ * What the view says over the canvas of a diagram that the text gives but that has nothing to draw yet, such as a
+ * metamodel without types. The menu of the canvas adds the first element.
+ */
+internal const val NOTHING_YET: String = "Nothing to draw yet. A right-click on the canvas adds the first element."
 
 /** What the view says while the text has syntax errors. */
 private const val STALE = "The text has errors. This is the diagram of the last text that could be read."

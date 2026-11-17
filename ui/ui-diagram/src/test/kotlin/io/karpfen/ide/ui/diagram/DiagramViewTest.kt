@@ -127,11 +127,34 @@ class DiagramViewTest {
     }
 
     @Test
-    fun `a metamodel without types says that there is nothing to draw`() = runComposeUiTest {
-        show(DiagramNotation.TYPES, stateOf(DiagramNotation.TYPES, KarpfenLanguage.KMETA, "// no types yet"))
+    fun `a metamodel without types says that there is nothing to draw, and its canvas adds the first type`() = runComposeUiTest {
+        val changes = ArrayList<DiagramChange>()
+        show(DiagramNotation.TYPES, stateOf(DiagramNotation.TYPES, KarpfenLanguage.KMETA, "// no types yet"), onChange = { changes += it })
+        awaitDrawing()
 
-        onNodeWithTag(DiagramViewTestTags.EMPTY).assertTextEquals(DiagramNotation.TYPES.nothingToDraw)
-        onNodeWithTag(DiagramViewTestTags.CANVAS).assertDoesNotExist()
+        onNodeWithTag(DiagramViewTestTags.EMPTY).assertTextEquals(NOTHING_YET)
+        onNodeWithTag(DiagramViewTestTags.FAULT).assertDoesNotExist()
+        onNodeWithTag(DiagramViewTestTags.CANVAS).performMouseInput { rightClick(center) }
+        waitForIdle()
+        onNodeWithText("Add type").performClick()
+        waitForIdle()
+
+        assertEquals(listOf("\ntype \"Type\" \"\" {\n}\n"), changes.single().edits.map { it.newText })
+    }
+
+    @Test
+    fun `a model without its root object offers to add it on the canvas`() = runComposeUiTest {
+        val changes = ArrayList<DiagramChange>()
+        show(DiagramNotation.OBJECTS, stateOf(DiagramNotation.OBJECTS, KarpfenLanguage.KMODEL, ""), onChange = { changes += it })
+        awaitDrawing()
+
+        onNodeWithTag(DiagramViewTestTags.STALE).assertDoesNotExist()
+        onNodeWithTag(DiagramViewTestTags.CANVAS).performMouseInput { rightClick(center) }
+        waitForIdle()
+        onNodeWithText("Add root object").performClick()
+        waitForIdle()
+
+        assertEquals(listOf("make object \"object\":\"\" { }\n"), changes.single().edits.map { it.newText })
     }
 
     @Test

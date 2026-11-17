@@ -16,6 +16,7 @@
 package io.karpfen.ide.notation.sync
 
 import io.karpfen.ide.core.document.parse.ParseOutcome
+import io.karpfen.ide.core.document.syntax.KarpfenSyntax
 import io.karpfen.ide.core.text.TextSnapshot
 
 /**
@@ -48,8 +49,8 @@ public data class DiagramState<out D : Any>(
  * text or of its parse, [update] derives the diagram again from the text with [projection], so the diagram can never
  * hold something the text does not say.
  *
- * A diagram needs a text without syntax errors. While the text has some, the last diagram stays and is marked as
- * stale. While the parse is still behind the text, because the user is typing, the last diagram stays as it is, and
+ * A diagram needs a text without syntax errors, or a text that holds nothing but blanks and line comments. While the
+ * text has syntax errors and something else, the last diagram stays and is marked as stale. While the parse is still behind the text, because the user is typing, the last diagram stays as it is, and
  * the next parse brings it up to date.
  *
  * A projection that fails must not take its caller down, which is a view. So a failure of the projection is caught.
@@ -72,9 +73,9 @@ public class DiagramTracker<D : Any>(private val projection: DiagramProjection<D
      */
     public fun update(snapshot: TextSnapshot, outcome: ParseOutcome?): DiagramState<D> {
         if (outcome == null || outcome.version != snapshot.version) return DiagramState(last, isStale = false, source = source)
-        if (!outcome.isSyntaxClean) return DiagramState(last, isStale = true, source = source)
+        if (!outcome.isSyntaxClean && !holdsNothing(snapshot.text)) return DiagramState(last, isStale = true, source = source)
         val derived = try {
-            projection.of(snapshot.text, outcome.outline)
+            projection.of(snapshot.text, if (outcome.isSyntaxClean) outcome.outline else emptyList())
         } catch (e: Exception) {
             return DiagramState(last, isStale = false, problem = describe(e), source = source)
         } catch (e: StackOverflowError) {
@@ -84,6 +85,14 @@ public class DiagramTracker<D : Any>(private val projection: DiagramProjection<D
         source = snapshot.takeIf { derived != null }
         return DiagramState(last, isStale = false, source = source)
     }
+
+    /**
+     * True if [text] holds nothing but blanks and line comments. Such a text gives the diagram of an empty outline,
+     * although a language may report it as a syntax error and recover something from it, as KModel does for a text
+     * without its root object. The view can then offer to add the first element on an empty canvas.
+     */
+    private fun holdsNothing(text: String): Boolean =
+        text.lineSequence().all { it.isBlank() || it.trimStart().startsWith(KarpfenSyntax.LINE_COMMENT) }
 
     /** [error] in a few words: its kind, and its message if it has one. */
     private fun describe(error: Throwable): String {

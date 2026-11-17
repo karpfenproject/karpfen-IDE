@@ -71,6 +71,24 @@ class DiagramTrackerTest {
         assertNull(update("", version = 1).diagram)
     }
 
+    @Test
+    fun `a model without its root object gives an empty object diagram, although KModel reads it as an error`() {
+        val models = DiagramTracker(DiagramProjection.OBJECTS)
+        val modelParser = defaultLanguageRegistry().support(KarpfenLanguage.KMODEL).parser
+        val blank = TextSnapshot("// the lamp\n\n", 0)
+        val outcome = modelParser.parse(blank)
+        assertFalse(outcome.isSyntaxClean)
+
+        val state = models.update(blank, outcome)
+
+        assertFalse(state.isStale)
+        assertEquals(emptyList(), state.diagram?.nodes)
+        assertEquals(blank, state.source)
+
+        val half = TextSnapshot("make object", 1)
+        assertTrue(models.update(half, modelParser.parse(half)).isStale, "a text with something in it still needs to read")
+    }
+
     private fun update(text: String, version: Long): DiagramState<StatechartDiagram> {
         val snapshot = TextSnapshot(text, version)
         val outcome: ParseOutcome = parser.parse(snapshot)
