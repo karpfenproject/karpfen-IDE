@@ -81,11 +81,17 @@ public sealed interface DiagramAction {
      * as a second menu.
      *
      * @property options the names to choose from, in the order the view shows them.
+     * @property first an action the second menu shows under its own label above the names, such as one for no name at
+     *   all, or null if there is none.
+     * @property last an action the second menu shows under its own label below the names, such as one that asks for a
+     *   name that is not among them, or null if there is none.
      * @property next the action that follows for the name the user chose, or null if nothing follows.
      */
     public class Choose(
         override val label: String,
         public val options: List<String>,
+        public val first: DiagramAction? = null,
+        public val last: DiagramAction? = null,
         public val next: (String) -> DiagramAction?,
     ) : DiagramAction
 

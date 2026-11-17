@@ -67,7 +67,7 @@ class PageActionsTest {
 
         assertEquals("Open page bulb test", labels.first())
         assertEquals("bulb test", assertIs<DiagramAction.Follow>(entries.first()).name)
-        val use = assertIs<DiagramAction.Choose>(entries.first { it.label == "Use another fragment" })
+        val use = assertIs<DiagramAction.Choose>(entries.first { it.label == "Set fragment" })
         assertEquals(listOf("switch test", "wiring"), use.options)
         assertTrue(labels.none { it in listOf("Add inner state", "Add inner container state", "Add entry actions", "Add do actions") }, "$labels")
         assertTrue(listOf("Add transition from here", "Make initial state", "Remove history", "Delete state").all { it in labels }, "$labels")
@@ -92,7 +92,70 @@ class PageActionsTest {
         val change = assertIs<DiagramAction.Change>(onCanvas.next("wiring")).change()
         assertTrue(change!!.edits.single().newText.contains("CONTAINER STATE \"wiring\" USE \"wiring\" { }"))
         assertTrue(at(pagedText, paged, pagedLayout, canvas).none { it.label == "Add final state" })
-        assertTrue(StatechartActions(all).at(pagedText, paged, pagedLayout, canvas).none { it.label == "Add container state" }, "no fragments, no entry")
+    }
+
+    @Test
+    fun `the entries of container states show the same way whether the project has fragments or not`() {
+        val none = StatechartActions(all)
+        fun choose(entries: List<DiagramAction>, label: String) = assertIs<DiagramAction.Choose>(entries.first { it.label == label })
+        val onCanvas = none.at(pagedText, paged, pagedLayout, canvas)
+        val onOff = none.at(pagedText, paged, pagedLayout, inState(pagedLayout, "off"))
+        val writing = listOf(choose(onCanvas, "Add container state"), choose(onOff, "Add inner container state"), choose(onOff, "Make container state"))
+        val setting = choose(none.at(pagedText, paged, pagedLayout, inState(pagedLayout, "self test")), "Set fragment")
+
+        writing.forEach { menu ->
+            assertEquals(emptyList(), menu.options)
+            assertEquals("No fragment", assertIs<DiagramAction.Change>(menu.first).label)
+            assertNull(menu.last)
+        }
+        assertEquals(emptyList(), setting.options)
+        assertNull(setting.first)
+        assertEquals("Enter a name", assertIs<DiagramAction.Ask>(setting.last).label)
+    }
+
+    @Test
+    fun `no fragment writes a container state without USE`() {
+        val onCanvas = assertIs<DiagramAction.Choose>(at(pagedText, paged, pagedLayout, canvas).first { it.label == "Add container state" })
+        val make = assertIs<DiagramAction.Choose>(at(pagedText, paged, pagedLayout, inState(pagedLayout, "off")).first { it.label == "Make container state" })
+
+        val added = assertIs<DiagramAction.Change>(onCanvas.first).change()!!.edits.single().newText
+        assertTrue("CONTAINER STATE \"container\" { }" in added, added)
+        assertEquals(listOf("CONTAINER "), assertIs<DiagramAction.Change>(make.first).change()!!.edits.map { it.newText })
+    }
+
+    @Test
+    fun `a container state without a fragment is drawn, has no page and gets its fragment by a name typed in`() {
+        val text = pagedText.replace("CONTAINER STATE \"self test\" USE \"bulb test\"", "CONTAINER STATE \"self test\"")
+        val diagram = LampStateMachine.diagramOf(text)
+        val layout = StatechartLayouter().layout(diagram, TextMeasurer.estimating())
+        val entries = at(text, diagram, layout, inState(layout, "self test"))
+
+        assertEquals("", diagram.state("self test")?.fragment)
+        assertTrue(entries.none { it is DiagramAction.Follow }, "${entries.map { it.label }}")
+        assertNull(actions.onDoubleClick(text, diagram, layout, inState(layout, "self test")))
+        val set = assertIs<DiagramAction.Choose>(entries.first { it.label == "Set fragment" })
+        assertEquals(fragments, set.options)
+        val ask = assertIs<DiagramAction.Ask>(set.last)
+        assertEquals("self test", ask.initial)
+        val change = assertIs<DiagramAction.Change>(ask.next("lamp test")).change()
+        assertEquals(listOf(" USE \"lamp test\""), change!!.edits.map { it.newText })
+    }
+
+    @Test
+    fun `a state without actions and inner states becomes a container state, and a container state a plain one`() {
+        fun labels(text: String, name: String): List<String> {
+            val diagram = LampStateMachine.diagramOf(text)
+            val layout = StatechartLayouter().layout(diagram, TextMeasurer.estimating())
+            return at(text, diagram, layout, inState(layout, name)).map { it.label }
+        }
+        val acting = pagedText.replace("INITIAL STATE \"off\" { }", "INITIAL STATE \"off\" { DO { } }")
+
+        assertTrue("Make container state" in labels(pagedText, "off"))
+        assertTrue("Make container state" !in labels(acting, "off"), "it has actions")
+        assertTrue("Make container state" !in labels(pagedText, "on"), "it has inner states")
+        assertTrue(listOf("Make container state", "Make plain state").none { it in labels(fragmentText, "passed") }, "a final state")
+        assertTrue("Make plain state" in labels(pagedText, "self test") && "Make container state" !in labels(pagedText, "self test"))
+        assertTrue("Make plain state" !in labels(pagedText, "off"))
     }
 
     @Test

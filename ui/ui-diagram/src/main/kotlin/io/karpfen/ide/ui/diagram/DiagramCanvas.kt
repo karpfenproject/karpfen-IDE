@@ -98,7 +98,8 @@ import kotlinx.coroutines.withContext
  * adding, renaming or deleting an element, and the entry that adds a waypoint to the line under the pointer or
  * removes the waypoint under it. Nothing changes until the user clicks an entry. Some entries need more first. One
  * that needs a box marks the boxes to choose from and waits for a click on one of them. One that needs a name shows
- * a field at the pointer. One that needs a choice among a few names shows them as a second menu at the same place. A
+ * a field at the pointer. One that needs a choice among a few names shows them as a second menu at the same place,
+ * between the entries of the choice that are no name, if it has any, such as one for no name at all above them. A
  * secondary click, or a click beside the boxes, gives such an action up. A change of the model is an edit of [source],
  * the text the diagram was derived from, and goes to [onChange], which answers whether the text took it. An entry that
  * leaves the diagram for another one, such as the page of a container state, goes to [onFollow] with the name the
@@ -229,10 +230,12 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
             is DiagramAction.Open -> mode = CanvasMode.Editing(action.cell, position)
             is DiagramAction.Choose -> {
                 mode = CanvasMode.Idle
+                fun entry(other: DiagramAction?) = other?.let { ContextMenuAction(it.label) { run(it, position) } }
                 val options = action.options.map { option ->
                     ContextMenuAction(option) { run(faults.guard<DiagramAction?>("taking the choice", { null }) { action.next(option) }, position) }
                 }
-                if (options.isNotEmpty()) menu = MenuRequest(position, options)
+                val entries = listOfNotNull(entry(action.first)) + options + listOfNotNull(entry(action.last))
+                if (entries.isNotEmpty()) menu = MenuRequest(position, entries)
             }
             is DiagramAction.Follow -> {
                 mode = CanvasMode.Idle

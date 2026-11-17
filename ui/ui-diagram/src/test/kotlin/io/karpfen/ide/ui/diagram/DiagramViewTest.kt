@@ -281,7 +281,7 @@ class DiagramViewTest {
 
         onNodeWithTag(DiagramViewTestTags.CANVAS).performMouseInput { rightClick(center) }
         waitForIdle()
-        onNodeWithText("Use another fragment").performClick()
+        onNodeWithText("Set fragment").performClick()
         waitForIdle()
         onNodeWithText("switch test").performClick()
         waitForIdle()

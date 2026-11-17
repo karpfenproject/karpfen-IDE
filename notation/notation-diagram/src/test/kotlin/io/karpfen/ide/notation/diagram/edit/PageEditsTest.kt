@@ -15,6 +15,9 @@
  */
 package io.karpfen.ide.notation.diagram.edit
 
+import io.karpfen.ide.core.document.Severity
+import io.karpfen.ide.core.document.dsl.DslReader
+import io.karpfen.ide.core.text.TextSnapshot
 import io.karpfen.ide.notation.diagram.LampStateMachine
 import io.karpfen.ide.notation.diagram.statechart.StatechartDiagram
 import kotlin.test.Test
@@ -69,6 +72,95 @@ class PageEditsTest {
     }
 
     @Test
+    fun `a state becomes a container state and keeps its mark, its history, its breakpoints and its tick limit`() {
+        val text = paged.replace(
+            "INITIAL STATE \"off\" { }",
+            "INITIAL DEEP HISTORY STATE \"off\" {\n            BREAKPOINT { ENTRY }\n            TICK LIMIT { DELAY: 2 TICKS }\n        }",
+        )
+        val after = applied(text, assertNotNull(PageEdits.makeContainer(text, read(text), "off", " wiring ")))
+
+        assertTrue(
+            "INITIAL DEEP HISTORY CONTAINER STATE \"off\" USE \"wiring\" {\n            BREAKPOINT { ENTRY }\n            TICK LIMIT { DELAY: 2 TICKS }\n        }" in after,
+            after,
+        )
+        assertEquals(text, after.replace("CONTAINER STATE \"off\" USE \"wiring\"", "STATE \"off\""), "nothing else changes")
+        assertEquals("wiring", read(after).state("off")?.fragment)
+    }
+
+    @Test
+    fun `a container state without a fragment has no USE and is the error of dsl-tools until one is set`() {
+        val added = applied(paged, assertNotNull(PageEdits.addContainer(paged, lamp, null, "later", null)))
+        val made = applied(paged, assertNotNull(PageEdits.makeContainer(paged, lamp, "off", null)))
+
+        assertTrue("CONTAINER STATE \"later\" { }" in added, added)
+        assertTrue("INITIAL CONTAINER STATE \"off\" { }" in made, made)
+        assertEquals("", read(made).state("off")?.fragment)
+        assertTrue(DslReader().kstates(TextSnapshot(made, 0)).diagnostics.any { it.code == "kstates.container-use" })
+        val wired = applied(made, assertNotNull(PageEdits.useFragment(made, read(made), "off", "wiring")))
+        assertTrue("INITIAL CONTAINER STATE \"off\" USE \"wiring\" { }" in wired, wired)
+        assertNull(PageEdits.addContainer(paged, lamp, null, "later", " "), "a blank name is no fragment")
+    }
+
+    @Test
+    fun `only a state without actions and inner states that is no container or final state becomes a container state`() {
+        val acting = paged.replace("INITIAL STATE \"off\" { }", "INITIAL STATE \"off\" { ENTRY { } }")
+
+        assertNull(PageEdits.makeContainer(acting, read(acting), "off", "wiring"), "it has actions")
+        assertNull(PageEdits.makeContainer(paged, lamp, "on", "wiring"), "it has inner states")
+        assertNull(PageEdits.makeContainer(paged, lamp, "self test", "wiring"), "it is a container state")
+        assertNull(PageEdits.makeContainer(fragmentText, fragment, "passed", "wiring"), "it is a final state")
+        assertNull(PageEdits.makeContainer(paged, lamp, "off", "  "), "a blank name is no fragment")
+    }
+
+    @Test
+    fun `a container state becomes a plain state without its history and without the DONE of what leaves it`() {
+        val after = applied(paged, assertNotNull(PageEdits.makePlain(paged, lamp, "self test")))
+        val plain = read(after)
+
+        assertTrue("        STATE \"self test\" {\n            TICK LIMIT" in after, after)
+        assertNull(plain.state("self test")?.fragment)
+        assertNull(plain.transitions[1].conditionRange, "the condition held DONE alone")
+        assertEquals("switch/press", plain.transitions[2].label)
+        assertTrue(plain.transitions[3].isDone, "it does not leave the state")
+        assertNull(PageEdits.makePlain(paged, lamp, "off"), "no container state")
+
+        val inner = applied(paged, assertNotNull(PageEdits.makePlain(paged, lamp, "check")))
+        assertTrue("            INITIAL STATE \"check\" { }" in inner, inner)
+    }
+
+    @Test
+    fun `making a state plain leaves no error that the edit caused`() {
+        val text = """
+            STATEMACHINE ATTACHED TO "Lamp" {
+                STATES {
+                    INITIAL STATE "off" { }
+                    SHALLOW HISTORY CONTAINER STATE "bulb check" USE "bulb test" { }
+                    CONTAINER STATE "switch check" USE "switch test" { }
+                    CONTAINER STATE "single" USE "bulb test" { }
+                    STATE "checked" { }
+                }
+                TRANSITIONS {
+                    SPLIT "off" -> "bulb check", "switch check" { }
+                    JOIN "bulb check", "switch check" -> "checked" { CONDITION { DONE } }
+                    JOIN "single", "off" -> "checked" { CONDITION { DONE EVENT("switch", "press") } }
+                    SPLIT "single" -> "off", "checked" { CONDITION { DONE } }
+                }
+            }
+        """.trimIndent()
+        val diagram = read(text)
+        assertEquals(emptyList(), errorsOf(text))
+
+        val bulb = applied(text, assertNotNull(PageEdits.makePlain(text, diagram, "bulb check")))
+        assertEquals(emptyList(), errorsOf(bulb), bulb)
+        assertTrue(read(bulb).transitions[1].isDone, "the join keeps DONE for its other container state")
+        assertTrue("        STATE \"bulb check\" { }" in bulb, bulb)
+
+        val single = applied(text, assertNotNull(PageEdits.makePlain(text, diagram, "single")))
+        assertEquals(emptyList(), errorsOf(single), single)
+        assertEquals(listOf(true, false, false), read(single).transitions.drop(1).map { it.isDone })
+    }
+
+    @Test
     fun `DONE is offered only where the language takes it`() {
         val ids = lamp.transitions.map { it.id }
 
@@ -106,6 +198,10 @@ class PageEditsTest {
     /** [text] with the edits of [change], applied from the end so the earlier ranges stay valid. */
     private fun applied(text: String, change: DiagramChange): String =
         change.edits.sortedByDescending { it.range.start }.fold(text) { now, edit -> now.replaceRange(edit.range.start, edit.range.end, edit.newText) }
+
+    /** The messages of the errors that the reader of dsl-tools finds in [source], all language features on. */
+    private fun errorsOf(source: String): List<String> =
+        DslReader().kstates(TextSnapshot(source, 0)).diagnostics.filter { it.severity == Severity.ERROR }.map { it.message }
 
     /** The diagram of [source], which must read without syntax errors. */
     private fun read(source: String): StatechartDiagram = LampStateMachine.diagramOf(source)
