@@ -38,7 +38,6 @@ import androidx.compose.ui.window.ApplicationScope
 import androidx.compose.ui.window.LocalWindowExceptionHandlerFactory
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowExceptionHandlerFactory
-import io.karpfen.ide.app.launch.ApplicationIcon
 import io.karpfen.ide.app.window.DesktopDetachedWindowHost
 import io.karpfen.ide.app.window.ScreenAreas
 import io.karpfen.ide.app.window.WindowBoundsTracker
@@ -79,12 +78,12 @@ internal fun ApplicationScope.IdeApplicationContent(
 /**
  * The main window of [session]. Its title comes from `WorkbenchState.windowTitle`, and its bounds are read from and
  * written to `WorkbenchState.layout`. The menu bar comes from [IdeMenus], with the current number of recent folders.
- * The window carries the application's icon, which Windows and Linux show in the taskbar. The content is the
- * [Workbench], with the [StoppingRuntimeNote] over it while [stoppingRuntime] is true. The workbench opens the window
- * of the detached Runtime tool window through a [DesktopDetachedWindowHost], which gives it the same menu bar. Since
- * that window is composed inside this one, it closes with it. Close
- * requests go to [onCloseRequest]. Failures inside the window go to [windowExceptions] instead of to Compose's default
- * handler, which would close the window.
+ * The window gets the application's icon like every other window, from `ApplicationIcon.showOnEveryWindow`. The
+ * content is the [Workbench], with the [StoppingRuntimeNote] over it while [stoppingRuntime] is true. The workbench
+ * opens the window of the detached Runtime tool window through a [DesktopDetachedWindowHost], which gives it the same
+ * menu bar. Since that window is composed inside this one, it closes with it. Close requests go to [onCloseRequest].
+ * Failures inside the window go to [windowExceptions] instead of to Compose's default handler, which would close the
+ * window.
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
@@ -106,12 +105,11 @@ private fun IdeMainWindow(
     }
     val stopping by stoppingRuntime.collectAsState()
     val menus = remember(settings.recentFolders.size) { IdeMenus.specs(settings.recentFolders.size) }
-    val icon = remember { ApplicationIcon.painter() }
-    val detachedWindows = remember(session, menus, icon) {
-        DesktopDetachedWindowHost(screens, icon) { IdeMenuBar(session.commands, menus) }
+    val detachedWindows = remember(session, menus) {
+        DesktopDetachedWindowHost(screens) { IdeMenuBar(session.commands, menus) }
     }
     CompositionLocalProvider(LocalWindowExceptionHandlerFactory provides windowExceptions) {
-        Window(onCloseRequest = onCloseRequest, state = windowState, title = title, icon = icon) {
+        Window(onCloseRequest = onCloseRequest, state = windowState, title = title) {
             IdeMenuBar(session.commands, menus)
             Box(Modifier.fillMaxSize()) {
                 Workbench(state, detachedWindows = detachedWindows)

@@ -58,6 +58,7 @@ internal fun launch(
     HeadlessCommand.parse(args.asList())?.let { command -> return launchHeadless(command, home.warning, headless) }
     applyDesktopProperties(HostPlatform.current(), System::getProperty, System::setProperty)
     ApplicationIcon.showInTaskbar()
+    ApplicationIcon.showOnEveryWindow()
     val launch = LaunchOptions.parse(args.asList(), System::getenv)
 
     val log = LoggerFactory.getLogger("io.karpfen.ide.app.Main")
@@ -75,7 +76,7 @@ internal fun launch(
 
 /**
  * Carries out the headless [command] through [headless] and returns its status. AWT is switched to headless first, so
- * nothing can reach for a display, and neither the desktop properties nor the taskbar icon are set. The [homeWarning]
+ * nothing can reach for a display, and neither the desktop properties nor the icons are set. The [homeWarning]
  * of the home directory, if there is one, is logged.
  */
 private fun launchHeadless(command: HeadlessCommand, homeWarning: String?, headless: (HeadlessCommand) -> Int): Int {

@@ -21,17 +21,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
-import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.window.FrameWindowScope
 import io.karpfen.ide.ui.workbench.layout.view.DetachedWindow
 import io.karpfen.ide.ui.workbench.layout.view.DetachedWindowHost
 import androidx.compose.ui.window.Window as DesktopWindow
 
 /**
- * The [DetachedWindowHost] of the desktop. It opens an operating system window with the application's [icon] and the
- * same menu bar as the main window, drawn by [menuBar]. The menu bar is there because the commands and their shortcuts
- * reach the IDE through the menu bar of the focused window, and because macOS shows the menu bar of the focused window
- * at the top of the screen.
+ * The [DetachedWindowHost] of the desktop. It opens an operating system window with the same menu bar as the main
+ * window, drawn by [menuBar]. The menu bar is there because the commands and their shortcuts reach the IDE through the
+ * menu bar of the focused window, and because macOS shows the menu bar of the focused window at the top of the screen.
+ * The window gets the application's icon like every other window, from `ApplicationIcon.showOnEveryWindow`.
  *
  * The window opens with the persisted bounds, placed and checked against [screens] like the main window, or centred
  * with [DEFAULT_DETACHED_WINDOW_SIZE] the first time. Its bounds are recorded through [WindowBoundsTracker] whenever the
@@ -41,7 +40,6 @@ import androidx.compose.ui.window.Window as DesktopWindow
  */
 internal class DesktopDetachedWindowHost(
     private val screens: ScreenAreas,
-    private val icon: Painter?,
     private val menuBar: @Composable FrameWindowScope.() -> Unit,
 ) : DetachedWindowHost {
 
@@ -54,7 +52,7 @@ internal class DesktopDetachedWindowHost(
         LaunchedEffect(windowState) {
             snapshotFlow { windowState.geometry() }.boundsToRecord(tracker).collect { onBoundsChange(it) }
         }
-        DesktopWindow(onCloseRequest = { onCloseRequest() }, state = windowState, title = window.title, icon = icon) {
+        DesktopWindow(onCloseRequest = { onCloseRequest() }, state = windowState, title = window.title) {
             val frame: FrameWindowScope = this
             menuBar()
             LaunchedEffect(window.raiseRequests) { frame.window.toFront() }
