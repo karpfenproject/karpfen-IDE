@@ -55,7 +55,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -66,6 +65,7 @@ import io.karpfen.ide.bridges.api.BridgeKind
 import io.karpfen.ide.bridges.api.FlowPolicy
 import io.karpfen.ide.bridges.mapping.BridgeConfigFile
 import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
+import io.karpfen.ide.ui.foundation.widgets.ModalOverlay
 import io.karpfen.ide.ui.workbench.bridges.BridgeDraft
 import io.karpfen.ide.ui.workbench.bridges.BridgeDrafts
 import io.karpfen.ide.ui.workbench.bridges.BridgeFormState
@@ -79,9 +79,9 @@ import io.karpfen.ide.ui.workbench.bridges.PolicyDraft
 import io.karpfen.ide.ui.workbench.bridges.PolicyKind
 
 /**
- * Shows the bridge [form] over the workbench, on a scrim that swallows all pointer input, and nothing while [form] is
- * null. The form has the name of the bridge, its kind, the settings of that kind, the inbound routes and the outbound
- * routes. A changed name renames the file when the form is saved.
+ * Shows the bridge [form] over the workbench in a [ModalOverlay], which keeps the pointer away from the workbench, and
+ * nothing while [form] is null. The form has the name of the bridge, its kind, the settings of that kind, the inbound
+ * routes and the outbound routes. A changed name renames the file when the form is saved.
  * The fields for an event, a property and a state machine have a button that lists those of the project to pick from.
  * A route of a ROS bridge also has the type of its messages.
  * Every change goes into the draft of the form at once. Below the scrolling part, the form lists what keeps it from
@@ -101,13 +101,7 @@ internal fun BridgeFormLayer(form: BridgeFormState?, onSave: () -> Unit, onClose
     val name by form.name.collectAsState()
     val problems by form.problems.collectAsState()
     val colors = KarpfenTheme.colors
-    Box(
-        Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.3f))
-            .pointerInput(form) { awaitPointerEventScope { while (true) awaitPointerEvent().changes.forEach { it.consume() } } },
-        contentAlignment = Alignment.Center,
-    ) {
+    ModalOverlay {
         Column(
             Modifier
                 .widthIn(max = FORM_WIDTH.dp)

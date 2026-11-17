@@ -15,19 +15,35 @@
  */
 package io.karpfen.ide.ui.workbench.dialog.view
 
+import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.performMouseInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.test.v2.runComposeUiTest
+import androidx.compose.ui.unit.dp
 import io.karpfen.ide.core.document.Severity
 import io.karpfen.ide.core.workspace.validation.ProjectValidation
 import io.karpfen.ide.core.workspace.validation.ValidationFinding
@@ -37,10 +53,12 @@ import io.karpfen.ide.ui.workbench.dialog.DialogResponse
 import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /**
  * Headless tests of [WorkbenchDialogs]. They cover the buttons, the text field, Enter for the default button, Escape
- * for dismissing and the list of findings of a validation report.
+ * for dismissing and the list of findings of a validation report. They also check that a button takes a click during
+ * which the mouse moves a little, and that a click or a turn of the wheel beside a dialog never reaches the workbench.
  */
 @OptIn(ExperimentalTestApi::class)
 class WorkbenchDialogsUiTest {
@@ -153,6 +171,54 @@ class WorkbenchDialogsUiTest {
         onNodeWithTag(WorkbenchDialogTestTags.button("Close")).performClick()
         onNodeWithTag(WorkbenchDialogTestTags.DIALOG).performKeyInput { pressKey(Key.Escape) }
         assertEquals(listOf<DialogResponse>(DialogResponse.Confirm, DialogResponse.Confirm), answers.toList())
+    }
+
+    @Test
+    fun `a button answers when the mouse moves a little between press and release`() = runComposeUiTest {
+        val answers = mutableListOf<DialogResponse>()
+        setContent {
+            KarpfenTheme(darkTheme = false) { WorkbenchDialogs(DialogRequest.UnsavedChanges(listOf(path))) { answers.add(it) } }
+        }
+        onNodeWithTag(WorkbenchDialogTestTags.button("Don't Save")).performMouseInput {
+            moveTo(center)
+            press()
+            moveBy(Offset(3f, 2f))
+            release()
+        }
+        assertEquals(listOf<DialogResponse>(DialogResponse.Discard), answers.toList())
+    }
+
+    @Test
+    fun `a click and a turn of the wheel beside the dialog do not reach the workbench behind it`() = runComposeUiTest {
+        var shown by mutableStateOf(true)
+        var clicks = 0
+        val scroll = ScrollState(0)
+        setContent {
+            KarpfenTheme(darkTheme = false) {
+                Box(Modifier.fillMaxSize()) {
+                    Box(Modifier.fillMaxSize().clickable { clicks++ }.verticalScroll(scroll)) { Spacer(Modifier.height(5000.dp)) }
+                    WorkbenchDialogs(if (shown) DialogRequest.UnsavedChanges(listOf(path)) else null) {}
+                }
+            }
+        }
+        val beside = Offset(4f, 4f)
+        onRoot().performMouseInput {
+            click(beside)
+            scroll(5f)
+        }
+        waitForIdle()
+        assertEquals(0, clicks, "the click beside the dialog stays away from the workbench")
+        assertEquals(0, scroll.value, "the wheel beside the dialog stays away from the workbench")
+
+        shown = false
+        waitForIdle()
+        onRoot().performMouseInput {
+            click(beside)
+            scroll(5f)
+        }
+        waitForIdle()
+        assertEquals(1, clicks, "without the dialog the same click reaches the workbench")
+        assertTrue(scroll.value > 0, "without the dialog the same wheel turn scrolls the workbench")
     }
 
     @Test

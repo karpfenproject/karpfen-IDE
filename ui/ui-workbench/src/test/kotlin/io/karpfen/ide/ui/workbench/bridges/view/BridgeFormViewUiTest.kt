@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.ui.workbench.bridges.view
 
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
@@ -22,6 +23,7 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performMouseInput
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
@@ -42,7 +44,7 @@ import kotlin.test.assertEquals
 
 /**
  * Headless tests of [BridgeFormLayer]. They cover that the form shows a draft, that typing and the chips change it,
- * and that Save waits until nothing is wrong.
+ * and that Save waits until nothing is wrong. A click during which the mouse moves a little still counts.
  */
 @OptIn(ExperimentalTestApi::class)
 class BridgeFormViewUiTest {
@@ -133,6 +135,29 @@ class BridgeFormViewUiTest {
         onNodeWithTag(BridgeFormTestTags.option(what, "wallSwitch")).performClick()
         assertEquals(OutboundDraft(Follows.STATE, "wallSwitch", "home/x"), form.draft.value.outbound.single())
         onNodeWithTag(BridgeFormTestTags.SAVE).assertIsEnabled()
+    }
+
+    @Test
+    fun `Save and a chip take a click when the mouse moves a little between press and release`() = runComposeUiTest {
+        val form = form()
+        var saved = 0
+        setContent { KarpfenTheme(darkTheme = false) { BridgeFormLayer(form, onSave = { saved++ }, onClose = {}) } }
+
+        onNodeWithTag(BridgeFormTestTags.kind("mqtt")).performScrollTo().performMouseInput {
+            moveTo(center)
+            press()
+            moveBy(Offset(3f, 2f))
+            release()
+        }
+        onNodeWithTag(BridgeFormTestTags.SAVE).performMouseInput {
+            moveTo(center)
+            press()
+            moveBy(Offset(-2f, 3f))
+            release()
+        }
+
+        assertEquals(BridgeKind.MQTT, form.draft.value.kind)
+        assertEquals(1, saved)
     }
 
     @Test

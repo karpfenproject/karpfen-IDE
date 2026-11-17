@@ -22,11 +22,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -59,7 +57,6 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextRange
@@ -68,6 +65,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import io.karpfen.ide.core.document.Severity
 import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
+import io.karpfen.ide.ui.foundation.widgets.ModalOverlay
 import io.karpfen.ide.ui.workbench.dialog.DialogButton
 import io.karpfen.ide.ui.workbench.dialog.DialogFocusOrder
 import io.karpfen.ide.ui.workbench.dialog.DialogPresentation
@@ -77,8 +75,9 @@ import io.karpfen.ide.ui.workbench.dialog.FindingRow
 
 /**
  * Renders the pending [request] as a modal dialog and reports the answer through [onRespond]. The dialog offers exactly
- * the answers the request accepts, as laid out by [DialogPresentation]. It is drawn over the workbench on a scrim that
- * swallows all pointer input. Enter presses the default button and Escape dismisses the dialog.
+ * the answers the request accepts, as laid out by [DialogPresentation]. It is drawn over the workbench in a
+ * [ModalOverlay], which keeps the pointer away from the workbench. Enter presses the default button and Escape
+ * dismisses the dialog.
  *
  * The rename and new file dialogs have a text field. It starts focused, with its whole text selected. The dialog that
  * picks the descriptor to run has a list instead. It starts with the preselected entry selected. Up and Down move the
@@ -110,13 +109,7 @@ internal fun WorkbenchDialogs(request: DialogRequest<*>?, onRespond: (DialogResp
     }
     val choices = presentation.choices
     val colors = KarpfenTheme.colors
-    Box(
-        Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.3f))
-            .pointerInput(request) { awaitPointerEventScope { while (true) awaitPointerEvent().changes.forEach { it.consume() } } },
-        contentAlignment = Alignment.Center,
-    ) {
+    ModalOverlay {
         Column(
             Modifier
                 .widthIn(min = 320.dp, max = if (presentation.findings != null) 760.dp else 520.dp)
