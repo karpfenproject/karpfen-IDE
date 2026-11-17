@@ -123,4 +123,12 @@ class StructureProjectionTest {
         assertEquals(emptyList(), LampStructure.typesOf("").nodes)
         assertEquals(emptyList(), LampStructure.typesOf("// nothing yet").links)
     }
+
+    @Test
+    fun `every row says what the statement behind it is`() {
+        assertEquals(listOf(RowKind.PROPERTY, RowKind.CONTAINMENT), types.node("Lamp")?.rowKinds)
+        assertEquals(listOf(RowKind.PROPERTY, RowKind.REFERENCE), objects.node("lamp")?.rowKinds)
+        val behaving = LampStructure.typesOf("type \"Bulb\" \"\" behaves after \"glowing\" { knows(\"socket\", \"Socket\") }")
+        assertEquals(listOf(RowKind.BEHAVIOUR, RowKind.REFERENCE), behaving.nodes.single().rowKinds)
+    }
 }

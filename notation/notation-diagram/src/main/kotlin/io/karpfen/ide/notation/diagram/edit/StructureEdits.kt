@@ -17,63 +17,30 @@ package io.karpfen.ide.notation.diagram.edit
 
 import io.karpfen.ide.core.text.TextEdit
 import io.karpfen.ide.core.text.TextRange
-import io.karpfen.ide.notation.diagram.layout.DiagramGrid
-import io.karpfen.ide.notation.diagram.layout.DiagramPoint
 import io.karpfen.ide.notation.diagram.layout.VisLayout
-import io.karpfen.ide.notation.diagram.structure.LinkKind
+import io.karpfen.ide.notation.diagram.structure.RowKind
 import io.karpfen.ide.notation.diagram.structure.StructureDiagram
-import io.karpfen.ide.notation.diagram.structure.StructureKind
+import io.karpfen.ide.notation.diagram.structure.StructureLink
 import io.karpfen.ide.notation.diagram.structure.StructureNode
 import io.karpfen.ide.notation.diagram.text.TextBlocks
 
 /**
- * The changes of a metamodel and of a model that the class diagram and the object diagram offer, each as edits of the
- * text. Every function takes the text and the diagram that was derived from exactly that text, and gives the change
- * or null if there is nothing to change. The diagram says by its kind whether its boxes are types or objects.
+ * The changes that the class diagram and the object diagram share, each as edits of the text: the statements of a box,
+ * their keys and values, and their order. [TypeEdits] holds what only a metamodel has and [ObjectEdits] what only a
+ * model has. Every function takes the text and the diagram that was derived from exactly that text, and gives the
+ * change or null if there is nothing to change.
  *
- * An edit touches only the lines it is about. A new statement goes to the end of the block of its box, on a line of
- * its own. The `behaves after` clause of a type lives in its header and is changed there.
+ * An edit touches only the lines it is about and writes what the user typed, trimmed and with a `"` turned into `'`.
+ * It does not check what it writes against the language. A key that is empty or taken, or a name that nothing
+ * declares, is written as it is, and the validation of dsl-tools reports it.
  */
 public object StructureEdits {
 
-    private val STRING = Regex(""""([^"]*)"""")
     private val LINK_ID = Regex("""^(has|knows):(.*)\.([^.#]*)(#\d+)?$""")
 
     /** A name that is not in [taken]: [base], or [base] with the first free number behind it. */
     public fun fresh(base: String, taken: Collection<String>): String =
         generateSequence(1) { it + 1 }.map { if (it == 1) base else "$base$it" }.first { it !in taken }
-
-    /**
-     * Adds the type [name] to a metamodel, drawn with its middle at [at]. It becomes the first type of the file,
-     * because the last type of a metamodel is its root type, which a new type must not take over.
-     */
-    public fun addType(text: String, diagram: StructureDiagram, name: String, at: DiagramPoint? = null): DiagramChange? {
-        if (diagram.kind != StructureKind.TYPES || name.isBlank() || diagram.node(name) != null) return null
-        val first = diagram.nodes.minByOrNull { it.range.start }
-        val start = first?.let { text.lastIndexOf('\n', it.range.start - 1) + 1 } ?: text.length
-        val before = if (first == null && text.isNotEmpty() && !text.endsWith("\n")) "\n" else ""
-        val edit = TextEdit(TextRange(start, start), "${before}type ${quoted(name)} \"\" {\n}\n")
-        return DiagramChange(listOf(edit), arranges = at != null) { vis ->
-            if (at == null) vis else vis.copy(boxes = vis.boxes + (name to DiagramGrid.snap(at)))
-        }
-    }
-
-    /**
-     * Renames the box [id] to [new]: the type with every relation that leads to it, or the object with every
-     * reference that leads to it. The box keeps its place in the layout, and so do the waypoints and labels of its
-     * links.
-     */
-    public fun rename(text: String, diagram: StructureDiagram, id: String, new: String): DiagramChange? {
-        val node = diagram.node(id) ?: return null
-        val name = clean(new)
-        if (name.isEmpty() || name == id || diagram.node(name) != null) return null
-        val incoming = diagram.links.filter { it.target == id && (diagram.kind == StructureKind.TYPES || it.kind == LinkKind.REFERENCE) }
-        val uses = incoming.mapNotNull { link -> strings(text, link.range).lastOrNull()?.let { TextEdit(it, name) } }
-        return DiagramChange(listOf(TextEdit(node.nameRange, name)) + uses) { vis ->
-            fun <V> Map<String, V>.lines(): Map<String, V> = mapKeys { relinked(it.key, source = id, newSource = name) }
-            VisLayout(vis.boxes.mapKeys { if (it.key == id) name else it.key }, vis.bars, vis.waypoints.lines(), vis.labels.lines(), vis.frames)
-        }
-    }
 
     /** Adds [statement] as the last statement of the box [id]. */
     public fun addStatement(text: String, diagram: StructureDiagram, id: String, statement: String): DiagramChange? {
@@ -81,132 +48,33 @@ public object StructureEdits {
         return DiagramChange(listOf(TextBlocks.append(text, body, statement)))
     }
 
-    /** Gives the type or object [id] the property [name]: a text property for a type, an empty value for an object. */
-    public fun addProperty(text: String, diagram: StructureDiagram, id: String, name: String): DiagramChange? {
-        val key = clean(name).ifEmpty { return null }
-        val statement = if (diagram.kind == StructureKind.TYPES) "prop(${quoted(key)}, \"string\")" else "prop(${quoted(key)}) -> \"\""
-        return addStatement(text, diagram, id, statement)
-    }
+    /** The key of the statement behind [member], as it stands in the text, or null if it has none. */
+    public fun keyOf(text: String, diagram: StructureDiagram, member: StructureMember): String? =
+        partsOf(text, diagram, member)?.key?.let { text.substring(it.start, it.end) }
 
     /**
-     * Gives the type [id] a relation to the type [target]: a `has` relation for a containment and a `knows` relation
-     * for a reference. The relation is named after the target, with a number behind it where the type has that name
-     * already.
+     * The second string of the statement behind [member], as it stands in the text: the type of a rule of a type,
+     * without `list`, the value of a property of an object, or the key that a `knows` of an object names. Null for a
+     * statement without one, such as a `has` of an object.
      */
-    public fun addRelation(text: String, diagram: StructureDiagram, id: String, kind: LinkKind, target: String): DiagramChange? {
-        if (diagram.kind != StructureKind.TYPES || diagram.node(target) == null) return null
-        val name = fresh(target.replaceFirstChar { it.lowercase() }, membersOf(diagram, id))
-        return addStatement(text, diagram, id, "${word(kind)}(${quoted(name)}, ${quoted(target)})")
-    }
+    public fun valueOf(text: String, diagram: StructureDiagram, member: StructureMember): String? =
+        partsOf(text, diagram, member)?.value?.let { text.substring(it.start, it.end) }
 
     /**
-     * Gives the object [id] a new object of the type [type] through the `has` relation [relation]. The new object is
-     * named after the relation, with a number behind it where an object has that key already.
+     * Gives the statement behind [member] the key [new]. A link keeps its waypoints and its label place under its new
+     * id.
      */
-    public fun addObject(text: String, diagram: StructureDiagram, id: String, relation: String, type: String): DiagramChange? {
-        val key = clean(relation).ifEmpty { return null }
-        val of = clean(type).ifEmpty { return null }
-        if (diagram.kind != StructureKind.OBJECTS) return null
-        val name = fresh(key, diagram.nodes.map { it.id })
-        return addStatement(text, diagram, id, "has(${quoted(key)}) -> make object ${quoted(name)}:${quoted(of)} { }")
-    }
-
-    /** The description of the type [id], which is the second text of its declaration, or null if it has none. */
-    public fun descriptionOf(text: String, diagram: StructureDiagram, id: String): String? =
-        description(text, diagram, id)?.let { text.substring(it.start, it.end) }
-
-    /** Sets the description of the type [id] to [description]. */
-    public fun describe(text: String, diagram: StructureDiagram, id: String, description: String): DiagramChange? {
-        val range = description(text, diagram, id) ?: return null
-        val new = clean(description)
-        return if (new == text.substring(range.start, range.end)) null else DiagramChange(listOf(TextEdit(range, new)))
-    }
-
-    /**
-     * Lets the type [id] behave after the attachable state machine [machine]: it changes the name in the `behaves after`
-     * clause of the type, or adds the clause after the description if the type has none. A blank [machine] removes the
-     * clause together with the blanks before it.
-     */
-    public fun behaveAfter(text: String, diagram: StructureDiagram, id: String, machine: String): DiagramChange? {
-        val node = diagram.node(id)?.takeIf { diagram.kind == StructureKind.TYPES } ?: return null
-        val name = clean(machine)
-        val behaviour = node.behaviour
-        val edit = when {
-            behaviour == null && name.isEmpty() -> return null
-            behaviour == null -> {
-                val end = description(text, diagram, id)?.end ?: return null
-                TextEdit(TextRange(end + 1, end + 1), " behaves after ${quoted(name)}")
-            }
-            name.isEmpty() -> {
-                val start = text.substring(0, behaviour.range.start).trimEnd().length
-                TextEdit(TextRange(start, behaviour.range.end), "")
-            }
-            name == behaviour.machine -> return null
-            else -> TextEdit(behaviour.machineRange, name)
-        }
-        return DiagramChange(listOf(edit))
-    }
-
-    /**
-     * Makes the type [id] the root type of its metamodel, which is the last type of the file. The type moves to the
-     * end of the file with everything it holds.
-     */
-    public fun makeRoot(text: String, diagram: StructureDiagram, id: String): DiagramChange? {
-        val node = diagram.node(id) ?: return null
-        val last = diagram.nodes.maxByOrNull { it.range.start } ?: return null
-        if (diagram.kind != StructureKind.TYPES || last.id == id) return null
-        val moved = TextBlocks.lifted(text, node.range)
-        val ordered = listOf(TextBlocks.removal(text, node.range), TextEdit(TextRange(last.range.end, last.range.end), "\n$moved"))
-        return if (ordered[0].range.end > ordered[1].range.start) null else DiagramChange(ordered)
-    }
-
-    /** The inside of the string literal that holds the description of the type [id]. */
-    private fun description(text: String, diagram: StructureDiagram, id: String): TextRange? {
-        val node = diagram.node(id)?.takeIf { diagram.kind == StructureKind.TYPES } ?: return null
-        val body = bodyOf(text, node) ?: return null
-        return strings(text, TextRange(node.nameRange.end + 1, body.start)).firstOrNull()
-    }
-
-    /** Gives the object [id] a reference to the object [target] through a `knows` relation named `ref`. */
-    public fun addReference(text: String, diagram: StructureDiagram, id: String, target: String): DiagramChange? {
-        if (diagram.kind != StructureKind.OBJECTS || diagram.node(target) == null) return null
-        return addStatement(text, diagram, id, "knows(${quoted(fresh("ref", membersOf(diagram, id)))}) -> ${quoted(target)}")
-    }
-
-    /**
-     * Deletes the box [id]. A type goes with every relation that leads to it. An object goes with the `has` statement
-     * that makes it, with the objects it contains and with every reference to one of them. The outermost object of a
-     * model cannot be deleted.
-     */
-    public fun delete(text: String, diagram: StructureDiagram, id: String): DiagramChange? {
-        val node = diagram.node(id) ?: return null
-        if (diagram.kind == StructureKind.TYPES) {
-            val relations = diagram.links.filter { it.target == id && it.source != id }
-            return DiagramChange(listOf(TextBlocks.removal(text, node.range)) + relations.map { TextBlocks.removal(text, it.range) })
-        }
-        val made = diagram.links.firstOrNull { it.kind == LinkKind.CONTAINMENT && it.target == id } ?: return null
-        val gone = contained(diagram, id)
-        val references = diagram.links.filter { it.kind == LinkKind.REFERENCE && it.target in gone && it.source !in gone }
-        return DiagramChange(listOf(TextBlocks.removal(text, made.range)) + references.map { TextBlocks.removal(text, it.range) })
-    }
-
-    /** Deletes the relation behind the link [id]. In a model, a `has` statement goes with the object it makes. */
-    public fun deleteLink(text: String, diagram: StructureDiagram, id: String): DiagramChange? {
-        val link = diagram.links.firstOrNull { it.id == id } ?: return null
-        if (diagram.kind == StructureKind.OBJECTS && link.kind == LinkKind.CONTAINMENT) return delete(text, diagram, link.target)
-        return DiagramChange(listOf(TextBlocks.removal(text, link.range)))
-    }
-
-    /** Renames the relation behind the link [id] to [new]. The link keeps its waypoints and its label place. */
-    public fun renameLink(text: String, diagram: StructureDiagram, id: String, new: String): DiagramChange? {
-        val link = diagram.links.firstOrNull { it.id == id } ?: return null
-        val name = clean(new).ifEmpty { return null }
-        val key = strings(text, link.range).firstOrNull() ?: return null
+    public fun renameMember(text: String, diagram: StructureDiagram, member: StructureMember, new: String): DiagramChange? {
+        val key = partsOf(text, diagram, member)?.key ?: return null
+        val name = clean(new)
         if (text.substring(key.start, key.end) == name) return null
-        return DiagramChange(listOf(TextEdit(key, name))) { vis ->
-            fun <V> Map<String, V>.lines(): Map<String, V> = mapKeys { if (it.key == id) relinked(id, newKey = name) else it.key }
-            vis.copy(waypoints = vis.waypoints.lines(), labels = vis.labels.lines())
+        val layout: ((VisLayout) -> VisLayout)? = (member as? StructureMember.Link)?.let { link ->
+            { vis ->
+                fun <V> Map<String, V>.lines(): Map<String, V> = mapKeys { if (it.key == link.id) relinked(link.id, newKey = name) else it.key }
+                vis.copy(waypoints = vis.waypoints.lines(), labels = vis.labels.lines())
+            }
         }
+        return DiagramChange(listOf(TextEdit(key, name)), layout = layout)
     }
 
     /** The text of the statement that the row [row] of the box [id] shows, as it stands in the text. */
@@ -221,51 +89,87 @@ public object StructureEdits {
     }
 
     /**
-     * Deletes the statement that the row [row] of the box [id] shows. The row of a `behaves after` clause removes the
-     * clause from the header of the type.
+     * Deletes the statement that the row [row] of the box [id] shows, with its line if nothing else stands on it. The
+     * row of a `behaves after` clause is no statement, and [TypeEdits.behaveAfter] takes the clause out.
      */
     public fun deleteRow(text: String, diagram: StructureDiagram, id: String, row: Int): DiagramChange? {
         val node = diagram.node(id) ?: return null
-        if (node.behaviour != null && row == 0) return behaveAfter(text, diagram, id, "")
+        if (node.rowKinds.getOrNull(row) == RowKind.BEHAVIOUR) return null
         return node.rowRanges.getOrNull(row)?.let { DiagramChange(listOf(TextBlocks.removal(text, it))) }
     }
+
+    /**
+     * True if the statement of the row [row] of the box [id] can change places with the statement of the row above it,
+     * if [up], or below it. Both rows must be statements, which the row of a `behaves after` clause is not.
+     */
+    public fun canMoveRow(diagram: StructureDiagram, id: String, row: Int, up: Boolean): Boolean {
+        val kinds = diagram.node(id)?.rowKinds ?: return false
+        val other = if (up) row - 1 else row + 1
+        return row in kinds.indices && other in kinds.indices && kinds[row] != RowKind.BEHAVIOUR && kinds[other] != RowKind.BEHAVIOUR
+    }
+
+    /**
+     * Lets the statement of the row [row] of the box [id] change places with the statement of the row above it, if
+     * [up], or below it. The two statements swap their texts, and every statement between them, which the diagram draws
+     * as a link, stays where it is. The order matters for the values of a list, which keep the order of the text.
+     */
+    public fun moveRow(text: String, diagram: StructureDiagram, id: String, row: Int, up: Boolean): DiagramChange? {
+        if (!canMoveRow(diagram, id, row, up)) return null
+        val ranges = diagram.node(id)?.rowRanges ?: return null
+        val (first, second) = if (up) ranges[row - 1] to ranges[row] else ranges[row] to ranges[row + 1]
+        val firstText = text.substring(first.start, first.end)
+        val secondText = text.substring(second.start, second.end)
+        if (firstText == secondText) return null
+        return DiagramChange(listOf(TextEdit(first, secondText), TextEdit(second, firstText)))
+    }
+
+    /**
+     * Gives the box [id] the name [new] in its declaration and in the statements [incoming], whose second string names
+     * the box. The box keeps its place in the layout, and so do the waypoints and labels of its links, as long as the
+     * new name is one no other box has. A name that is empty or taken is written all the same, and the box is then
+     * placed anew.
+     */
+    internal fun renameBox(text: String, diagram: StructureDiagram, id: String, new: String, incoming: List<StructureLink>): DiagramChange? {
+        val node = diagram.node(id) ?: return null
+        val name = clean(new)
+        if (text.substring(node.nameRange.start, node.nameRange.end) == name) return null
+        val uses = incoming.mapNotNull { link -> StatementParts.of(text, link.range)?.value?.let { TextEdit(it, name) } }
+        val keepsPlace = name.isNotEmpty() && diagram.node(name) == null
+        return DiagramChange(listOf(TextEdit(node.nameRange, name)) + uses, layout = if (!keepsPlace) null else { vis ->
+            fun <V> Map<String, V>.lines(): Map<String, V> = mapKeys { relinked(it.key, source = id, newSource = name) }
+            VisLayout(vis.boxes.mapKeys { if (it.key == id) name else it.key }, vis.bars, vis.waypoints.lines(), vis.labels.lines(), vis.frames)
+        })
+    }
+
+    /** The parts of the statement behind [member], or null if [diagram] has no such member. */
+    internal fun partsOf(text: String, diagram: StructureDiagram, member: StructureMember): StatementParts? =
+        member.rangeIn(diagram)?.let { StatementParts.of(text, it) }
 
     /**
      * The names of the members of the box [id]: of its relations that are drawn as links, and of its rows. The row of a
      * `behaves after` clause names no member.
      */
-    private fun membersOf(diagram: StructureDiagram, id: String): Set<String> {
+    internal fun membersOf(diagram: StructureDiagram, id: String): Set<String> {
         val node = diagram.node(id)
-        val rows = node?.rows.orEmpty().drop(if (node?.behaviour != null) 1 else 0)
+        val rows = node?.rows.orEmpty().filterIndexed { index, _ -> node?.rowKinds?.getOrNull(index) != RowKind.BEHAVIOUR }
         return diagram.links.filter { it.source == id }.mapNotNull { LINK_ID.matchEntire(it.id)?.groupValues?.get(3) }.toSet() +
             rows.map { it.substringBefore(':').substringBefore('=').trim() }
     }
 
-    /** The object [id] and every object it contains, directly or further down. */
-    private fun contained(diagram: StructureDiagram, id: String): Set<String> {
-        val found = LinkedHashSet<String>()
-        val pending = ArrayDeque(listOf(id))
-        while (pending.isNotEmpty()) {
-            val next = pending.removeFirst()
-            if (found.add(next)) pending += diagram.links.filter { it.kind == LinkKind.CONTAINMENT && it.source == next }.map { it.target }
-        }
-        return found
-    }
-
     /** The braces of the box [node] with everything between them. The search starts behind the quote that ends its name. */
-    private fun bodyOf(text: String, node: StructureNode): TextRange? = TextBlocks.blockFrom(text, node.nameRange.end + 1)
+    internal fun bodyOf(text: String, node: StructureNode): TextRange? = TextBlocks.blockFrom(text, node.nameRange.end + 1)
 
-    /** The insides of the string literals in [range] of [text], in order. A statement of a nested object is left out. */
-    private fun strings(text: String, range: TextRange): List<TextRange> {
-        val statement = text.substring(range.start, range.end).substringBefore("make object")
-        return STRING.findAll(statement).map { TextRange(range.start + it.range.first + 1, range.start + it.range.last) }.toList()
+    /** [name] as the text writes it: trimmed, and with a `"` turned into `'`. */
+    internal fun clean(name: String): String = name.trim().replace('"', '\'')
+
+    /** [name] as the text writes it, in quotes. */
+    internal fun quoted(name: String): String = "\"" + clean(name) + "\""
+
+    /** True if the edits [first] and [second] touch the same characters or one inserts inside what the other replaces. */
+    internal fun overlap(first: TextEdit, second: TextEdit): Boolean {
+        val (a, b) = if (first.range.start <= second.range.start) first.range to second.range else second.range to first.range
+        return b.start < a.end
     }
-
-    private fun word(kind: LinkKind): String = if (kind == LinkKind.CONTAINMENT) "has" else "knows"
-
-    private fun clean(name: String): String = name.trim().replace('"', '\'')
-
-    private fun quoted(name: String): String = "\"" + clean(name) + "\""
 
     /**
      * The id of a link with its source renamed from [source] to [newSource], or with its relation renamed to

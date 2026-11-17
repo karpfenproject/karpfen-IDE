@@ -55,12 +55,14 @@ public object ModelProjection {
             val id = idOf.getValue(item)
             val rows = ArrayList<String>()
             val rowRanges = ArrayList<TextRange>()
+            val rowKinds = ArrayList<RowKind>()
             val relations = UniqueIds()
             for (statement in item.children) {
                 when (statement.kind) {
                     SymbolKind.PROPERTY_ASSIGNMENT -> {
                         rows += row(statement)
                         rowRanges += statement.range
+                        rowKinds += RowKind.PROPERTY
                     }
                     SymbolKind.HAS_ASSIGNMENT -> statement.children.filter { it.kind == SymbolKind.OBJECT }.forEach { made ->
                         links += StructureLink(
@@ -76,12 +78,13 @@ public object ModelProjection {
                         } else {
                             rows += row(statement)
                             rowRanges += statement.range
+                            rowKinds += RowKind.REFERENCE
                         }
                     }
                     else -> Unit
                 }
             }
-            nodes += StructureNode(id, title(item), rows, item.range, item.selectionRange, rowRanges)
+            nodes += StructureNode(id, title(item), rows, item.range, item.selectionRange, rowRanges, rowKinds)
         }
         return StructureDiagram(StructureKind.OBJECTS, nodes, links.sortedBy { it.range.start })
     }

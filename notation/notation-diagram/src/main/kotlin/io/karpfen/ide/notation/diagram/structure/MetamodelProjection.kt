@@ -56,10 +56,12 @@ public object MetamodelProjection {
         for ((type, id) in types) {
             val rows = ArrayList<String>()
             val rowRanges = ArrayList<TextRange>()
+            val rowKinds = ArrayList<RowKind>()
             val behaviour = behaviourOf(text, type)
             if (behaviour != null) {
                 rows += BEHAVES_AFTER + behaviour.machine
                 rowRanges += behaviour.range
+                rowKinds += RowKind.BEHAVIOUR
             }
             val relations = UniqueIds()
             for (member in type.children) {
@@ -77,9 +79,14 @@ public object MetamodelProjection {
                 } else if (kind != null || member.kind == SymbolKind.SIMPLE_PROPERTY) {
                     rows += if (detail.isEmpty()) member.name else "${member.name}: $detail"
                     rowRanges += member.range
+                    rowKinds += when (kind) {
+                        LinkKind.CONTAINMENT -> RowKind.CONTAINMENT
+                        LinkKind.REFERENCE -> RowKind.REFERENCE
+                        null -> RowKind.PROPERTY
+                    }
                 }
             }
-            nodes += StructureNode(id, type.name, rows, type.range, type.selectionRange, rowRanges, behaviour)
+            nodes += StructureNode(id, type.name, rows, type.range, type.selectionRange, rowRanges, rowKinds, behaviour)
         }
         return StructureDiagram(StructureKind.TYPES, nodes, links)
     }

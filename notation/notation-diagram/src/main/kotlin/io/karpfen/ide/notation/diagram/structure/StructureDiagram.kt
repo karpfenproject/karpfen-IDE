@@ -60,6 +60,7 @@ public data class StructureDiagram(
  * @property range the whole declaration in the text.
  * @property nameRange the name inside its quotes.
  * @property rowRanges the statement in the text that each of the [rows] shows, in the same order.
+ * @property rowKinds what the statement behind each of the [rows] is, in the same order.
  * @property behaviour the `behaves after` clause of a type, or null if the type has none. It is shown as the first of
  *   the [rows], and its range is the first of the [rowRanges].
  */
@@ -70,8 +71,27 @@ public data class StructureNode(
     public val range: TextRange,
     public val nameRange: TextRange,
     public val rowRanges: List<TextRange>,
+    public val rowKinds: List<RowKind>,
     public val behaviour: TypeBehaviour? = null,
 )
+
+/** What the statement behind a row of a [StructureNode] is. */
+public enum class RowKind {
+    /** The `behaves after` clause in the header of a type. */
+    BEHAVIOUR,
+
+    /** A property: a `prop` rule of a type, or a `prop` statement that gives an object a value. */
+    PROPERTY,
+
+    /** A `has` relation of a type whose target type the file does not declare, so that it cannot be drawn as a link. */
+    CONTAINMENT,
+
+    /**
+     * A `knows` relation of a type whose target type the file does not declare, or a `knows` statement of an object
+     * that names a key no object has. Neither can be drawn as a link.
+     */
+    REFERENCE,
+}
 
 /**
  * The clause `behaves after "name"` in the header of a type, which gives every object of the type an instance of the

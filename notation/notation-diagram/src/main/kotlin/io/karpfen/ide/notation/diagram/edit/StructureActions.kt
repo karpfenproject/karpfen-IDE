@@ -18,110 +18,120 @@ package io.karpfen.ide.notation.diagram.edit
 import io.karpfen.ide.notation.diagram.layout.DiagramLayout
 import io.karpfen.ide.notation.diagram.layout.DiagramPoint
 import io.karpfen.ide.notation.diagram.layout.StructureLayout
-import io.karpfen.ide.notation.diagram.structure.LinkKind
 import io.karpfen.ide.notation.diagram.structure.StructureDiagram
-import io.karpfen.ide.notation.diagram.structure.StructureKind
+import io.karpfen.ide.notation.diagram.structure.StructureLink
 import io.karpfen.ide.notation.diagram.structure.StructureNode
 
 /**
- * What a user can do at a point of a class diagram or an object diagram.
+ * What a user can do at a point of a class diagram or an object diagram. It finds what lies at the point, a link, a
+ * row of a box, a box or the empty canvas, and lets the kind of diagram tell its entries for that element:
+ * [TypeActions] for a class diagram and [ObjectActions] for an object diagram. The line and the label of a link count
+ * as the link. A row counts before the box it belongs to, and the title of a box counts as the box.
  *
- * - On the line or the label of a link: rename the relation, edit it as text and delete it.
- * - On a row of a box: edit the statement behind the row as text, and delete it. On the row of a `behaves after`
- *   clause: change the state machine and remove the clause.
- * - On a type: rename it, edit it as text, describe it, let it behave after an attachable state machine, add a
- *   property, add a relation to a type the user clicks, make it the root type, and delete it.
- * - On an object: rename it, edit it as text, add a property, add an object it has, for which the user types the
- *   relation and then the type, add a reference to an object the user clicks, and delete it.
- * - On the empty canvas of a class diagram: add a type.
+ * The entries of an element depend on the element alone and never on what else the file or the project holds. Where an
+ * entry needs a name, a type or a value, it asks for it in a field. Where it needs another element, the user clicks
+ * its box. What the user types is written as it is, also when it leaves the model in error.
  */
-public object StructureActions : DiagramActions<StructureDiagram, StructureLayout> {
+public abstract class StructureActions : DiagramActions<StructureDiagram, StructureLayout> {
 
-    override fun at(source: String, diagram: StructureDiagram, layout: StructureLayout, point: DiagramPoint): List<DiagramAction> {
-        val link = layout.labelAt(point) ?: layout.lineAt(point, DiagramLayout.HIT_TOLERANCE)?.id
+    final override fun at(source: String, diagram: StructureDiagram, layout: StructureLayout, point: DiagramPoint): List<DiagramAction> {
+        val linkId = layout.labelAt(point) ?: layout.lineAt(point, DiagramLayout.HIT_TOLERANCE)?.id
+        val link = linkId?.let { id -> diagram.links.firstOrNull { it.id == id } }
         val node = layout.boxAt(point)?.let(diagram::node)
         val row = node?.let { layout.rowAt(it.id, point) }?.takeIf { it < node.rows.size }
         return when {
             link != null -> onLink(source, diagram, link)
             node != null && row != null -> onRow(source, diagram, node, row)
-            node != null -> onNode(source, diagram, node)
-            diagram.kind == StructureKind.TYPES -> listOf(
-                DiagramAction.Change("Add type") {
-                    StructureEdits.addType(source, diagram, StructureEdits.fresh("Type", diagram.nodes.map { it.id }), point)
-                },
-            )
-            else -> emptyList()
+            node != null -> onBox(source, diagram, node)
+            else -> onCanvas(source, diagram, point)
         }
     }
 
-    /** The label of the entries that set the state machine a type behaves after. */
-    private const val BEHAVES_AFTER = "Behaves after"
+    /** The entries on the empty canvas of [diagram], derived from [source], at [point]. */
+    protected abstract fun onCanvas(source: String, diagram: StructureDiagram, point: DiagramPoint): List<DiagramAction>
 
-    private fun onLink(source: String, diagram: StructureDiagram, id: String): List<DiagramAction> {
-        val label = diagram.links.firstOrNull { it.id == id }?.label.orEmpty().substringBefore(" [")
-        return listOfNotNull(
-            DiagramAction.Ask("Rename relation", label) { new ->
-                DiagramAction.Change("Rename relation") { StructureEdits.renameLink(source, diagram, id, new) }
-            },
-            diagram.links.firstOrNull { it.id == id }?.let { link ->
-                DiagramAction.Open("Edit as text", ConstructCells.of(id, "Relation $label", source, link.range))
-            },
-            DiagramAction.Change("Delete relation") { StructureEdits.deleteLink(source, diagram, id) },
-        )
+    /** The entries on the box [node] of [diagram], derived from [source], outside its rows. */
+    protected abstract fun onBox(source: String, diagram: StructureDiagram, node: StructureNode): List<DiagramAction>
+
+    /** The entries on the row [row] of the box [node] of [diagram], derived from [source]. */
+    protected abstract fun onRow(source: String, diagram: StructureDiagram, node: StructureNode, row: Int): List<DiagramAction>
+
+    /** The entries on the line or the label of [link] of [diagram], derived from [source]. */
+    protected abstract fun onLink(source: String, diagram: StructureDiagram, link: StructureLink): List<DiagramAction>
+
+    /** The entry that renames the box [node] through [rename], in a field that starts with its name. */
+    protected fun renamingBox(
+        source: String,
+        diagram: StructureDiagram,
+        node: StructureNode,
+        rename: (String, StructureDiagram, String, String) -> DiagramChange?,
+    ): DiagramAction {
+        val name = source.substring(node.nameRange.start, node.nameRange.end)
+        return DiagramAction.Ask(RENAME, name) { new -> DiagramAction.Change(RENAME) { rename(source, diagram, node.id, new) } }
     }
 
-    private fun onRow(source: String, diagram: StructureDiagram, node: StructureNode, row: Int): List<DiagramAction> {
-        val behaviour = node.behaviour
-        if (behaviour != null && row == 0) {
-            return listOf(
-                DiagramAction.Ask(BEHAVES_AFTER, behaviour.machine) { machine ->
-                    DiagramAction.Change(BEHAVES_AFTER) { StructureEdits.behaveAfter(source, diagram, node.id, machine) }
-                },
-                DiagramAction.Change("Remove behaves after") { StructureEdits.behaveAfter(source, diagram, node.id, "") },
-            )
+    /** The entry that opens the whole box [node] in a code cell titled with the title of the box. */
+    protected fun editingBox(source: String, node: StructureNode): DiagramAction =
+        DiagramAction.Open(EDIT_AS_TEXT, ConstructCells.of(node.id, node.title, source, node.range))
+
+    /** The entry [label] that gives the statement behind [member] another key, in a field that starts with its key. */
+    protected fun renamingMember(source: String, diagram: StructureDiagram, member: StructureMember, label: String): DiagramAction =
+        DiagramAction.Ask(label, StructureEdits.keyOf(source, diagram, member).orEmpty()) { new ->
+            DiagramAction.Change(label) { StructureEdits.renameMember(source, diagram, member, new) }
         }
-        return listOf(
-            DiagramAction.Ask("Edit as text", StructureEdits.rowText(source, diagram, node.id, row).orEmpty()) { new ->
-                DiagramAction.Change("Edit as text") { StructureEdits.replaceRow(source, diagram, node.id, row, new) }
-            },
-            DiagramAction.Change("Delete") { StructureEdits.deleteRow(source, diagram, node.id, row) },
-        )
-    }
 
-    private fun onNode(source: String, diagram: StructureDiagram, node: StructureNode): List<DiagramAction> {
-        val id = node.id
-        val all = diagram.nodes.map { it.id }.toSet()
-        val isType = diagram.kind == StructureKind.TYPES
-        val isRoot = !isType && diagram.links.none { it.kind == LinkKind.CONTAINMENT && it.target == id }
-        return listOfNotNull(
-            DiagramAction.Ask("Rename", id) { new -> DiagramAction.Change("Rename") { StructureEdits.rename(source, diagram, id, new) } },
-            DiagramAction.Open("Edit as text", ConstructCells.of(id, node.title, source, node.range)),
-            DiagramAction.Ask("Describe", StructureEdits.descriptionOf(source, diagram, id).orEmpty()) { description ->
-                DiagramAction.Change("Describe") { StructureEdits.describe(source, diagram, id, description) }
-            }.takeIf { isType },
-            DiagramAction.Ask(BEHAVES_AFTER, "") { machine ->
-                DiagramAction.Change(BEHAVES_AFTER) { StructureEdits.behaveAfter(source, diagram, id, machine) }
-            }.takeIf { isType && node.behaviour == null },
-            DiagramAction.Ask("Add property", "name") { name ->
-                DiagramAction.Change("Add property") { StructureEdits.addProperty(source, diagram, id, name) }
-            },
-            DiagramAction.Pick("Add has relation to", "Click the type that this type has.", all) { target ->
-                DiagramAction.Change("Add relation") { StructureEdits.addRelation(source, diagram, id, LinkKind.CONTAINMENT, target) }
-            }.takeIf { isType },
-            DiagramAction.Pick("Add knows relation to", "Click the type that this type knows.", all) { target ->
-                DiagramAction.Change("Add relation") { StructureEdits.addRelation(source, diagram, id, LinkKind.REFERENCE, target) }
-            }.takeIf { isType },
-            DiagramAction.Ask("Add object", "relation") { relation ->
-                DiagramAction.Ask("Add object", "Type") { type ->
-                    DiagramAction.Change("Add object") { StructureEdits.addObject(source, diagram, id, relation, type) }
-                }
-            }.takeIf { !isType },
-            DiagramAction.Change("Make root type") { StructureEdits.makeRoot(source, diagram, id) }
-                .takeIf { isType && diagram.nodes.maxByOrNull { it.range.start }?.id != id },
-            DiagramAction.Pick("Add reference to", "Click the object that this object knows.", all - id) { target ->
-                DiagramAction.Change("Add reference") { StructureEdits.addReference(source, diagram, id, target) }
-            }.takeIf { !isType && all.size > 1 },
-            DiagramAction.Change("Delete") { StructureEdits.delete(source, diagram, id) }.takeIf { !isRoot },
+    /** The entry that opens the statement behind [link] in a code cell titled `Relation <name>`. */
+    protected fun editingLink(source: String, link: StructureLink): DiagramAction =
+        DiagramAction.Open(EDIT_AS_TEXT, ConstructCells.of(link.id, "Relation ${link.label.substringBefore(" [")}", source, link.range))
+
+    /** The entry that edits the statement of the row [row] of [node] as text, in a field that holds it on one line. */
+    protected fun editingRow(source: String, diagram: StructureDiagram, node: StructureNode, row: Int): DiagramAction =
+        DiagramAction.Ask(EDIT_AS_TEXT, StructureEdits.rowText(source, diagram, node.id, row).orEmpty()) { new ->
+            DiagramAction.Change(EDIT_AS_TEXT) { StructureEdits.replaceRow(source, diagram, node.id, row, new) }
+        }
+
+    /** The entry [label] that deletes the statement of the row [row] of [node]. */
+    protected fun deletingRow(source: String, diagram: StructureDiagram, node: StructureNode, row: Int, label: String): DiagramAction =
+        DiagramAction.Change(label) { StructureEdits.deleteRow(source, diagram, node.id, row) }
+
+    /**
+     * The entries that let the statement of the row [row] of [node] change places with the row above it and the row
+     * below it, each where there is such a row.
+     */
+    protected fun movingRow(source: String, diagram: StructureDiagram, node: StructureNode, row: Int): List<DiagramAction> =
+        listOfNotNull(
+            DiagramAction.Change(MOVE_UP) { StructureEdits.moveRow(source, diagram, node.id, row, up = true) }
+                .takeIf { StructureEdits.canMoveRow(diagram, node.id, row, up = true) },
+            DiagramAction.Change(MOVE_DOWN) { StructureEdits.moveRow(source, diagram, node.id, row, up = false) }
+                .takeIf { StructureEdits.canMoveRow(diagram, node.id, row, up = false) },
         )
+
+    protected companion object {
+        /** The entry that renames a box or the key of a property. */
+        public const val RENAME: String = "Rename"
+
+        /** The entry that renames a relation. */
+        public const val RENAME_RELATION: String = "Rename relation"
+
+        /** The entry that opens or edits a construct as text. */
+        public const val EDIT_AS_TEXT: String = "Edit as text"
+
+        /** The entry that deletes a box or a property. */
+        public const val DELETE: String = "Delete"
+
+        /** The entry that deletes a relation. */
+        public const val DELETE_RELATION: String = "Delete relation"
+
+        /** The entry that adds a property. */
+        public const val ADD_PROPERTY: String = "Add property"
+
+        /** The entry that swaps a row with the row above it. */
+        public const val MOVE_UP: String = "Move up"
+
+        /** The entry that swaps a row with the row below it. */
+        public const val MOVE_DOWN: String = "Move down"
+
+        /** The entry that sets the type of a property or of an object. */
+        public const val SET_TYPE: String = "Set type"
     }
 }
