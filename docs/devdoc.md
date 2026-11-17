@@ -335,7 +335,9 @@ to the ui modules and the app.
 A state machine has a statechart, a metamodel a class diagram and a model an object diagram. A file is shown as its
 text, as its diagram or as both, and the choice belongs to the file. A diagram is derived from the outline of the
 file, so it reads the text exactly as the editor does. While the text has syntax errors, the diagram keeps the last
-good state and is marked as stale.
+good state and is marked as stale. A text of nothing but blanks and comments is the exception: it gives the diagram of
+an empty outline, also where the language wants something, as KModel wants a root object. A diagram without elements
+still has its canvas, so that the menu of the canvas adds the first element.
 
 The diagram is drawn on a Compose canvas, not in an embedded web view. A web view would bring a browser along and
 would save little, because the layout engine that web diagram tools use is the Eclipse Layout Kernel, which runs on
@@ -369,11 +371,14 @@ container state, to the host of the pane, which opens the file of that name. A `
 action of a double click, which is one of its menu entries. The canvas shows them as the context menu and runs the
 chain. The last action gives a `DiagramChange`, a list of text edits against the text the diagram was derived from,
 which `DiagramState.source` holds. `DiagramPane` applies it as one undoable change, and only while the document is
-still at that text. `StatechartEdits` makes the edits of a state machine and `StructureEdits` those of a metamodel
-and a model, both with `TextBlocks`, which puts a statement at the end of a block and takes a construct out with its
-lines. A new type becomes the first type of its file, because the last type of a metamodel is its root type. A change
-can also say what it means for the layout by hand: a new state is placed where the user clicked, and a renamed
-state keeps its place.
+still at that text. `StatechartEdits` makes the edits of a state machine, `TypeEdits` those of a metamodel and
+`ObjectEdits` those of a model, with `StructureEdits` for what the last two share. All of them use `TextBlocks`,
+which puts a statement at the end of a block and takes a construct out with its lines. The menus of the class and the
+object diagram are `TypeActions` and `ObjectActions`, which `StructureActions` hands the element at the pointer. A
+relation is a row where its target cannot be drawn and a line where it can, and `StructureMember` names either, so
+that one edit serves both. A new type becomes the first type of its file, because the last type of a metamodel is its
+root type. A change can also say what it means for the layout by hand: a new state is placed where the user clicked,
+and a renamed state keeps its place.
 
 While a run is live, an open statechart shows it, and nothing else of the diagrams does. `DiagramLives` in
 ui-workbench tells what the selected run adds to the diagram of the active file, as a `DiagramLive`: the active states

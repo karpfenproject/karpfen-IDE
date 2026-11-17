@@ -20,8 +20,10 @@ refer to.
 
 - The diagrams change the text through their context menus and code cells. A split is added with two targets and a
   join with two sources, and more are added one at a time. The macros of a state machine are edited as text only.
-- The type of a new object in the object diagram is typed in. The diagram does not know the types of the metamodel,
-  so it cannot offer them.
+- No menu entry of the class or object diagram changes the order of statements drawn as lines, which matters for the
+  objects of a list relation in a model. Only a row moves up and down.
+- The entries of the object diagram that read a statement find only strings in double quotes, so they change nothing
+  on a statement written with single quotes.
 - An opened code cell has no go to definition and no find references. A blank cell that saving would remove, such as
   an empty condition or tick limit, completes like a lone piece of text until something is typed. A cell closes
   without saving when the text changes underneath it. Nobody has tried how the checks of a cell perform on a large
@@ -43,8 +45,6 @@ refer to.
 - Dragging and the context menu were tried in tests only for the class and object diagrams, not in the window.
 - No menu adds `ATTACH` or `EXCHANGE`. They are written in the cells of the entry and do actions, which complete and
   check them.
-- The class diagram asks for the name after `behaves after` as plain text. It does not offer the attachable state
-  machines of the context, because the diagram knows only its own file.
 - The statechart of a state machine shows a container state as one box. The states of its fragment are drawn only in
   the diagram of the fragment, and no view shows a composition as a whole.
 - The drawing of container states and final states, Open page with its double-click and the bar of the users of a
