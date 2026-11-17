@@ -15,11 +15,9 @@
  */
 package io.karpfen.ide.ui.workbench.bridges.view
 
-import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -90,9 +88,6 @@ import io.karpfen.ide.ui.workbench.bridges.PolicyKind
  * The form is laid out as a grid of rows of one height. Every row starts with its label in a column of one width, so
  * the fields of all rows begin at the same place. Two fields that belong together share a row, each with half of the
  * width. The controls are small and rectangular, like those of the rest of the workbench.
- *
- * Every control that takes a click has an interaction source of its own. A control without one creates it at its
- * first press, and under the scrim, which consumes every pointer event, that first press is lost.
  */
 @Composable
 internal fun BridgeFormLayer(form: BridgeFormState?, onSave: () -> Unit, onClose: () -> Unit) {
@@ -385,7 +380,7 @@ private fun <T> Choice(options: List<T>, selected: T, title: (T) -> String, tag:
                 Modifier
                     .fillMaxHeight()
                     .background(if (option == selected) colors.selection else Color.Transparent)
-                    .selectable(option == selected, remember { MutableInteractionSource() }, LocalIndication.current, role = Role.RadioButton) {
+                    .selectable(option == selected, role = Role.RadioButton) {
                         onSelect(option)
                     }
                     .padding(horizontal = 10.dp)
@@ -403,7 +398,7 @@ private fun TickBox(checked: Boolean, text: String, tag: String, onChange: (Bool
     Row(
         Modifier
             .height(CONTROL_HEIGHT.dp)
-            .toggleable(checked, remember { MutableInteractionSource() }, LocalIndication.current, role = Role.Checkbox, onValueChange = onChange)
+            .toggleable(checked, role = Role.Checkbox, onValueChange = onChange)
             .testTag(tag),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -435,7 +430,7 @@ private fun FormButton(text: String, tag: String, enabled: Boolean = true, isDef
             .height(CONTROL_HEIGHT.dp)
             .widthIn(min = BUTTON_WIDTH.dp)
             .border(1.dp, if (enabled && isDefault) colors.accent else colors.border, RoundedCornerShape(CORNER.dp))
-            .clickable(remember { MutableInteractionSource() }, LocalIndication.current, enabled, role = Role.Button, onClick = onClick)
+            .clickable(enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = 12.dp)
             .testTag(tag),
         contentAlignment = Alignment.Center,
@@ -453,7 +448,7 @@ private fun LinkButton(text: String, tag: String, onClick: () -> Unit) {
         style = KarpfenTheme.typography.uiSmall,
         maxLines = 1,
         modifier = Modifier
-            .clickable(remember { MutableInteractionSource() }, LocalIndication.current, role = Role.Button, onClick = onClick)
+            .clickable(role = Role.Button, onClick = onClick)
             .padding(horizontal = 4.dp, vertical = 2.dp)
             .testTag(tag),
     )

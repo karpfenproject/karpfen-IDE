@@ -15,12 +15,10 @@
  */
 package io.karpfen.ide.ui.workbench.dialog.view
 
-import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -149,7 +147,7 @@ internal fun WorkbenchDialogs(request: DialogRequest<*>?, onRespond: (DialogResp
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .background(if (index == selected) colors.selection else Color.Transparent)
-                                .clickable(remember { MutableInteractionSource() }, LocalIndication.current) { selected = index }
+                                .clickable { selected = index }
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                                 .testTag(WorkbenchDialogTestTags.choice(index)),
                         )
@@ -232,16 +230,13 @@ private fun FindingRows(findings: List<FindingRow>) {
 
 /**
  * A row with a box and its [label], ticked if [checked], tagged [tag]. A click on the row calls [onToggle].
- *
- * The row has an interaction source of its own. With the one a plain click handler makes on its first press, the
- * first click after the dialog opened is lost under the layer that keeps clicks away from the workbench.
  */
 @Composable
 private fun TickRow(label: String, checked: Boolean, tag: String, onToggle: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
-            .toggleable(checked, remember { MutableInteractionSource() }, LocalIndication.current, role = Role.Checkbox) { onToggle() }
+            .toggleable(checked, role = Role.Checkbox) { onToggle() }
             .padding(horizontal = 8.dp, vertical = 4.dp)
             .testTag(tag),
         verticalAlignment = Alignment.CenterVertically,
