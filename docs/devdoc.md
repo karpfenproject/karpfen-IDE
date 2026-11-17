@@ -39,7 +39,7 @@ starts a container.
 | `./gradlew :runtime:runtime-host:liveDockerTest` | Runs the host tests against the local Docker engine. |
 
 Test reports are in `<module>/build/reports/tests/test/index.html`. The installer is a dmg on macOS, an msi on Windows
-and a deb on Linux. The package version is 1.0.0 on macOS and 0.1.0 elsewhere, because jpackage rejects a major
+and a deb on Linux. The package version is 1.1.0 on macOS and 0.2.0 elsewhere, because jpackage rejects a major
 version 0 on macOS. When a new library needs more JDK modules in the bundle, `:app:ide:suggestRuntimeModules` lists
 them.
 
@@ -54,15 +54,16 @@ are named `karpfen-ide-<name>-<platform>.<format>`. When all four are built, the
 of the tag. If the tag has no release, the job creates one as a draft, which gets its text and is published by hand.
 
 ```bash
-git tag release-0.1-beta
-git push origin release-0.1-beta
+git tag release-0.2-beta
+git push origin release-0.2-beta
 ```
 
 Started by hand on the Actions page, the workflow builds the installers of a branch and keeps them as artifacts of the
 run, without a release.
 
 The installers are not signed. The name in the tag does not change the package version, which `app/ide/build.gradle.kts`
-sets. The tests run on Linux only, so the installers for Windows and macOS are built without a test run on those
+sets. Raise it there before the tag of a release, because an msi or a deb replaces an installed one only with a higher
+version. The tests run on Linux only, so the installers for Windows and macOS are built without a test run on those
 systems.
 
 ### Test tags
