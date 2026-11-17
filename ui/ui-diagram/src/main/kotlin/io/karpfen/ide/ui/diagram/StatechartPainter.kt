@@ -89,7 +89,7 @@ internal object StatechartPainter : DiagramPainter<StatechartDiagram, Statechart
         return mapOf(
             TextRole.TITLE to states.map { it.name } + listOfNotNull(diagram.title),
             TextRole.ROW to listOf(StatechartMetrics.LIMIT_WORD, StatechartMetrics.ENTRY_WORD, StatechartMetrics.DO_WORD, SHALLOW_MARK, DEEP_MARK) +
-                states.mapNotNull { state -> state.fragment?.takeIf { it.isNotEmpty() } },
+                states.mapNotNull(StatechartMetrics::pageText),
             TextRole.LABEL to diagram.edges().map { it.caption },
         )
     }
@@ -207,11 +207,12 @@ internal object StatechartPainter : DiagramPainter<StatechartDiagram, Statechart
 
     /**
      * Draws the row [row] of the container state [state]: the page mark and the name of its fragment, together in the
-     * middle of the row. A container state that names no fragment shows the mark alone.
+     * middle of the row. A container state that names no fragment shows [StatechartMetrics.NO_FRAGMENT] in place of the
+     * name.
      */
     private fun DrawScope.drawPageRow(state: StateNode, row: DiagramBox, texts: DiagramTexts, colors: KarpfenColors) {
         val unit = density
-        val fragment = state.fragment?.takeIf { it.isNotEmpty() }?.let { texts[TextRole.ROW, it] }
+        val fragment = StatechartMetrics.pageText(state)?.let { texts[TextRole.ROW, it] }
         val mark = StatechartMetrics.PAGE_MARK * unit
         val width = mark + if (fragment == null) 0f else StatechartMetrics.PAGE_GAP * unit + fragment.size.width
         val left = row.center.x * unit - width / 2f

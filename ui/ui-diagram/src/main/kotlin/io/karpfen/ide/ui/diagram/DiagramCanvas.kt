@@ -98,12 +98,10 @@ import kotlinx.coroutines.withContext
  * adding, renaming or deleting an element, and the entry that adds a waypoint to the line under the pointer or
  * removes the waypoint under it. Nothing changes until the user clicks an entry. Some entries need more first. One
  * that needs a box marks the boxes to choose from and waits for a click on one of them. One that needs a name shows
- * a field at the pointer. One that needs a choice among a few names shows them as a second menu at the same place,
- * between the entries of the choice that are no name, if it has any, such as one for no name at all above them. A
- * secondary click, or a click beside the boxes, gives such an action up. A change of the model is an edit of [source],
- * the text the diagram was derived from, and goes to [onChange], which answers whether the text took it. An entry that
- * leaves the diagram for another one, such as the page of a container state, goes to [onFollow] with the name the
- * model refers to.
+ * a field at the pointer. A secondary click, or a click beside the boxes, gives such an action up. A change of the
+ * model is an edit of [source], the text the diagram was derived from, and goes to [onChange], which answers whether
+ * the text took it. An entry that leaves the diagram for another one, such as the page of a container state, goes to
+ * [onFollow] with the name the model refers to.
  *
  * A double click with the primary button runs what [actions] give for a double click at that point, if anything. The
  * two presses must lie within the double click time of the platform and close to each other. The first click selects
@@ -228,15 +226,6 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
             is DiagramAction.Pick -> mode = CanvasMode.Picking(action, picked)
             is DiagramAction.Ask -> mode = CanvasMode.Asking(action, position)
             is DiagramAction.Open -> mode = CanvasMode.Editing(action.cell, position)
-            is DiagramAction.Choose -> {
-                mode = CanvasMode.Idle
-                fun entry(other: DiagramAction?) = other?.let { ContextMenuAction(it.label) { run(it, position) } }
-                val options = action.options.map { option ->
-                    ContextMenuAction(option) { run(faults.guard<DiagramAction?>("taking the choice", { null }) { action.next(option) }, position) }
-                }
-                val entries = listOfNotNull(entry(action.first)) + options + listOfNotNull(entry(action.last))
-                if (entries.isNotEmpty()) menu = MenuRequest(position, entries)
-            }
             is DiagramAction.Follow -> {
                 mode = CanvasMode.Idle
                 faults.attempt("opening ${action.name}") { follow(action.name) }

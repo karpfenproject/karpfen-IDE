@@ -272,18 +272,19 @@ class DiagramViewTest {
     }
 
     @Test
-    fun `a container state chooses another fragment in a second menu and opens its page`() = runComposeUiTest {
+    fun `a container state gets the name of its fragment typed in and opens its page`() = runComposeUiTest {
         val changes = ArrayList<DiagramChange>()
         val followed = ArrayList<String>()
         val state = stateOf(DiagramNotation.STATECHART, KarpfenLanguage.KSTATES, CONTAINER)
-        show(DiagramNotation.STATECHART, state, onChange = { changes += it }, fragments = listOf("bulb test", "switch test"), onFollow = { followed += it })
+        show(DiagramNotation.STATECHART, state, onChange = { changes += it }, onFollow = { followed += it })
         awaitDrawing()
 
         onNodeWithTag(DiagramViewTestTags.CANVAS).performMouseInput { rightClick(center) }
         waitForIdle()
         onNodeWithText("Set fragment").performClick()
         waitForIdle()
-        onNodeWithText("switch test").performClick()
+        onNodeWithTag(DiagramViewTestTags.ASK).performTextReplacement("switch test")
+        onNodeWithTag(DiagramViewTestTags.ASK).performKeyInput { pressKey(Key.Enter) }
         waitForIdle()
         assertEquals(listOf("switch test"), changes.single().edits.map { it.newText })
 
@@ -305,7 +306,6 @@ class DiagramViewTest {
         state: DiagramState<D>,
         onSave: (VisLayout) -> Unit = {},
         onChange: (DiagramChange) -> Unit = {},
-        fragments: List<String> = emptyList(),
         onFollow: (String) -> Unit = {},
         onSelect: (TextRange) -> Unit = {},
     ) {
@@ -316,7 +316,7 @@ class DiagramViewTest {
         }
         setContent {
             KarpfenTheme(darkTheme = false) {
-                DiagramView(notation, state, editing, onSelect = onSelect, onChange = change, fragments = fragments, onFollow = onFollow)
+                DiagramView(notation, state, editing, onSelect = onSelect, onChange = change, onFollow = onFollow)
             }
         }
         waitForIdle()

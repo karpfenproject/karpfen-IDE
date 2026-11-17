@@ -127,13 +127,22 @@ public object StatechartMetrics {
     public fun leafWidth(state: StateNode, text: TextMeasurer): Float =
         maxOf(text.widthOf(state.name) + 2 * NAME_PADDING, MIN_STATE_WIDTH, cellsWidth(state) + 2 * CELL_GAP, pageWidth(state, text) + 2 * NAME_PADDING)
 
+    /** What the row of a container state that names no fragment says in place of the name of the fragment. */
+    public const val NO_FRAGMENT: String = "No fragment set"
+
     /**
-     * The width of the row that names the fragment of [state]: the page mark and the name of the fragment, as wide as
-     * [text] says. It is 0 for a state that is no container state.
+     * What the row of the container state [state] says behind the page mark: the name of its fragment, or [NO_FRAGMENT]
+     * if it names none. It is null for a state that is no container state.
+     */
+    public fun pageText(state: StateNode): String? = state.fragment?.ifEmpty { NO_FRAGMENT }
+
+    /**
+     * The width of the row that names the fragment of [state]: the page mark and [pageText], as wide as [text] says.
+     * It is 0 for a state that is no container state.
      */
     public fun pageWidth(state: StateNode, text: TextMeasurer): Float {
-        val fragment = state.fragment ?: return 0f
-        return PAGE_MARK + if (fragment.isEmpty()) 0f else PAGE_GAP + text.widthOf(fragment)
+        val shown = pageText(state) ?: return 0f
+        return PAGE_MARK + PAGE_GAP + text.widthOf(shown)
     }
 
     /**

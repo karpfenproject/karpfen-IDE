@@ -42,15 +42,14 @@ import io.karpfen.ide.notation.diagram.statechart.TransitionKind
  *   the user clicks one after the other, and edit the macros as text.
  *
  * The pages of a state machine add their own entries. A container state is drawn without nested states, since it runs
- * a fragment as its inner states: it opens the diagram of that fragment, also on a double click, its fragment can be
- * set to one of [fragments] or to any name the user types, and it can become a plain state again. A container state
- * can be added on the canvas and inside a state, and a state without actions and inner states can become one, each with
- * a choice that starts with no fragment and goes on with [fragments]. A container state without a fragment is in error
- * until one is set, which is how a user often works: the container state first, then the fragment, then the two wired.
- * None of these entries depends on which fragments the project has. The choices leave out the fragment of the diagram
- * itself, since a fragment never uses itself. A fragment gets final states on its canvas. A transition or split that
- * leaves a container state, and a join of which a source is one, can wait for the end of the fragment with the clause
- * `DONE`, which is set and removed there.
+ * a fragment as its inner states: it opens the diagram of that fragment, also on a double click, its fragment is set to
+ * any name the user types, and it can become a plain state again. A container state is added on the canvas or inside a
+ * state with one click, and a state without actions and inner states becomes one the same way. Each is written without
+ * a fragment, and the diagram says so until one is set. The names are not checked against the files of the project,
+ * because a user often adds the container state first, creates the fragment after it and sets its name last.
+ * dsl-tools reports a container state without a fragment and a fragment that no file declares. A fragment gets final
+ * states on its canvas. A transition or split that leaves a container state, and a join of which a source is one, can
+ * wait for the end of the fragment with the clause `DONE`, which is set and removed there.
  *
  * What makes no sense for a kind of state is not offered: a container state has no actions and no states of its own,
  * and a final state has neither, no tick limit, no history, is never initial, stands only at the top level and is left
@@ -63,12 +62,8 @@ import io.karpfen.ide.notation.diagram.statechart.TransitionKind
  * can still be taken away. What the diagram shows of existing constructs does not depend on the features.
  *
  * @param switchedOn the optional language features of KStates that are switched on for the project.
- * @param fragments the names of the fragments of the project, which container states can use.
  */
-public class StatechartActions(
-    private val switchedOn: Set<KstatesFeature>,
-    private val fragments: List<String> = emptyList(),
-) : DiagramActions<StatechartDiagram, StatechartLayout> {
+public class StatechartActions(private val switchedOn: Set<KstatesFeature>) : DiagramActions<StatechartDiagram, StatechartLayout> {
 
     override fun at(source: String, diagram: StatechartDiagram, layout: StatechartLayout, point: DiagramPoint): List<DiagramAction> {
         val edge = (layout.labelAt(point) ?: layout.routeAt(point)?.edgeId)?.let(diagram::edge)
@@ -91,35 +86,14 @@ public class StatechartActions(
     private fun openPage(state: StateNode): DiagramAction? =
         state.fragment?.takeIf { it.isNotEmpty() }?.let { DiagramAction.Follow("Open page $it", it) }
 
-    /** The fragments a container state of [diagram] can use: all of [fragments] but the fragment of [diagram] itself. */
-    private fun usable(diagram: StatechartDiagram): List<String> =
-        fragments.filter { !(diagram.isFragment && it == diagram.name) }
-
     /**
-     * The entry [label] that writes a container state through [write], with a second menu that starts with
-     * [NO_FRAGMENT] and goes on with the fragments [options]. [NO_FRAGMENT] writes the container state without `USE`,
-     * for a fragment that does not exist yet.
+     * The entry that sets the fragment of the container state [state] to the name the user types, in a field that
+     * starts with the fragment of the state or empty. An empty name takes the fragment out.
      */
-    private fun choosingContainer(label: String, options: List<String>, write: (String?) -> DiagramChange?): DiagramAction.Choose =
-        DiagramAction.Choose(label, options, first = DiagramAction.Change(NO_FRAGMENT) { write(null) }) { fragment ->
-            DiagramAction.Change(label) { write(fragment) }
-        }
-
-    /**
-     * The entry that sets the fragment of the container state [state], with a second menu of the fragments [options]
-     * that ends with [ENTER_NAME]. [ENTER_NAME] asks for any name,
-     * starting with the fragment of the state or, without one, its own name, so a fragment can be named before a file
-     * declares it.
-     */
-    private fun settingFragment(source: String, diagram: StatechartDiagram, state: StateNode, options: List<String>): DiagramAction.Choose {
-        val initial = state.fragment?.takeIf { it.isNotEmpty() } ?: state.name
-        val typed = DiagramAction.Ask(ENTER_NAME, initial) { fragment ->
+    private fun settingFragment(source: String, diagram: StatechartDiagram, state: StateNode): DiagramAction =
+        DiagramAction.Ask(SET_FRAGMENT, state.fragment.orEmpty()) { fragment ->
             DiagramAction.Change(SET_FRAGMENT) { PageEdits.useFragment(source, diagram, state.name, fragment) }
         }
-        return DiagramAction.Choose(SET_FRAGMENT, options, last = typed) { fragment ->
-            DiagramAction.Change(SET_FRAGMENT) { PageEdits.useFragment(source, diagram, state.name, fragment) }
-        }
-    }
 
     /** The names of the states that can be the source of a transition, which are all but the final states. */
     private fun leavable(diagram: StatechartDiagram): Set<String> =
@@ -132,22 +106,19 @@ public class StatechartActions(
         val holders = diagram.allStates().filter { !it.isContainer && !it.isFinal }.map { it.name }.toSet()
         val newParents = holders - state.withDescendants().map { it.name }.toSet() - setOfNotNull(parent?.name)
         val holds = !state.isContainer && !state.isFinal
-        val usable = usable(diagram)
         val frame = if (state.isComposite) null else layout.states[name]
         return listOfNotNull(
             openPage(state),
             DiagramAction.Ask("Rename", name) { new -> DiagramAction.Change("Rename") { StatechartEdits.rename(source, diagram, name, new) } },
             DiagramAction.Open("Edit as text", ConstructCells.of(name, "State $name", source, state.range)),
-            settingFragment(source, diagram, state, usable - setOfNotNull(state.fragment)).takeIf { state.isContainer },
+            settingFragment(source, diagram, state).takeIf { state.isContainer },
             DiagramAction.Change("Make plain state") { PageEdits.makePlain(source, diagram, name) }.takeIf { state.isContainer },
-            choosingContainer("Make container state", usable) { fragment ->
-                PageEdits.makeContainer(source, diagram, name, fragment)
-            }.takeIf { PageEdits.canContain(state) },
+            DiagramAction.Change("Make container state") { PageEdits.makeContainer(source, diagram, name) }.takeIf { PageEdits.canContain(state) },
             DiagramAction.Change("Add inner state") {
                 StatechartEdits.addState(source, diagram, name, StatechartEdits.freshName(diagram), initial = false, at = point, parentFrame = frame)
             }.takeIf { holds },
-            choosingContainer("Add inner container state", usable) { fragment ->
-                PageEdits.addContainer(source, diagram, name, containerName(diagram, fragment), fragment, at = point, parentFrame = frame)
+            DiagramAction.Change("Add inner container state") {
+                PageEdits.addContainer(source, diagram, name, StatechartEdits.freshName(diagram, CONTAINER_NAME), at = point, parentFrame = frame)
             }.takeIf { holds },
             DiagramAction.Pick("Add transition from here", "Click the state the transition leads to.", all) { target ->
                 DiagramAction.Change("Add transition") { StatechartEdits.addTransition(source, diagram, name, target) }
@@ -238,7 +209,6 @@ public class StatechartActions(
     private fun onCanvas(source: String, diagram: StatechartDiagram, point: DiagramPoint): List<DiagramAction> {
         val all = diagram.allStates().map { it.name }.toSet()
         val starts = leavable(diagram)
-        val usable = usable(diagram)
         return listOfNotNull(
             DiagramAction.Change("Add state") {
                 StatechartEdits.addState(source, diagram, null, StatechartEdits.freshName(diagram), initial = false, at = point)
@@ -246,8 +216,8 @@ public class StatechartActions(
             DiagramAction.Change("Add initial state") {
                 StatechartEdits.addState(source, diagram, null, StatechartEdits.freshName(diagram), initial = true, at = point)
             }.takeIf { diagram.allStates().none { it.isInitial } },
-            choosingContainer("Add container state", usable) { fragment ->
-                PageEdits.addContainer(source, diagram, null, containerName(diagram, fragment), fragment, at = point)
+            DiagramAction.Change("Add container state") {
+                PageEdits.addContainer(source, diagram, null, StatechartEdits.freshName(diagram, CONTAINER_NAME), at = point)
             },
             DiagramAction.Change("Add final state") {
                 PageEdits.addFinal(source, diagram, StatechartEdits.freshName(diagram, FINAL_NAME), at = point)
@@ -283,20 +253,10 @@ public class StatechartActions(
         /** The name a final state gets when it is added, with a number behind it where that name is taken. */
         const val FINAL_NAME = "done"
 
-        /** The first entry of the second menu that writes a container state, which writes it without `USE`. */
-        const val NO_FRAGMENT = "No fragment"
-
         /** The entry of a container state that sets its fragment, whether it has one or not. */
         const val SET_FRAGMENT = "Set fragment"
 
-        /** The last entry of the second menu of [SET_FRAGMENT], which asks for the name of the fragment. */
-        const val ENTER_NAME = "Enter a name"
-
-        /** The name a new container state without a fragment gets, with a number behind it where that name is taken. */
+        /** The name a new container state gets, with a number behind it where that name is taken. */
         const val CONTAINER_NAME = "container"
     }
-
-    /** The name of a new container state that runs [fragment]: the name of the fragment, or [CONTAINER_NAME] for none. */
-    private fun containerName(diagram: StatechartDiagram, fragment: String?): String =
-        StatechartEdits.freshName(diagram, fragment ?: CONTAINER_NAME)
 }

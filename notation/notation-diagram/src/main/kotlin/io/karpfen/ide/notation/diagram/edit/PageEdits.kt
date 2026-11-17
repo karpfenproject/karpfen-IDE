@@ -33,9 +33,10 @@ import io.karpfen.ide.notation.diagram.text.TextBlocks
  *
  * The edits write what the language allows and nothing else: a final state only at the top level of a fragment, a
  * container state without actions and inner states, and `DONE` only on a transition or split that leaves a container
- * state or a join of which a source is one. A container state may be written without `USE`, because a user often adds
- * it before the fragment exists. dsl-tools reports such a state until a fragment is set, and that error is wanted.
- * Which fragments exist is the business of the caller, since a diagram shows one file.
+ * state or a join of which a source is one. A container state is written without `USE`, because a user often adds it
+ * before the fragment exists, and the name of its fragment is written as the user types it. Neither is checked against
+ * the files of the project, since a diagram shows one file. dsl-tools reports a container state without a fragment and
+ * a fragment that no file declares, and these errors are wanted until the fragment exists.
  */
 public object PageEdits {
 
@@ -50,31 +51,21 @@ public object PageEdits {
     private val HISTORY = Regex("""\b(SHALLOW|DEEP)\s+HISTORY\s+""")
 
     /**
-     * Adds the container state [name], which runs the fragment [fragment], at the top level or nested in the state
-     * [parent]. For a [fragment] of null the state has no `USE`, and a blank [fragment] adds nothing. [at] and
-     * [parentFrame] place it as [StatechartEdits.addState] places a state.
+     * Adds the container state [name] without a fragment, `CONTAINER STATE "name" { }`, at the top level or nested in the
+     * state [parent]. [at] and [parentFrame] place it as [StatechartEdits.addState] places a state.
      */
     public fun addContainer(
         text: String,
         diagram: StatechartDiagram,
         parent: String?,
         name: String,
-        fragment: String?,
         at: DiagramPoint? = null,
         parentFrame: DiagramBox? = null,
     ): DiagramChange? {
-        val use = useClause(fragment) ?: return null
         if (parent != null && diagram.state(parent)?.let { it.isContainer || it.isFinal } != false) return null
-        val statement = "$CONTAINER_STATE ${StatechartEdits.quoted(name)}$use { }"
+        val statement = "$CONTAINER_STATE ${StatechartEdits.quoted(name)} { }"
         return StatechartEdits.addStatement(text, diagram, parent, name, statement, at, parentFrame)
     }
-
-    /**
-     * What a container state writes behind its name for [fragment]: ` USE "fragment"`, nothing for null, and null for a
-     * blank name, which is no fragment the text can use.
-     */
-    private fun useClause(fragment: String?): String? =
-        if (fragment == null) "" else fragmentName(fragment)?.let { " $USE ${StatechartEdits.quoted(it)}" }
 
     /** Adds the final state [name] at the top level of a fragment. A state machine that is no fragment has none. */
     public fun addFinal(text: String, diagram: StatechartDiagram, name: String, at: DiagramPoint? = null): DiagramChange? {
@@ -86,24 +77,20 @@ public object PageEdits {
      * The name of a fragment as the text writes it after `USE`, from the name [typed] by the user: trimmed, and with a
      * `"` turned into `'`. Null for a name that is blank.
      */
-    public fun fragmentName(typed: String): String? = typed.trim().replace('"', '\'').takeIf { it.isNotEmpty() }
+    private fun fragmentName(typed: String): String? = typed.trim().replace('"', '\'').takeIf { it.isNotEmpty() }
 
     /**
-     * Makes the state [name] a container state that runs the fragment [fragment]: `CONTAINER` goes in front of `STATE`
-     * and `USE` with the fragment behind the name of the state. For a [fragment] of null no `USE` is written, and a
-     * blank [fragment] changes nothing. Everything else of the state stays as it is, its `INITIAL` mark, its history,
-     * its breakpoints, its tick limit and its transitions. Only a state that the language lets be a container state
+     * Makes the state [name] a container state without a fragment: `CONTAINER` goes in front of `STATE`, and nothing is
+     * written behind the name. Everything else of the state stays as it is, its `INITIAL` mark, its history, its
+     * breakpoints, its tick limit and its transitions. Only a state that the language lets be a container state
      * changes, which is a state that is neither a container state nor a final state and has no `ENTRY` or `DO` block
      * and no inner states.
      */
-    public fun makeContainer(text: String, diagram: StatechartDiagram, name: String, fragment: String?): DiagramChange? {
+    public fun makeContainer(text: String, diagram: StatechartDiagram, name: String): DiagramChange? {
         val state = diagram.state(name)?.takeIf(::canContain) ?: return null
-        val use = useClause(fragment) ?: return null
         val keyword = text.substring(state.range.start, state.nameRange.start).lastIndexOf(STATE).takeIf { it >= 0 } ?: return null
         val front = state.range.start + keyword
-        val behind = state.nameRange.end + 1
-        val edits = listOf(TextEdit(TextRange(front, front), "$CONTAINER "), TextEdit(TextRange(behind, behind), use))
-        return DiagramChange(edits.filter { it.newText.isNotEmpty() })
+        return DiagramChange(listOf(TextEdit(TextRange(front, front), "$CONTAINER ")))
     }
 
     /**
@@ -125,7 +112,7 @@ public object PageEdits {
         val words = listOfNotNull(HISTORY.find(header), CONTAINER_WORD.find(header)).map { match ->
             TextEdit(TextRange(state.range.start + match.range.first, state.range.start + match.range.last + 1), "")
         }
-        val use = state.fragmentRange?.let { TextEdit(TextRange(state.nameRange.end + 1, it.end + 1), "") }
+        val use = useRemoval(state)
         val done = diagram.transitions
             .filter { it.isDone && name in it.sources && !keepsDone(diagram, it, name) }
             .mapNotNull { removeDone(text, diagram, it.id)?.edits }
@@ -139,18 +126,26 @@ public object PageEdits {
             transition.sources.filter { it != plain }.mapNotNull(diagram::state).any { it.isContainer }
 
     /**
-     * Lets the container state [name] run the fragment [fragment]. Only the name after `USE` changes, or `USE` with the
-     * name is written behind the name of the state if the text has none yet.
+     * Lets the container state [name] run the fragment [fragment], whatever name it is. Only the name after `USE`
+     * changes, or `USE` with the name is written behind the name of the state if the text has none yet. A [fragment]
+     * that is blank takes `USE` with its name out, and the state is without a fragment again.
      */
     public fun useFragment(text: String, diagram: StatechartDiagram, name: String, fragment: String): DiagramChange? {
         val state = diagram.state(name)?.takeIf { it.isContainer } ?: return null
-        val chosen = fragmentName(fragment) ?: return null
+        val chosen = fragmentName(fragment) ?: return useRemoval(state)?.let { DiagramChange(listOf(it)) }
         if (chosen == state.fragment) return null
         val range = state.fragmentRange
         if (range != null) return DiagramChange(listOf(TextEdit(range, chosen)))
         val at = state.nameRange.end + 1
         return DiagramChange(listOf(TextEdit(TextRange(at, at), " $USE ${StatechartEdits.quoted(chosen)}")))
     }
+
+    /**
+     * The edit that takes `USE` with the name of the fragment out of the header of [state], from behind the name of the
+     * state to the quote that ends the name of the fragment, or null if the state has no `USE`.
+     */
+    private fun useRemoval(state: StateNode): TextEdit? =
+        state.fragmentRange?.let { TextEdit(TextRange(state.nameRange.end + 1, it.end + 1), "") }
 
     /**
      * True if the language allows `DONE` on the transition [id]: a transition or a split whose source is a container

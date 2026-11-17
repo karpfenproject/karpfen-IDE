@@ -38,16 +38,16 @@ class PageEditsTest {
     private val fragment = LampStateMachine.diagramOf(fragmentText)
 
     @Test
-    fun `a container state is added at the top level or inside a state, never inside a container state`() {
-        val top = read(applied(paged, assertNotNull(PageEdits.addContainer(paged, lamp, null, "second test", "bulb test"))))
-        val inner = read(applied(paged, assertNotNull(PageEdits.addContainer(paged, lamp, "on", "inner", "switch test"))))
+    fun `a container state is added without a fragment at the top level or inside a state, never inside a container state`() {
+        val top = applied(paged, assertNotNull(PageEdits.addContainer(paged, lamp, null, "second test")))
+        val inner = read(applied(paged, assertNotNull(PageEdits.addContainer(paged, lamp, "on", "inner"))))
 
-        assertEquals("bulb test", top.state("second test")?.fragment)
+        assertTrue("        CONTAINER STATE \"second test\" { }\n" in top, top)
+        assertEquals("", read(top).state("second test")?.fragment)
         assertEquals(listOf("check", "inner"), inner.state("on")?.children?.map { it.name })
-        assertEquals("switch test", inner.state("inner")?.fragment)
-        assertNull(PageEdits.addContainer(paged, lamp, "self test", "inner", "switch test"))
-        assertNull(PageEdits.addContainer(paged, lamp, null, "off", "bulb test"), "the name is taken")
-        assertNull(PageEdits.addContainer(paged, lamp, null, "free", " "))
+        assertEquals("", inner.state("inner")?.fragment)
+        assertNull(PageEdits.addContainer(paged, lamp, "self test", "inner"))
+        assertNull(PageEdits.addContainer(paged, lamp, null, "off"), "the name is taken")
     }
 
     @Test
@@ -67,49 +67,54 @@ class PageEditsTest {
         assertNull(PageEdits.useFragment(paged, lamp, "off", "bulb test"), "no container state")
 
         val bare = paged.replace("CONTAINER STATE \"check\" USE \"switch test\"", "CONTAINER STATE \"check\"")
-        val written = applied(bare, assertNotNull(PageEdits.useFragment(bare, read(bare), "check", "bulb test")))
-        assertTrue("INITIAL CONTAINER STATE \"check\" USE \"bulb test\" { }" in written, written)
+        val written = applied(bare, assertNotNull(PageEdits.useFragment(bare, read(bare), "check", " any \"name\" ")))
+        assertTrue("INITIAL CONTAINER STATE \"check\" USE \"any 'name'\" { }" in written, written)
     }
 
     @Test
-    fun `a state becomes a container state and keeps its mark, its history, its breakpoints and its tick limit`() {
+    fun `an empty name takes USE out, and a state without USE stays as it is`() {
+        val after = applied(paged, assertNotNull(PageEdits.useFragment(paged, lamp, "self test", "  ")))
+
+        assertTrue("SHALLOW HISTORY CONTAINER STATE \"self test\" {" in after, after)
+        assertEquals("", read(after).state("self test")?.fragment)
+        val bare = paged.replace("CONTAINER STATE \"check\" USE \"switch test\"", "CONTAINER STATE \"check\"")
+        assertNull(PageEdits.useFragment(bare, read(bare), "check", ""))
+    }
+
+    @Test
+    fun `a state becomes a container state without a fragment and keeps its mark, its history, its breakpoints and its tick limit`() {
         val text = paged.replace(
             "INITIAL STATE \"off\" { }",
             "INITIAL DEEP HISTORY STATE \"off\" {\n            BREAKPOINT { ENTRY }\n            TICK LIMIT { DELAY: 2 TICKS }\n        }",
         )
-        val after = applied(text, assertNotNull(PageEdits.makeContainer(text, read(text), "off", " wiring ")))
+        val after = applied(text, assertNotNull(PageEdits.makeContainer(text, read(text), "off")))
 
         assertTrue(
-            "INITIAL DEEP HISTORY CONTAINER STATE \"off\" USE \"wiring\" {\n            BREAKPOINT { ENTRY }\n            TICK LIMIT { DELAY: 2 TICKS }\n        }" in after,
+            "INITIAL DEEP HISTORY CONTAINER STATE \"off\" {\n            BREAKPOINT { ENTRY }\n            TICK LIMIT { DELAY: 2 TICKS }\n        }" in after,
             after,
         )
-        assertEquals(text, after.replace("CONTAINER STATE \"off\" USE \"wiring\"", "STATE \"off\""), "nothing else changes")
-        assertEquals("wiring", read(after).state("off")?.fragment)
+        assertEquals(text, after.replace("CONTAINER STATE \"off\"", "STATE \"off\""), "nothing else changes")
+        assertEquals("", read(after).state("off")?.fragment)
     }
 
     @Test
-    fun `a container state without a fragment has no USE and is the error of dsl-tools until one is set`() {
-        val added = applied(paged, assertNotNull(PageEdits.addContainer(paged, lamp, null, "later", null)))
-        val made = applied(paged, assertNotNull(PageEdits.makeContainer(paged, lamp, "off", null)))
+    fun `a container state without a fragment is the error of dsl-tools until one is set`() {
+        val made = applied(paged, assertNotNull(PageEdits.makeContainer(paged, lamp, "off")))
 
-        assertTrue("CONTAINER STATE \"later\" { }" in added, added)
-        assertTrue("INITIAL CONTAINER STATE \"off\" { }" in made, made)
-        assertEquals("", read(made).state("off")?.fragment)
         assertTrue(DslReader().kstates(TextSnapshot(made, 0)).diagnostics.any { it.code == "kstates.container-use" })
         val wired = applied(made, assertNotNull(PageEdits.useFragment(made, read(made), "off", "wiring")))
         assertTrue("INITIAL CONTAINER STATE \"off\" USE \"wiring\" { }" in wired, wired)
-        assertNull(PageEdits.addContainer(paged, lamp, null, "later", " "), "a blank name is no fragment")
+        assertTrue(DslReader().kstates(TextSnapshot(wired, 0)).diagnostics.none { it.code == "kstates.container-use" })
     }
 
     @Test
     fun `only a state without actions and inner states that is no container or final state becomes a container state`() {
         val acting = paged.replace("INITIAL STATE \"off\" { }", "INITIAL STATE \"off\" { ENTRY { } }")
 
-        assertNull(PageEdits.makeContainer(acting, read(acting), "off", "wiring"), "it has actions")
-        assertNull(PageEdits.makeContainer(paged, lamp, "on", "wiring"), "it has inner states")
-        assertNull(PageEdits.makeContainer(paged, lamp, "self test", "wiring"), "it is a container state")
-        assertNull(PageEdits.makeContainer(fragmentText, fragment, "passed", "wiring"), "it is a final state")
-        assertNull(PageEdits.makeContainer(paged, lamp, "off", "  "), "a blank name is no fragment")
+        assertNull(PageEdits.makeContainer(acting, read(acting), "off"), "it has actions")
+        assertNull(PageEdits.makeContainer(paged, lamp, "on"), "it has inner states")
+        assertNull(PageEdits.makeContainer(paged, lamp, "self test"), "it is a container state")
+        assertNull(PageEdits.makeContainer(fragmentText, fragment, "passed"), "it is a final state")
     }
 
     @Test

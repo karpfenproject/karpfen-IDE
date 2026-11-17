@@ -261,7 +261,6 @@ private fun EditorPane(state: WorkbenchState) {
     }
     val analysis = workspace?.analysis?.collectAsState()?.value
     val pages = remember(analysis) { analysis?.let(::ProjectFragments) }
-    val fragments = remember(pages) { pages?.names().orEmpty() }
     val pageUsers = remember(pages, active) {
         val file = active
         pages?.all()?.firstOrNull { it.path == file }?.let { pages.usersOf(it.name) }
@@ -292,7 +291,6 @@ private fun EditorPane(state: WorkbenchState) {
         languageFeatures = settings.languageFeatures,
         validation = ValidateButtonUiState(enabled = canValidate, busy = validating),
         onValidate = { state.validation.validate() },
-        fragments = fragments,
         onOpenPage = { name -> active?.let { state.openPage(it, name) } },
         pageUsers = pageUsers,
         onOpenUser = { user -> active?.let { state.openWithDiagram(user, it) } },

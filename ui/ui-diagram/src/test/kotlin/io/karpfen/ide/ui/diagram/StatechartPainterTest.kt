@@ -55,6 +55,13 @@ class StatechartPainterTest {
         assertTrue("bulb test" in user.getValue(TextRole.ROW), "$user")
     }
 
+    @Test
+    fun `a container state that names no fragment is measured with the text that says so`() {
+        val texts = StatechartPainter.texts(diagramOf("STATEMACHINE ATTACHED TO \"Lamp\" { STATES { INITIAL CONTAINER STATE \"check\" { } } }"))
+
+        assertTrue("No fragment set" in texts.getValue(TextRole.ROW), "$texts")
+    }
+
     private fun diagramOf(source: String): StatechartDiagram {
         val outcome = defaultLanguageRegistry().support(KarpfenLanguage.KSTATES).parser.parse(TextSnapshot(source, 0))
         return checkNotNull(StatechartProjection.of(source, outcome.outline))

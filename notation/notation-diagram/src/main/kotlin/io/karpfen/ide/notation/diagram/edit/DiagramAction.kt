@@ -39,10 +39,10 @@ public class DiagramChange(
 
 /**
  * Something a user can do at a point of a diagram. The view shows the actions of a point as the entries of a context
- * menu. Some actions need more from the user before they change anything: a click on another element, a choice among
- * names or a text. Such an action leads to the next one, and the last one of the chain is a [Change]. An [Open] shows
- * a piece of the model as text, so whatever the menu has no entry for can still be done in the diagram. A [Follow]
- * changes nothing and leaves the diagram for another one.
+ * menu. Some actions need more from the user before they change anything: a click on another element or a text. Such
+ * an action leads to the next one, and the last one of the chain is a [Change]. An [Open] shows a piece of the model as
+ * text, so whatever the menu has no entry for can still be done in the diagram. A [Follow] changes nothing and leaves
+ * the diagram for another one.
  */
 public sealed interface DiagramAction {
     /** What the entry of the menu says. */
@@ -75,25 +75,6 @@ public sealed interface DiagramAction {
      * @property cell the cell to open.
      */
     public class Open(override val label: String, public val cell: DiagramCell) : DiagramAction
-
-    /**
-     * Needs the user to choose one of a few names, such as the fragment a container state uses. The view shows them
-     * as a second menu.
-     *
-     * @property options the names to choose from, in the order the view shows them.
-     * @property first an action the second menu shows under its own label above the names, such as one for no name at
-     *   all, or null if there is none.
-     * @property last an action the second menu shows under its own label below the names, such as one that asks for a
-     *   name that is not among them, or null if there is none.
-     * @property next the action that follows for the name the user chose, or null if nothing follows.
-     */
-    public class Choose(
-        override val label: String,
-        public val options: List<String>,
-        public val first: DiagramAction? = null,
-        public val last: DiagramAction? = null,
-        public val next: (String) -> DiagramAction?,
-    ) : DiagramAction
 
     /**
      * Leaves the diagram for the diagram of another file, which the host of the view finds and opens. The diagram

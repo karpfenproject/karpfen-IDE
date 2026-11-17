@@ -89,10 +89,9 @@ import java.nio.file.Path
  * context menu of a statechart offers the constructs of the optional language features in [languageFeatures] only, the
  * features switched on for the project.
  *
- * A container state of a statechart can use one of [fragments], the fragments of the project. Opening the page of a
- * container state calls [onOpenPage] with the name of its fragment. The diagram of a fragment has a bar above it that
- * names [pageUsers], the files whose container states use it, and a click on one calls [onOpenUser]. [pageUsers] is
- * null for a file that is no fragment, which has no such bar.
+ * Opening the page of a container state calls [onOpenPage] with the name of its fragment. The diagram of a fragment
+ * has a bar above it that names [pageUsers], the files whose container states use it, and a click on one calls
+ * [onOpenUser]. [pageUsers] is null for a file that is no fragment, which has no such bar.
  *
  * The editor and its popups are drawn at the density of the window, not at the zoomed density of the workbench around
  * them. The size of the editor's text therefore depends only on its font size. The tab strip, the banner and the zoom
@@ -129,7 +128,6 @@ internal fun EditorArea(
     languageFeatures: Set<KstatesFeature> = emptySet(),
     validation: ValidateButtonUiState = ValidateButtonUiState(),
     onValidate: () -> Unit = {},
-    fragments: List<String> = emptyList(),
     onOpenPage: (String) -> Unit = {},
     pageUsers: List<Path>? = null,
     onOpenUser: (Path) -> Unit = {},
@@ -178,7 +176,6 @@ internal fun EditorArea(
                                     live = run?.live,
                                     cellEditor = cellEditor,
                                     languageFeatures = languageFeatures,
-                                    fragments = fragments,
                                     onSelect = onSelectInText,
                                     onLayoutSaved = onDiagramSaved,
                                     onFollow = onOpenPage,
