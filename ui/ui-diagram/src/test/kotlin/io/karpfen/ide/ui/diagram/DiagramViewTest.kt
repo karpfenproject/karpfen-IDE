@@ -222,6 +222,27 @@ class DiagramViewTest {
     }
 
     @Test
+    fun `Save in the head of a code cell takes a click when the mouse moves a little between press and release`() = runComposeUiTest {
+        val changes = ArrayList<DiagramChange>()
+        show(DiagramNotation.STATECHART, stateOf(DiagramNotation.STATECHART, KarpfenLanguage.KSTATES, WITH_ENTRY), onChange = { changes += it })
+        awaitDrawing()
+        onNodeWithTag(DiagramViewTestTags.CANVAS).performTouchInput { click(center + CELL_ROW) }
+        waitForIdle()
+        onNodeWithTag(DiagramViewTestTags.CELL_CODE).performTextReplacement("SET(\"mode\", \"lit\")")
+
+        onNodeWithTag(DiagramViewTestTags.CELL_SAVE).performMouseInput {
+            moveTo(center)
+            press()
+            moveBy(Offset(3f, 2f))
+            release()
+        }
+        waitForIdle()
+
+        assertEquals(listOf("{ SET(\"mode\", \"lit\") }"), changes.singleOrNull()?.edits?.map { it.newText })
+        onNodeWithTag(DiagramViewTestTags.CELL).assertDoesNotExist()
+    }
+
+    @Test
     fun `the opened code cell is sized by its corner and moved by its head`() = runComposeUiTest {
         show(DiagramNotation.STATECHART, stateOf(DiagramNotation.STATECHART, KarpfenLanguage.KSTATES, WITH_ENTRY))
         awaitDrawing()

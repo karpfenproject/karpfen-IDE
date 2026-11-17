@@ -92,9 +92,13 @@ internal sealed interface CanvasMode {
  * the diagram handed in, or in a plain text field without one. Save, or Enter with Ctrl or Cmd, hands the code to
  * [onSave]. Close calls [onClose] and drops what was typed, and so does Escape in the plain field.
  *
- * The pane is moved by dragging its head and sized by dragging one of its sides or corners. It starts as large as
- * [size] says, which is null for the usual size, and reports every new size to [onSize], so the next cell opens as
- * large as the user left this one.
+ * The pane is moved by dragging the title in its head and sized by dragging one of its sides or corners. It starts as
+ * large as [size] says, which is null for the usual size, and reports every new size to [onSize], so the next cell
+ * opens as large as the user left this one.
+ *
+ * Only the title takes the drag. A drag on the whole head would be an ancestor of Save and Close and would see their
+ * presses too. Once the mouse moved by a fraction of a point during such a click, the drag would start and consume
+ * the move, and Compose cancels a click whose move someone else consumed.
  */
 @Composable
 internal fun CodeCellPane(
@@ -139,20 +143,22 @@ internal fun CodeCellPane(
                     }
                 },
         ) {
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .pointerInput(cell.key) {
-                        detectDragGestures { change, drag ->
-                            change.consume()
-                            frame = frame.moved(drag.x, drag.y)
+            Row(Modifier.fillMaxWidth().padding(end = 6.dp).testTag(DiagramViewTestTags.CELL_HEAD), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    cell.title,
+                    color = colors.textMuted,
+                    style = KarpfenTheme.typography.uiSmall,
+                    maxLines = 1,
+                    modifier = Modifier
+                        .weight(1f)
+                        .pointerInput(cell.key) {
+                            detectDragGestures { change, drag ->
+                                change.consume()
+                                frame = frame.moved(drag.x, drag.y)
+                            }
                         }
-                    }
-                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                    .testTag(DiagramViewTestTags.CELL_HEAD),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(cell.title, color = colors.textMuted, style = KarpfenTheme.typography.uiSmall, maxLines = 1, modifier = Modifier.weight(1f))
+                        .padding(horizontal = 6.dp, vertical = 4.dp),
+                )
                 CellButton("Save", DiagramViewTestTags.CELL_SAVE) { onSave(edited) }
                 CellButton("Close", DiagramViewTestTags.CELL_CLOSE, onClose)
             }
