@@ -63,7 +63,7 @@ tasks.withType<Test>().configureEach {
  *
  * jpackage on macOS turns the version into `CFBundleVersion` and rejects a major version of 0 with "the first number
  * in app-version cannot be zero or negative". The Compose plugin does not check this. So Msi and Deb carry the version
- * 0.2.1, and the macOS app image and the dmg carry 1.1.1, one major number higher and one minor number lower, until the
+ * 0.3.0, and the macOS app image and the dmg carry 1.2.0, one major number higher and one minor number lower, until the
  * product reaches 1.x.
  *
  * On macOS the Dock names a JVM "java" unless the `-Xdock:name` option on its command line says otherwise. A system
@@ -87,11 +87,11 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "karpfen-ide"
-            packageVersion = "0.2.1"
+            packageVersion = "0.3.0"
             modules("java.instrument", "jdk.unsupported", "jdk.httpserver", "java.net.http")
             macOS {
-                packageVersion = "1.1.1"
-                dmgPackageVersion = "1.1.1"
+                packageVersion = "1.2.0"
+                dmgPackageVersion = "1.2.0"
                 dockName = "Karpfen IDE"
                 iconFile.set(layout.projectDirectory.file("src/main/packaging/karpfen-ide.icns"))
             }
