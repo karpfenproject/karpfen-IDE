@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.ui.workbench.templates
 
+import io.karpfen.ide.core.document.environment.EnvironmentDefaults
 import io.karpfen.ide.core.document.environment.EnvironmentDescriptor
 import io.karpfen.ide.core.document.environment.EnvironmentSchema
 import io.karpfen.ide.core.workspace.analysis.AttachmentCandidate
@@ -31,7 +32,9 @@ import java.nio.file.Path
  * completion ranks by. If no object is proposed, the machine is attached to [PLACEHOLDER_OBJECT]. An attachable state
  * machine or a fragment, one of `TemplateContext.definitions`, is listed without `attachedTo`. When the state
  * machines use event domains, an `observe` section watches every object through [EnvironmentSchema.EVERY_OBJECT] and
- * lists those domains. Without a context, the descriptor names files after itself.
+ * lists those domains. Without a context, the descriptor names files after itself. The descriptor always holds
+ * `tickDelayMs` with the IDE's default [EnvironmentDefaults.TICK_DELAY_MS], so a modeler finds the key in the new file
+ * and changes the value there. It leaves out `eventTtlMs`, which then has its default.
  *
  * The descriptor is the typed `EnvironmentDescriptor`, encoded with kotlinx.serialization. The environment schema is
  * derived from that class. Its keys are therefore the schema's keys, every name is a correctly escaped JSON string,
@@ -65,6 +68,7 @@ internal object EnvironmentTemplate {
             stateMachines = machines.map { file ->
                 EnvironmentDescriptor.StateMachineEntry(relative(file), attachedTo(file, context).takeUnless { file in context.definitions })
             },
+            tickDelayMs = EnvironmentDefaults.TICK_DELAY_MS,
             observe = context.eventDomains.takeIf { it.isNotEmpty() }?.let {
                 EnvironmentDescriptor.ObserveSpec(EnvironmentSchema.EVERY_OBJECT, it)
             },

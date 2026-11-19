@@ -19,6 +19,7 @@ import io.karpfen.ide.core.document.DiagnosticSource
 import io.karpfen.ide.core.document.Severity
 import io.karpfen.ide.core.document.fixtures.DescriptorExamples
 import io.karpfen.ide.core.document.fixtures.Examples
+import io.karpfen.ide.core.document.environment.EnvironmentDefaults
 import io.karpfen.ide.core.document.environment.EnvironmentDescriptor
 import io.karpfen.ide.ui.workbench.dialog.DialogRequest
 import io.karpfen.ide.ui.workbench.dialog.DialogResponse
@@ -104,6 +105,7 @@ class CreateFileFlowTest {
         assertEquals("cleaning_robot.kmodel", written.model)
         val attached = EnvironmentDescriptor.StateMachineEntry("cleaning_robot.kstates", DescriptorExamples.ATTACHED_TO)
         assertEquals(listOf(attached), written.stateMachines)
+        assertEquals(EnvironmentDefaults.TICK_DELAY_MS to null, written.tickDelayMs to written.eventTtlMs, "the default tick delay only")
         assertEquals(EnvironmentDescriptor.ObserveSpec("*", listOf("public")), written.observe, "the domains of the state machine")
         assertEquals(descriptor, state.tabs.active.value, "the new descriptor opens in the IDE")
 

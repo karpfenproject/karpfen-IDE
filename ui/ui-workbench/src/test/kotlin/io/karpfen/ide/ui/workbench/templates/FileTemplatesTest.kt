@@ -16,6 +16,7 @@
 package io.karpfen.ide.ui.workbench.templates
 
 import io.karpfen.ide.core.document.KarpfenLanguage
+import io.karpfen.ide.core.document.environment.EnvironmentDefaults
 import io.karpfen.ide.core.document.environment.EnvironmentDescriptor
 import io.karpfen.ide.core.document.environment.EnvironmentSchema
 import io.karpfen.ide.core.document.registry.defaultLanguageRegistry
@@ -150,6 +151,7 @@ class FileTemplatesTest {
                     EnvironmentDescriptor.StateMachineEntry("cleaning_robot.kstates", "turtle"),
                     EnvironmentDescriptor.StateMachineEntry("sub/x.kstates", "APB 2101"),
                 ),
+                tickDelayMs = EnvironmentDefaults.TICK_DELAY_MS,
             ),
             descriptor,
             "attached by type, else to the first object",
@@ -183,7 +185,15 @@ class FileTemplatesTest {
 
         assertEquals(EnvironmentDescriptor.ObserveSpec(EnvironmentSchema.EVERY_OBJECT, listOf("internal", "public")), descriptor.observe)
         val text = templates.content(FileTemplateKind.ENVIRONMENT, "lab", TemplateContext(directory))
-        assertTrue("observe" !in text && "events" !in text && "null" !in text, "keys left at their defaults are omitted: $text")
+        assertTrue("observe" !in text && "events" !in text && "eventTtlMs" !in text && "null" !in text, "keys left at their defaults are omitted: $text")
+    }
+
+    @Test
+    fun `the environment template writes the default tick delay between the state machines and observe`() {
+        val text = templates.content(FileTemplateKind.ENVIRONMENT, "lab", TemplateContext(directory, eventDomains = listOf("public")))
+        val tickDelay = text.indexOf("\"tickDelayMs\": ${EnvironmentDefaults.TICK_DELAY_MS},\n")
+
+        assertTrue(tickDelay > text.indexOf("\"stateMachines\"") && tickDelay < text.indexOf("\"observe\""), text)
     }
 
     @Test
@@ -193,6 +203,7 @@ class FileTemplatesTest {
             EnvironmentDescriptor(
                 "lab.kmeta", null, "lab.kmodel",
                 listOf(EnvironmentDescriptor.StateMachineEntry("lab.kstates", EnvironmentTemplate.PLACEHOLDER_OBJECT)),
+                tickDelayMs = EnvironmentDefaults.TICK_DELAY_MS,
             ),
             descriptor,
         )
