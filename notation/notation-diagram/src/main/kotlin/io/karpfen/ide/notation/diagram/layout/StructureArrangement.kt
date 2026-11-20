@@ -55,6 +55,13 @@ public object StructureArrangement : DiagramArrangement<StructureDiagram, Struct
         return VisLayout(boxes = layout.boxes.mapValues { DiagramGrid.snap(it.value.center) }, waypoints = waypoints.toMap())
     }
 
+    /**
+     * [vis] with the middle of every box of [layout] that it has no place for. Nothing else of the layout by hand
+     * depends on whether a box has a stored place, so the picture stays the same.
+     */
+    override fun completed(diagram: StructureDiagram, vis: VisLayout, layout: StructureLayout): VisLayout =
+        vis.withPlacesFor(freeze(diagram, layout).boxes)
+
     /** True if the straight line through [points] runs about where a line by hand from [source] to [target] would. */
     private fun isCentred(points: List<DiagramPoint>, source: DiagramBox, target: DiagramBox): Boolean {
         if (points.size < 2) return true

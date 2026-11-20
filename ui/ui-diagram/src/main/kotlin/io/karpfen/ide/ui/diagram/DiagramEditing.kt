@@ -35,9 +35,12 @@ import io.karpfen.ide.notation.diagram.layout.VisLayout
  * the kind of diagram at hand is the business of the [arrangement].
  *
  * The first change by hand freezes the layout on screen, so every element keeps its place and from then on nothing is
- * laid out automatically any more, except elements that are new in the text. A drag moves a waypoint, the label of a
- * line, a side or corner of a box that can be sized, a bar or a box, whichever lies under the pointer, in this order. A secondary click offers to remove the waypoint under the pointer
- * or to add one to the line under it. The change is made when the user takes the offer in the context menu.
+ * laid out automatically any more, except elements that are new in the text. Each later change by hand first fixes
+ * those where they are drawn, so they are moved like any other element and stay put while others move.
+ *
+ * A drag moves a waypoint, the label of a line, a side or corner of a box that can be sized, a bar or a box, whichever
+ * lies under the pointer, in this order. A secondary click offers to remove the waypoint under the pointer or to add
+ * one to the line under it. The change is made when the user takes the offer in the context menu.
  *
  * The layout follows the text. When the diagram changes because the text changed, [follow] carries the layout over,
  * so an element that was renamed in the text keeps its place.
@@ -98,7 +101,7 @@ internal class DiagramEditing<D, L : DiagramLayout>(
             ?: layout.barAt(point)?.let(Target::Bar)
             ?: layout.boxAt(point)?.let(Target::Box)
             ?: return false
-        val base = current ?: arrangement.frozen(diagram, layout, measurer)
+        val base = byHandBase(diagram, layout)
         drag = Drag(target, base, current, point)
         vis = base
         isDragging = true
@@ -128,13 +131,14 @@ internal class DiagramEditing<D, L : DiagramLayout>(
 
     /**
      * Takes in what the [change] of the text, which was just made through the [diagram] drawn as [layout], means for
-     * the layout by hand. A change that arranges fixes the layout on screen first. The result is saved once the
-     * diagram of the changed text is there, which [diagramChanged] tells, because only that diagram knows the new
-     * elements.
+     * the layout by hand. A change that arranges fixes the layout on screen first, also the elements of a layout by
+     * hand that have no stored place yet, because the element it places could otherwise shift them. A change that
+     * does not arrange only carries an existing layout by hand along. The result is saved once the diagram of the
+     * changed text is there, which [diagramChanged] tells, because only that diagram knows the new elements.
      */
     fun changed(diagram: D, layout: L, change: DiagramChange) {
         val transform = change.layout ?: return
-        val base = vis ?: if (change.arranges) arrangement.frozen(diagram, layout, measurer) else return
+        val base = if (change.arranges) byHandBase(diagram, layout) else vis ?: return
         val next = transform(base)
         vis = next
         unsaved = next
@@ -185,13 +189,24 @@ internal class DiagramEditing<D, L : DiagramLayout>(
         val current = vis
         val waypoint = current?.let { VisEditing.waypointAt(it, arrangement.lines(diagram), point) }
         if (current != null && waypoint != null) {
-            return DiagramOffer(REMOVE_WAYPOINT) { store(diagram, VisEditing.removeWaypoint(current, waypoint.first, waypoint.second)) }
+            return DiagramOffer(REMOVE_WAYPOINT) {
+                store(diagram, VisEditing.removeWaypoint(byHandBase(diagram, layout, current), waypoint.first, waypoint.second))
+            }
         }
         val line = layout.lineAt(point, DiagramLayout.HIT_TOLERANCE) ?: return null
         return DiagramOffer(ADD_WAYPOINT) {
-            store(diagram, VisEditing.addWaypoint(current ?: arrangement.frozen(diagram, layout, measurer), line.id, point, line.points))
+            store(diagram, VisEditing.addWaypoint(byHandBase(diagram, layout, current), line.id, point, line.points))
         }
     }
+
+    /**
+     * The layout a change by hand of the [diagram] drawn as [layout] starts from. Without a layout by hand, [current],
+     * it is the layout on screen fixed as it is. With one, it is [current] with every box that is drawn but has no
+     * stored place fixed where it is drawn, so an element that is new in the text can be moved like any other and
+     * stays where it is while other elements move. Neither changes the picture.
+     */
+    private fun byHandBase(diagram: D, layout: L, current: VisLayout? = vis): VisLayout =
+        current?.let { arrangement.completed(diagram, it, layout) } ?: arrangement.frozen(diagram, layout, measurer)
 
     /** Takes in the layout [read] from the companion file, which is null if there is no such file. */
     fun loaded(read: VisLayout?) {

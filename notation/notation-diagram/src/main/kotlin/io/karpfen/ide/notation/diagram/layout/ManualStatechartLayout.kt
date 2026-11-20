@@ -97,6 +97,14 @@ public object ManualStatechartLayout {
         return layout.copy(width = bounds.right + StatechartMetrics.MARGIN, height = bounds.bottom + StatechartMetrics.MARGIN)
     }
 
+    /**
+     * True if [vis] places [state] by hand: a state without nested states if it has a stored place, a state with
+     * nested states if one of them is placed by hand. Every other state is new and is placed in a row, and only a
+     * state placed by hand is drawn at least as large as its stored frame.
+     */
+    internal fun isStored(state: StateNode, vis: VisLayout): Boolean =
+        if (state.isComposite) state.children.any { isStored(it, vis) } else state.name in vis.boxes
+
     /** The box of a bar with its middle at [center]. */
     internal fun barOf(center: DiagramPoint): DiagramBox = DiagramBox(
         center.x - StatechartMetrics.BAR_LENGTH / 2f,
@@ -178,7 +186,7 @@ public object ManualStatechartLayout {
          */
         fun place(siblings: List<StateNode>, origin: DiagramPoint): DiagramBox? {
             val states = siblings.distinctBy { it.name }.filter { it.name !in boxes }
-            val (stored, new) = states.partition(::isStored)
+            val (stored, new) = states.partition { isStored(it, vis) }
             val placed = stored.map(::placeStored).toMutableList()
             var left = placed.maxOfOrNull { it.right + StatechartMetrics.GAP } ?: origin.x
             val top = placed.minOfOrNull { it.y } ?: origin.y
@@ -189,10 +197,6 @@ public object ManualStatechartLayout {
             }
             return placed.reduceOrNull(DiagramBox::union)
         }
-
-        /** True if [state] or a state nested in it has a stored place. */
-        private fun isStored(state: StateNode): Boolean =
-            if (state.isComposite) state.children.any(::isStored) else state.name in vis.boxes
 
         private fun placeStored(state: StateNode): DiagramBox {
             val box = if (state.isComposite) {

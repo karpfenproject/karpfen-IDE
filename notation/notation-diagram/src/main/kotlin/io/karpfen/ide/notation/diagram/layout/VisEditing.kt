@@ -20,7 +20,7 @@ import io.karpfen.ide.notation.diagram.statechart.TransitionKind
 
 /**
  * The changes a user makes to the layout of a diagram by hand. The changes of waypoints and bars serve every kind of
- * diagram. [freeze], [moveState] and [prune] are those of a statechart. Every function takes a [VisLayout] and returns a
+ * diagram. [freeze], [completed], [moveState] and [prune] are those of a statechart. Every function takes a [VisLayout] and returns a
  * new one, so a view can try a change while the pointer moves and keep or drop the result.
  *
  * The first change by hand starts from [freeze], which turns the layout on screen, usually the automatic one, into a
@@ -50,6 +50,23 @@ public object VisEditing {
             .mapNotNull { state -> layout.states[state.name]?.let { state.name to snapped(it) } }
             .toMap(),
     )
+
+    /**
+     * [vis] with the middle of every state without nested states that [layout], the layout by hand of [diagram] as it
+     * is drawn, places but [vis] has no place for. A state with nested states gets no place and keeps following the
+     * states inside it.
+     *
+     * A state with nested states of which none has a place is drawn by the layout by hand like a new state, at the
+     * least size around them, and a frame that [vis] holds for it is not in effect. Such a frame is left over from
+     * nested states that were replaced in the text. Once the nested states have places, the state counts as stored
+     * and its frame would take effect, which would make it larger without the user doing anything. So that frame is
+     * dropped, and the picture stays the same.
+     */
+    public fun completed(diagram: StatechartDiagram, vis: VisLayout, layout: StatechartLayout): VisLayout {
+        val stale = vis.frames.keys.filter { name -> diagram.state(name)?.let { !ManualStatechartLayout.isStored(it, vis) } ?: false }
+        val placed = vis.withPlacesFor(freeze(diagram, layout).boxes)
+        return if (stale.isEmpty()) placed else placed.copy(frames = placed.frames - stale.toSet())
+    }
 
     /** [box] with its four sides moved onto the grid. */
     private fun snapped(box: DiagramBox): DiagramBox {

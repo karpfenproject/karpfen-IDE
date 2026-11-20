@@ -24,7 +24,8 @@ import io.karpfen.ide.core.text.TextRange
  *
  * A diagram starts with the [automatic] layout. The first change by hand turns the layout on screen into a
  * [VisLayout] with [freeze]. From then on the diagram is drawn [byHand], and nothing is placed automatically any more
- * except elements that are new in the text.
+ * except elements that are new in the text. Every later change by hand first fixes those where they are drawn with
+ * [completed].
  *
  * @param D the diagram, as it is derived from the text.
  * @param L the layout of that kind of diagram.
@@ -41,6 +42,19 @@ public interface DiagramArrangement<D, L : DiagramLayout> {
 
     /** The [layout] of [diagram] as a [VisLayout] with every element in it, all on the grid. */
     public fun freeze(diagram: D, layout: L): VisLayout
+
+    /**
+     * [vis] with a stored place for every box that [layout], the layout by hand of [diagram] as it is drawn, places
+     * but [vis] has no place for. Such a box stands for an element that is new in the text since [vis] was made. The
+     * layout by hand puts it in a row beside the stored boxes, so it has no place of its own: it cannot be moved, and
+     * it moves whenever a stored box that defines the row moves. Fixing it where it is drawn makes it an element like
+     * any other. The boxes that get a place are those that [freeze] stores for [layout].
+     *
+     * The picture stays the same: [byHand] draws the result exactly as [layout]. Whatever of [vis] is not in effect
+     * in [layout] and would come into effect once the new boxes have places is dropped, because a change by hand
+     * must not change more than what the user changed. A [vis] that needs nothing is given back as it is.
+     */
+    public fun completed(diagram: D, vis: VisLayout, layout: L): VisLayout
 
     /** [vis] with the box [box] of [diagram] moved by [delta], together with everything that belongs to it. */
     public fun moveBox(diagram: D, vis: VisLayout, box: String, delta: DiagramPoint): VisLayout

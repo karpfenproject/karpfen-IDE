@@ -41,6 +41,9 @@ public object StatechartArrangement : DiagramArrangement<StatechartDiagram, Stat
 
     override fun freeze(diagram: StatechartDiagram, layout: StatechartLayout): VisLayout = VisEditing.freeze(diagram, layout)
 
+    override fun completed(diagram: StatechartDiagram, vis: VisLayout, layout: StatechartLayout): VisLayout =
+        VisEditing.completed(diagram, vis, layout)
+
     override fun moveBox(diagram: StatechartDiagram, vis: VisLayout, box: String, delta: DiagramPoint): VisLayout =
         VisEditing.moveState(diagram, vis, box, delta)
 

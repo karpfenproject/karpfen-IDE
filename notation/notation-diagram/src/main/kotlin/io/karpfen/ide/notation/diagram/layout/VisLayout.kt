@@ -55,7 +55,16 @@ public data class VisLayout(
     public val waypoints: Map<String, List<DiagramPoint>> = emptyMap(),
     public val labels: Map<String, DiagramPoint> = emptyMap(),
     public val frames: Map<String, DiagramBox> = emptyMap(),
-)
+) {
+    /**
+     * This layout with the places of [places] for the boxes it has no place for. A box that has a place keeps it. The
+     * same layout is given back if nothing is added.
+     */
+    public fun withPlacesFor(places: Map<String, DiagramPoint>): VisLayout {
+        val missing = places.filterKeys { it !in boxes }
+        return if (missing.isEmpty()) this else copy(boxes = boxes + missing)
+    }
+}
 
 /**
  * The text of a `.vis` file. It is JSON, so other tools can read and write it:

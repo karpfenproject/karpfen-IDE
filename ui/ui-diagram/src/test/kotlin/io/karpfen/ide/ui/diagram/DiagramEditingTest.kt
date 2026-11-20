@@ -24,10 +24,13 @@ import io.karpfen.ide.notation.diagram.layout.ManualStatechartLayout
 import io.karpfen.ide.notation.diagram.layout.StatechartArrangement
 import io.karpfen.ide.notation.diagram.layout.StatechartLayout
 import io.karpfen.ide.notation.diagram.layout.StatechartLayouter
+import io.karpfen.ide.notation.diagram.layout.StructureArrangement
 import io.karpfen.ide.notation.diagram.layout.TextMeasurer
 import io.karpfen.ide.notation.diagram.layout.VisLayout
 import io.karpfen.ide.notation.diagram.statechart.StatechartDiagram
 import io.karpfen.ide.notation.diagram.statechart.StatechartProjection
+import io.karpfen.ide.notation.diagram.structure.MetamodelProjection
+import io.karpfen.ide.notation.diagram.structure.StructureDiagram
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -225,7 +228,146 @@ class DiagramEditingTest {
         assertNull(editing.vis, "once the change is on disk, the file counts again, also when it was deleted")
     }
 
+    @Test
+    fun `a state that is new after the layout by hand can be dragged like any other, and nothing else moves`() {
+        val grown = diagramOf(GROWN)
+        editing.loaded(STORED)
+        val before = ManualStatechartLayout.of(grown, STORED, text)
+        val idle = before.states.getValue("idle").center
+
+        assertTrue(editing.startDrag(grown, before, idle))
+        editing.dragTo(grown, DiagramPoint(idle.x + 41f, idle.y + 19f))
+        editing.endDrag(grown)
+
+        val vis = saved.single()
+        assertEquals(DiagramPoint(idle.x + 40f, idle.y + 20f), vis.boxes["idle"])
+        val after = ManualStatechartLayout.of(grown, vis, text)
+        assertEquals(DiagramPoint(idle.x + 40f, idle.y + 20f), after.states.getValue("idle").center)
+        assertEquals(before.states - "idle", after.states - "idle", "nothing else moves")
+    }
+
+    @Test
+    fun `a state that is new after the layout by hand stays where it is drawn while a stored state is dragged`() {
+        val grown = diagramOf(GROWN)
+        editing.loaded(STORED)
+        val before = ManualStatechartLayout.of(grown, STORED, text)
+        val on = before.states.getValue("on").center
+
+        assertTrue(editing.startDrag(grown, before, on))
+        editing.dragTo(grown, DiagramPoint(on.x + 100f, on.y + 60f))
+        assertEquals(before.states.getValue("idle"), ManualStatechartLayout.of(grown, assertNotNull(editing.vis), text).states.getValue("idle"))
+        editing.endDrag(grown)
+
+        val vis = saved.single()
+        assertEquals(before.states.getValue("idle").center, vis.boxes["idle"], "the saved layout holds the new state")
+        assertEquals(before.states.getValue("idle"), ManualStatechartLayout.of(grown, vis, text).states.getValue("idle"))
+    }
+
+    @Test
+    fun `a drag of a new state that moves nothing leaves the layout as it was and saves nothing`() {
+        val grown = diagramOf(GROWN)
+        editing.loaded(STORED)
+        val idle = ManualStatechartLayout.of(grown, STORED, text).states.getValue("idle").center
+
+        editing.startDrag(grown, ManualStatechartLayout.of(grown, STORED, text), idle)
+        editing.dragTo(grown, DiagramPoint(idle.x + 2f, idle.y + 1f))
+        editing.endDrag(grown)
+
+        assertEquals(STORED, editing.vis)
+        assertEquals(emptyList(), saved)
+    }
+
+    @Test
+    fun `a change that places a state right of a new one leaves the new one where it is drawn and saves its place`() {
+        val grown = diagramOf(GROWN)
+        editing.loaded(STORED)
+        val before = ManualStatechartLayout.of(grown, STORED, text)
+        val idle = before.states.getValue("idle")
+        val farRight = DiagramPoint(idle.right + 200f, idle.center.y)
+        val change = assertNotNull(StatechartEdits.addState(GROWN, grown, null, "extra", initial = false, at = farRight))
+        val after = diagramOf(GROWN.replace("STATE \"idle\" { }", "STATE \"idle\" { }\n        STATE \"extra\" { }"))
+
+        editing.changed(grown, before, change)
+        editing.diagramChanged(after)
+
+        val vis = saved.single()
+        assertEquals(idle, ManualStatechartLayout.of(after, vis, text).states.getValue("idle"), "the new state does not jump")
+        assertEquals(idle.center, vis.boxes["idle"], "the saved layout holds the new state")
+    }
+
+    @Test
+    fun `adding a waypoint while a new state has no place saves the place where the state is drawn`() {
+        val grown = diagramOf(GROWN)
+        editing.loaded(STORED)
+        val before = ManualStatechartLayout.of(grown, STORED, text)
+        val line = before.routes.single { it.edgeId == "NORMAL:off->on#1" }.points
+        val onLine = DiagramPoint((line[0].x + line[1].x) / 2f, (line[0].y + line[1].y) / 2f)
+
+        val add = assertNotNull(editing.offerAt(grown, before, onLine))
+        assertEquals(DiagramEditing.ADD_WAYPOINT, add.label)
+        add.take()
+
+        val vis = saved.single()
+        assertEquals(before.states.getValue("idle").center, vis.boxes["idle"], "the saved layout holds the new state")
+        assertEquals(before.states.getValue("idle"), ManualStatechartLayout.of(grown, vis, text).states.getValue("idle"))
+    }
+
+    @Test
+    fun `removing a waypoint while a new state has no place saves the place where the state is drawn`() {
+        val grown = diagramOf(GROWN)
+        val bent = STORED.copy(waypoints = mapOf("NORMAL:off->on#1" to listOf(DiagramPoint(200f, 160f))))
+        editing.loaded(bent)
+        val before = ManualStatechartLayout.of(grown, bent, text)
+
+        val remove = assertNotNull(editing.offerAt(grown, before, DiagramPoint(200f, 160f)))
+        assertEquals(DiagramEditing.REMOVE_WAYPOINT, remove.label)
+        remove.take()
+
+        val vis = saved.single()
+        assertEquals(emptyMap(), vis.waypoints)
+        assertEquals(before.states.getValue("idle").center, vis.boxes["idle"], "the saved layout holds the new state")
+    }
+
+    @Test
+    fun `a type that is new after the layout by hand can be dragged like any other, and nothing else moves`() {
+        val types = typesOf(TYPES)
+        val editing = DiagramEditing(StructureArrangement) { saved += it }
+        editing.loaded(STORED_TYPES)
+        val before = StructureArrangement.byHand(types, STORED_TYPES, text)
+        val switch = before.boxes.getValue("Switch").center
+
+        assertTrue(editing.startDrag(types, before, switch))
+        editing.dragTo(types, DiagramPoint(switch.x - 29f, switch.y + 52f))
+        editing.endDrag(types)
+
+        val vis = saved.single()
+        assertEquals(DiagramPoint(switch.x - 30f, switch.y + 50f), vis.boxes["Switch"])
+        val after = StructureArrangement.byHand(types, vis, text)
+        assertEquals(DiagramPoint(switch.x - 30f, switch.y + 50f), after.boxes.getValue("Switch").center)
+        assertEquals(before.boxes - "Switch", after.boxes - "Switch", "nothing else moves")
+    }
+
+    @Test
+    fun `a type that is new after the layout by hand stays where it is drawn while a stored type is dragged`() {
+        val types = typesOf(TYPES)
+        val editing = DiagramEditing(StructureArrangement) { saved += it }
+        editing.loaded(STORED_TYPES)
+        val before = StructureArrangement.byHand(types, STORED_TYPES, text)
+        val lamp = before.boxes.getValue("Lamp").center
+
+        assertTrue(editing.startDrag(types, before, lamp))
+        editing.dragTo(types, DiagramPoint(lamp.x + 200f, lamp.y - 40f))
+        editing.endDrag(types)
+
+        val vis = saved.single()
+        assertEquals(before.boxes.getValue("Switch").center, vis.boxes["Switch"], "the saved layout holds the new type")
+        assertEquals(before.boxes.getValue("Switch"), StructureArrangement.byHand(types, vis, text).boxes.getValue("Switch"))
+    }
+
     private fun layoutOf(vis: VisLayout): StatechartLayout = ManualStatechartLayout.of(diagram, vis, text)
+
+    private fun typesOf(source: String): StructureDiagram =
+        MetamodelProjection.of(defaultLanguageRegistry().support(KarpfenLanguage.KMETA).parser.parse(TextSnapshot(source, 0)).outline, source)
 
     private fun diagramOf(source: String): StatechartDiagram {
         val snapshot = TextSnapshot(source, 0)
@@ -234,6 +376,39 @@ class DiagramEditingTest {
     }
 
     private companion object {
+        /** [MACHINE] with the state "idle", which is new in the text after [STORED] was made. */
+        val GROWN = """
+            STATEMACHINE ATTACHED TO "Lamp" {
+                STATES {
+                    INITIAL STATE "off" { }
+                    STATE "on" { }
+                    STATE "idle" { }
+                }
+                TRANSITIONS {
+                    TRANSITION "off" -> "on" { }
+                }
+            }
+        """.trimIndent()
+
+        /** A layout by hand of [MACHINE], which has no place for "idle". */
+        val STORED = VisLayout(boxes = mapOf("off" to DiagramPoint(100f, 100f), "on" to DiagramPoint(300f, 100f)))
+
+        /** Two types and a third, "Switch", that is new in the text after [STORED_TYPES] was made. */
+        val TYPES = """
+            type "Switch" "A wall switch" {
+                prop("presses", "number")
+            }
+            type "Lamp" "A lamp" {
+                knows("control", "Switch")
+            }
+            type "Room" "A room" {
+                has("lamps", list("Lamp"))
+            }
+        """.trimIndent()
+
+        /** A layout by hand of [TYPES] before "Switch" was added. */
+        val STORED_TYPES = VisLayout(boxes = mapOf("Lamp" to DiagramPoint(100f, 300f), "Room" to DiagramPoint(100f, 100f)))
+
         val NESTED = """
             STATEMACHINE ATTACHED TO "Lamp" {
                 STATES {
