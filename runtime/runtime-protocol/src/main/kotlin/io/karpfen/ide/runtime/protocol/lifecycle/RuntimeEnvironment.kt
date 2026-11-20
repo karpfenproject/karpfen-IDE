@@ -163,9 +163,9 @@ public interface RuntimeEnvironment {
      * Forces the machine attached to [modelElement] into [state] at the next tick. It is allowed while activated or
      * running.
      *
-     * The runtime has side effects here. It discards every queued external event of the whole environment. At the next
-     * tick it also discards the event-bus bucket of the domain named like [modelElement]. A state forced before the
-     * first tick suppresses the `ENTRY` blocks of the initial states.
+     * The runtime removes no event. Every event on its bus when it applies the force counts as handled by the forced
+     * machine, in every domain, while every other machine sees these events as before. A state forced before the first
+     * tick suppresses the `ENTRY` blocks of the initial states.
      */
     public suspend fun forceState(modelElement: String, state: String): CallOutcome<Unit>
 

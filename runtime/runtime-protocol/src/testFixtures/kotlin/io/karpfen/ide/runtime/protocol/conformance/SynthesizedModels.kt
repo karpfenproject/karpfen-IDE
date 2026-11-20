@@ -34,13 +34,12 @@ import java.nio.file.Path
  * files carry no comments, so the texts stay exactly what is uploaded.
  *
  * Every model follows the same rules. It has one root object. Its model gives a value to every scalar that its machines
- * set. It uses no event domain that is named like an attached object key. All models except [DEPOT] run without
- * Python.
+ * set. All models except [DEPOT] run without Python.
  *
  * Each entry lists the model's files, its machines and its event domains, and says what the model exercises.
  * `SynthesizedModelsTest` checks the rules. Only the depot mentions `EVAL` or `MACRO`, and only in its two creating
  * actions. Every descriptor names files that exist and names no timing. The descriptors attach the machines the
- * scenarios rely on. No event domain is named like an attached object key.
+ * scenarios rely on.
  *
  * @property folder the folder of the model below [SynthesizedModels.RESOURCE_ROOT].
  */

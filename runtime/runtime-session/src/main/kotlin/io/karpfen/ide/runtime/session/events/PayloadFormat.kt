@@ -163,9 +163,6 @@ public object PayloadDiagnosticCodes {
      */
     public const val EVENT_QUEUED_UNTIL_START: String = "event-queued-until-start"
 
-    /** The domain is named like an attached object key. Forcing that machine's state discards the event. */
-    public const val EVENT_DOMAIN_IS_ATTACHMENT: String = "event-domain-is-attachment"
-
     /** Every code with its severity. */
     public val SEVERITIES: Map<String, Severity> = linkedMapOf(
         JSON_SYNTAX to Severity.ERROR,
@@ -192,7 +189,6 @@ public object PayloadDiagnosticCodes {
         EVENT_BLANK_NAME to Severity.ERROR,
         EVENT_NOT_LISTENED to Severity.WARNING,
         EVENT_QUEUED_UNTIL_START to Severity.WARNING,
-        EVENT_DOMAIN_IS_ATTACHMENT to Severity.WARNING,
     )
 
     /**

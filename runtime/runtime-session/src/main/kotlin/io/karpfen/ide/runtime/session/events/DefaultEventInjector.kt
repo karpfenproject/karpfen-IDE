@@ -33,14 +33,12 @@ import org.slf4j.LoggerFactory
  * other record of which types the events file declares.
  *
  * @param catalog the events of the deployment.
- * @param attachedKeys the keys the deployment attaches machines to.
  * @param availability whether events can be injected now.
  * @param sink where frames go.
  * @param formats one payload format per kind.
  */
 internal class DefaultEventInjector(
     override val catalog: EventCatalog,
-    private val attachedKeys: Set<String>,
     override val availability: StateFlow<InjectionAvailability>,
     private val sink: EventSink,
     formats: List<PayloadFormat>,
@@ -83,12 +81,6 @@ internal class DefaultEventInjector(
             found += finding(
                 PayloadDiagnosticCodes.EVENT_NOT_LISTENED,
                 "No attached machine listens to '${request.name}' in the domain '${request.domain}'; the event waits until its time to live expires.",
-            )
-        }
-        if (request.domain in attachedKeys) {
-            found += finding(
-                PayloadDiagnosticCodes.EVENT_DOMAIN_IS_ATTACHMENT,
-                "The domain '${request.domain}' is named like an attached object: forcing that machine's state discards the event.",
             )
         }
         if (now is InjectionAvailability.Queued) {

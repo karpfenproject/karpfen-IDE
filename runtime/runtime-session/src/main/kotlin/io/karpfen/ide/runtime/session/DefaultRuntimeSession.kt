@@ -159,7 +159,6 @@ internal class DefaultRuntimeSession(
 
     override val events: EventInjector = EventInjector(
         catalog = prepared.catalog,
-        attachedKeys = prepared.plan.attachments.mapTo(LinkedHashSet()) { it.attachedTo },
         availability = status.availability,
         sink = ConductorEventSink(conductor),
     )

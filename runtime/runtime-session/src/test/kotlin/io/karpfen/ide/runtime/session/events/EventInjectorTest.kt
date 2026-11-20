@@ -50,7 +50,7 @@ class EventInjectorTest {
 
     private val sink = RecordingSink()
 
-    private val injector = EventInjector(catalog(), setOf("robot", "pump"), availability, sink)
+    private val injector = EventInjector(catalog(), availability, sink)
 
     @Test
     fun `a listened event with a clean payload is sent as its frame, and the outcome carries the sink's frame text`() = runTest {
@@ -88,14 +88,11 @@ class EventInjectorTest {
     }
 
     @Test
-    fun `an event no machine listens to and a domain named like an attached object are warned about, then sent`() = runTest {
+    fun `an event no machine listens to is warned about, and a listened event without a payload is sent without findings`() = runTest {
         val outcome = injector.inject(InjectionRequest("robot", "poke", PayloadKind.NONE, ""))
         val unknown = injector.validate(InjectionRequest("elsewhere", "anything", PayloadKind.NONE, ""))
 
-        assertEquals(
-            listOf(PayloadDiagnosticCodes.EVENT_DOMAIN_IS_ATTACHMENT),
-            assertIs<InjectionOutcome.Sent>(outcome).validation.codes,
-        )
+        assertEquals(emptyList(), assertIs<InjectionOutcome.Sent>(outcome).validation.codes)
         assertEquals(listOf(PayloadDiagnosticCodes.EVENT_NOT_LISTENED), unknown.codes)
         assertEquals(1, sink.frames.size)
     }

@@ -664,7 +664,8 @@ Read `DefaultRuntimeConnection`, `LifecycleRules` and `RuntimeJson`.
 - The runtime keeps pushing to the first socket of a client id, so before a reconnect the client closes the old
   socket. A half-open old socket still swallows pushes until the runtime's ping drops it. The model then
   resynchronizes, at worst about 75 s late, and domain events lost in that time are not recovered.
-- Forcing a state makes the runtime discard all queued external events of the environment.
+- Forcing a state removes no event. The runtime counts every event on its bus at the force as handled by the forced
+  machine and by no other.
 - A stop only freezes an environment, and the runtime keeps the sockets of its clients open. It pushes an
   `engineStatus` notice with the member `phase`. The connection ends as stopped on the notice of a stop, or as soon as
   the handle's phase is stopped, and closes its socket itself. A run whose environment another client stops ends the

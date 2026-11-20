@@ -257,19 +257,6 @@ class PlanChecksTest {
     }
 
     @Test
-    fun `an event domain named like an attached key is a warning`() = runTest(timeout = 60.seconds) {
-        val workspaces = PlanningWorkspaces(this, root)
-        workspaces.copy(SynthesizedModel.LAMP)
-        lampModel.replaceText("wallSwitch", "switch")
-        lampDescriptor.replaceText("\"wallSwitch\"", "\"switch\"")
-
-        val plan = workspaces.plan(lampDescriptor).ready()
-
-        assertEquals(listOf(DeployProblemCodes.DOMAIN_IS_ATTACHMENT to Severity.WARNING), plan.findings.codes())
-        assertTrue("'switch'" in plan.findings.single().message)
-    }
-
-    @Test
     fun `an observe key, the runtime's packages and bridges are infos`() = runTest(timeout = 60.seconds) {
         val workspaces = PlanningWorkspaces(this, root)
         workspaces.copy(SynthesizedModel.LAMP)

@@ -89,16 +89,6 @@ class SynthesizedModelsTest {
     }
 
     @Test
-    fun `no event domain is named like an attached object key`() {
-        val domain = Regex("""EVENT\("([^"]*)"""")
-        SynthesizedModel.entries.forEach { model ->
-            val files = SynthesizedModels.files(model)
-            val domains = files.machines.flatMap { machine -> domain.findAll(SynthesizedModels.text(model, machine.file)).map { it.groupValues[1] } }
-            assertEquals(emptySet(), domains.toSet() intersect files.machines.map { it.attachedTo }.toSet(), model.folder)
-        }
-    }
-
-    @Test
     fun `the failure input differs from the lamp's model only in the type of the spare bulb`() {
         val model = SynthesizedModels.text(SynthesizedModel.LAMP, "lamp.kmodel")
         val unknownType = SynthesizedModels.text(SynthesizedModel.LAMP, SynthesizedModels.LAMP_UNKNOWN_TYPE)

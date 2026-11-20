@@ -104,9 +104,9 @@ public interface EventInjector {
     public fun format(kind: PayloadKind): PayloadFormat
 
     /**
-     * The findings on [request]. They cover a blank domain or name, an event that no attached machine listens to, a
-     * domain named like an attached key, and an environment that only queues events. The payload format's findings on
-     * the text are added. The findings on the event itself have an empty range at the start of the payload.
+     * The findings on [request]. They cover a blank domain or name, an event that no attached machine listens to, and
+     * an environment that only queues events. The payload format's findings on the text are added. The findings on
+     * the event itself have an empty range at the start of the payload.
      */
     public fun validate(request: InjectionRequest): PayloadValidation
 
@@ -118,13 +118,11 @@ public interface EventInjector {
 }
 
 /**
- * Creates the injector of [catalog] for an environment whose machines are attached to [attachedKeys]. It uses the
- * session's [availability] and [sink]. KModel payloads are checked with core-document's KModel parser and the
- * dsl-tools reader adapter.
+ * Creates the injector of [catalog]. It uses the session's [availability] and [sink]. KModel payloads are checked
+ * with core-document's KModel parser and the dsl-tools reader adapter.
  */
 public fun EventInjector(
     catalog: EventCatalog,
-    attachedKeys: Set<String>,
     availability: StateFlow<InjectionAvailability>,
     sink: EventSink,
 ): EventInjector {
@@ -138,7 +136,7 @@ public fun EventInjector(
             reader = DslReader(),
         ),
     )
-    return DefaultEventInjector(catalog, attachedKeys.toSet(), availability, sink, formats)
+    return DefaultEventInjector(catalog, availability, sink, formats)
 }
 
 /** The format without a payload. The frame says so explicitly, and any text is dropped. Stateless. */

@@ -114,12 +114,6 @@ public object DeployProblemCodes {
     public const val REFERENCE_LOOP: String = "deploy-reference-loop"
 
     /**
-     * An event domain is named like an attached object key, so forcing that machine's state discards the domain's
-     * queued events. This is a warning.
-     */
-    public const val DOMAIN_IS_ATTACHMENT: String = "deploy-domain-is-attachment"
-
-    /**
      * The descriptor's `observe` key is not used. The IDE observes the whole model while observation is on, and it
      * listens to every domain the state machines use. This is an info.
      */
@@ -196,7 +190,7 @@ public object DeployProblemCodes {
         NO_CONTEXT, SAVE_FAILED, UNSAVED_FILE, CONTEXT_ERRORS, NO_METAMODEL, NO_MODEL, UNKNOWN_ATTACHMENT, DEFINITION_NOT_LISTED,
         ATTACHED_DEFINITION_NOT_LISTED, FRAGMENT_NOT_LISTED, NOT_FLATTENED, DUPLICATE_ATTACHMENT, ATTACHMENT_TYPE, TICK_DELAY_RANGE, TICK_DELAY_ZERO,
         EVENT_TTL_NEVER_EXPIRES, REFERENCE_LOOP,
-        DOMAIN_IS_ATTACHMENT, OBSERVE_SUPERSEDED, HOSTING_IGNORED, RUNTIME_UNREACHABLE,
+        OBSERVE_SUPERSEDED, HOSTING_IGNORED, RUNTIME_UNREACHABLE,
         RUNTIME_INCOMPATIBLE, RUNTIME_NO_ANSWER, RUNTIME_REJECTED, RUNTIME_ERROR, HANDSHAKE_REJECTED, CONNECTION_LOST,
         MODEL_DIFFERS, ENGINE_HALTED, ENGINE_SILENT, OBSERVATION_OUT_OF_SYNC, ENVIRONMENT_LEFT_BEHIND, ENVIRONMENT_LOST,
     )

@@ -32,7 +32,8 @@ import io.karpfen.ide.runtime.session.deploy.FailureLocator
  * the environment's handle, the router or the connection, and returns its outcome. A rejection by the runtime becomes a
  * refusal with the runtime's text. A rejection for an unknown environment is a failure instead. Every failure is
  * journaled. The class also tracks the events sent without an observed reaction since the last start or forced state.
- * Before it forces a state, it notes in the journal that those events may be discarded. Confined to the conductor.
+ * Before it forces a state, it notes in the journal that the forced machine counts those events as handled. Confined to
+ * the conductor.
  *
  * @param router the session's router, for the observation calls and the journal.
  * @param locator turns failures of the runtime into problems.
@@ -122,15 +123,18 @@ internal class SessionCalls(
             is CallOutcome.Failed -> failed(call.failure)
         }
 
-    /** Notes in the journal that events may be discarded by a forced state, if some got no observed reaction. */
+    /**
+     * Notes in the journal that the machine about to be forced counts the events still on the bus as handled, if some
+     * events got no observed reaction.
+     */
     private fun noteUnanswered() {
         val count = unanswered.count(stacks())
         if (count == 0) return
         val events = if (count == 1) "1 event was" else "$count events were"
         router.record(
             SessionActivity.Note(
-                "$events sent since the last start or forced state without any machine changing its state; forcing a " +
-                    "state discards the events still queued, so they may have been discarded.",
+                "$events sent since the last start or forced state without any machine changing its state. The forced " +
+                    "machine counts every event still on the bus as handled.",
                 clock.elapsed(),
             ),
         )

@@ -140,7 +140,6 @@ public class FakeRuntimeSession(
 
     override val events: EventInjector = EventInjector(
         catalog = prepared.catalog,
-        attachedKeys = prepared.plan.attachments.mapTo(LinkedHashSet()) { it.attachedTo },
         availability = availabilityFlow.asStateFlow(),
         sink = { frame ->
             synchronized(lock) { sentFrames += frame }

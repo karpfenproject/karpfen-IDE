@@ -524,7 +524,7 @@ class RuntimeSessionLifecycleTest {
         assertEquals(SessionCommandOutcome.Refused(session.state.value, "Unknown state 'nowhere' for model element 'lamp'"), refused)
         runCurrent()
         val notes = session.journal().filterIsInstance<SessionActivity.Note>().map { it.text }
-        assertEquals(1, notes.count { "may have been discarded" in it }, "$notes")
+        assertEquals(1, notes.count { "counts every event still on the bus as handled" in it }, "$notes")
         assertTrue(session.journal().any { it is SessionActivity.CallFailed && it.problem.code == DeployProblemCodes.RUNTIME_REJECTED })
         session.close()
     }

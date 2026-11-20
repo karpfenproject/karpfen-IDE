@@ -50,7 +50,6 @@ internal object PlanChecks {
         TickDelayZeroCheck(),
         EventTtlCheck(),
         ReferenceLoopCheck(),
-        DomainIsAttachmentCheck(),
         ObserveSupersededCheck(),
         HostingIgnoredCheck(),
     )

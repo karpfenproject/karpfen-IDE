@@ -20,25 +20,6 @@ import io.karpfen.ide.runtime.session.problem.DeployProblem
 import io.karpfen.ide.runtime.session.problem.DeployProblemCodes
 
 /**
- * Finds event domains named like an attached object key. Forcing the state of that object's machine makes the runtime
- * discard the domain's queued events.
- */
-internal class DomainIsAttachmentCheck : PlanCheck {
-    override fun check(subject: PlanSubject): List<DeployProblem> {
-        val keys = subject.machines.mapNotNull { it.attachedTo }.toSet()
-        return subject.domains.filter { it in keys }.map { domain ->
-            DeployProblem(
-                Severity.WARNING,
-                DeployProblemCodes.DOMAIN_IS_ATTACHMENT,
-                "The event domain '$domain' is named like the object a state machine is attached to: forcing that " +
-                    "machine's state discards the domain's queued events.",
-                subject.descriptorLocation,
-            )
-        }
-    }
-}
-
-/**
  * Finds an `observe` key in the descriptor, which the deployment does not use. While observation is on, the IDE
  * observes the whole model, and it listens to every event domain the state machines use.
  */

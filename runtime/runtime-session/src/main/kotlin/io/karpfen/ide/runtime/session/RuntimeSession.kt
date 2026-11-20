@@ -131,11 +131,12 @@ public interface RuntimeSession : AutoCloseable {
      * or the instance of a definition the object got by `behaves after`, `ATTACH` or `EXCHANGE`. [state] is a state of
      * the state machine that instance runs.
      *
-     * Forcing has side effects in the runtime. It discards every event still queued in the whole environment, and at
-     * the next tick it also discards the events of the domain named like [attachedTo]. A state forced before the first
-     * tick suppresses the `ENTRY` blocks of the initial states. When events were sent since the last start or force and
-     * no machine changed its state since then, the journal notes that they may have been discarded. When the runtime
-     * refuses an unknown machine or state, the refusal comes back as [SessionCommandOutcome.Refused] with its text.
+     * The runtime removes no event. Every event on its bus when it applies the force counts as handled by the forced
+     * instance, in every domain, while every other instance sees these events as before. A state forced before the
+     * first tick suppresses the `ENTRY` blocks of the initial states. When events were sent since the last start or
+     * force and no machine changed its state since then, the journal notes that the forced instance counts the events
+     * still on the bus as handled. When the runtime refuses an unknown machine or state, the refusal comes back as
+     * [SessionCommandOutcome.Refused] with its text.
      */
     public suspend fun forceState(attachedTo: String, state: String): SessionCommandOutcome
 
