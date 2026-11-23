@@ -20,39 +20,75 @@ import io.karpfen.ide.core.lang.CompletionKind
 import io.karpfen.ide.core.text.TextRange
 
 /**
- * A completion template. [label] is what the list shows, such as `STATE "…" { }`. [template] is what gets inserted. In
- * it, [CARET] marks where the caret goes after accepting, as in `STATE "$0" { }`. Snippets are immutable, and the
- * keyword tables of each language are lists of snippets.
+ * A completion snippet. [label] is what the list shows, such as `STATE "…" { }`. [template] is what gets inserted. In
+ * it, [CARET] marks where the caret goes after accepting, as in `STATE "$0" { }`, and `${n:word}` marks a placeholder
+ * as [TemplateText.parse] reads it. Snippets are immutable, and the keyword tables of each language are lists of
+ * snippets.
+ *
+ * @property rank the rank of [item] unless the caller gives another. Lower ranks come first among equal matches.
  */
 internal data class Snippet(
     val label: String,
     val template: String,
     val kind: CompletionKind = CompletionKind.SNIPPET,
     val detail: String? = null,
+    val rank: Int = 1,
 ) {
     /** The item that replaces [replaceRange]. [rank] orders it before items with a greater rank. */
-    fun item(replaceRange: TextRange, rank: Int = 1): CompletionItem {
-        val caret = template.indexOf(CARET)
-        return CompletionItem(
-            label = label,
-            kind = kind,
-            insertText = template.replace(CARET, ""),
-            replaceRange = replaceRange,
-            caretOffsetInInsert = caret.takeIf { it >= 0 },
-            detail = detail,
-            documentation = null,
-            sortKey = sortKey(rank, label),
-        )
-    }
+    fun item(replaceRange: TextRange, rank: Int = this.rank): CompletionItem =
+        templateItem(label, kind, TemplateText.parse(template), replaceRange, detail, documentation = null, rank = rank)
 
     companion object {
         /** The caret marker of [template]. */
-        const val CARET: String = "\$0"
+        const val CARET: String = TemplateText.CARET
+
+        /** The detail of every template, which tells it apart from the one-line snippet of the same keyword. */
+        const val TEMPLATE_DETAIL: String = "template"
+
+        /**
+         * The rank of a template. It is greater than the ranks of the one-line snippets and names, so among equally good
+         * matches the one-line snippet of a keyword stays before its template, and Enter on the first entry of the list
+         * inserts the same as without templates.
+         */
+        const val TEMPLATE_RANK: Int = 5
 
         /** A plain keyword. It is inserted as written, with the caret after it. */
         fun keyword(keyword: String, detail: String? = null): Snippet = Snippet(keyword, keyword, CompletionKind.KEYWORD, detail)
+
+        /**
+         * A template of several lines. [label] is one line that tells what it inserts, and it starts with the keyword
+         * that the user types. [lines] are joined with line breaks. Each line after the first is indented by four
+         * spaces per level relative to the first one, and the editor adds the indentation of the line it is inserted
+         * on.
+         */
+        fun template(label: String, vararg lines: String): Snippet =
+            Snippet(label, lines.joinToString("\n"), CompletionKind.SNIPPET, TEMPLATE_DETAIL, TEMPLATE_RANK)
     }
 }
+
+/**
+ * The item of [text] that replaces [replaceRange]. The caret goes to `text.caret`, and the placeholders of [text] become
+ * the placeholders of the item.
+ */
+internal fun templateItem(
+    label: String,
+    kind: CompletionKind,
+    text: TemplateText,
+    replaceRange: TextRange,
+    detail: String?,
+    documentation: String?,
+    rank: Int,
+): CompletionItem = CompletionItem(
+    label = label,
+    kind = kind,
+    insertText = text.text,
+    replaceRange = replaceRange,
+    caretOffsetInInsert = text.caret,
+    detail = detail,
+    documentation = documentation,
+    sortKey = sortKey(rank, label),
+    placeholders = text.placeholders,
+)
 
 /**
  * A named proposal, such as a type, member, state, macro, event, object or path segment. It is inserted as [name], or

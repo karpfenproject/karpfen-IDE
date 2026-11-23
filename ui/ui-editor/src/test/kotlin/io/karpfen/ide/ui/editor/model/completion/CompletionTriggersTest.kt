@@ -88,6 +88,7 @@ class CompletionTriggersTest {
         assertEquals(true, holdsAfter("ST|") { run(EditorActionIds.BACKSPACE) }, "deleted back")
         assertEquals(true, holdsAfter("EVAL { $(|") { type("x") }, "the first character after a path start")
         assertEquals(true, holdsAfter("ST|") { text.apply(listOf(TextEdit.insert(0, "x\n")), EditOrigin.External) }, "an edit elsewhere")
+        assertEquals(true, holdsAfter("|ST") { caret.select(0, 2) }, "a selection that starts at the request, as over a placeholder")
     }
 
     @Test

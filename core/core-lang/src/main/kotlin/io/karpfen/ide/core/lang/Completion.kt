@@ -30,6 +30,11 @@ import io.karpfen.ide.core.text.TextRange
  * @property documentation a longer text for a details pane or tooltip.
  * @property sortKey the tie-breaker for equally good matches. The editor sorts by match quality, then by sortKey, then
  *   by label.
+ * @property placeholders the names and values a template asks the user to fill in, as ranges of [insertText] in the
+ *   order the user visits them. A template is a proposal of several lines, such as a whole type or a whole state. After
+ *   accepting one, the editor selects the first placeholder instead of placing the caret, Tab moves on to the next
+ *   one, and after the last one the caret goes to [caretOffsetInInsert], or to the end of the insertion when that is
+ *   null. A placeholder may be empty, as the value of a property is. Every proposal that is no template has none.
  */
 public data class CompletionItem(
     public val label: String,
@@ -40,10 +45,14 @@ public data class CompletionItem(
     public val detail: String?,
     public val documentation: String?,
     public val sortKey: String,
+    public val placeholders: List<TextRange> = emptyList(),
 ) {
     init {
         require(caretOffsetInInsert == null || caretOffsetInInsert in 0..insertText.length) {
             "caretOffsetInInsert $caretOffsetInInsert must lie within the insert text (length ${insertText.length})"
+        }
+        require(placeholders.all { it.end <= insertText.length }) {
+            "placeholders $placeholders must lie within the insert text (length ${insertText.length})"
         }
     }
 }

@@ -18,7 +18,6 @@ package io.karpfen.ide.ui.editor.model.completion
 import io.karpfen.ide.core.lang.CompletionItem
 import io.karpfen.ide.core.text.Bias
 import io.karpfen.ide.core.text.EditableText
-import io.karpfen.ide.core.text.TextEdit
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.text.TextSnapshot
 import io.karpfen.ide.ui.editor.model.caret.Caret
@@ -50,15 +49,18 @@ internal class CompletionSession private constructor(
     /**
      * Returns the visible state for the current [text] and [caret]. While the filter text is unchanged, the item that
      * was highlighted in [previous] stays highlighted. Returns null when the session must close. That happens when the
-     * caret has a selection, when it left the range or the word being completed, when nothing matches, or when the
-     * history no longer reaches [version].
+     * caret left the range or the word being completed, when it has a selection that does not start at the request
+     * position or reaches past the range, when nothing matches, or when the history no longer reaches [version]. A
+     * selection that starts at the request position is the word an explicit request completes, so the filter is the
+     * text before the selection.
      */
     fun uiState(text: EditableText, caret: Caret, previous: CompletionUiState?): CompletionUiState? {
         val from = anchor(text, start, Bias.LEFT) ?: return null
         val to = anchor(text, end, Bias.RIGHT) ?: return null
-        if (caret.hasSelection || caret.position !in from..to) return null
+        val selection = caret.selection
+        if (selection.start !in from..to || selection.end > to) return null
         if (!CompletionTriggers.stillHolds(text, version, offset, caret)) return null
-        val filter = text.snapshot.value.text.substring(from, caret.position)
+        val filter = text.snapshot.value.text.substring(from, selection.start)
         val ranked = CompletionRanking.rank(items, filter)
         if (ranked.isEmpty()) return null
         val kept = previous?.takeIf { it.filterText == filter }?.let { ranked.indexOf(it.selected) } ?: -1
@@ -66,16 +68,18 @@ internal class CompletionSession private constructor(
     }
 
     /**
-     * Returns what accepting [item] does in the current [text] with the caret at [caret]. The first value is the edit.
-     * It replaces the item's replace range, mapped into the current text and extended to the caret, with the item's
-     * insert text. The second value is the caret offset after the edit. That is `caretOffsetInInsert` if the item has
-     * one, and the end of the insertion otherwise. Returns null if the history no longer reaches [version].
+     * Returns what accepting [item] does in the current [text] while the primary caret selects [selection], which is
+     * empty at the caret without a selection. The edit replaces the item's replace range, mapped into the current text
+     * and extended over [selection], with the item's insert text, indented as
+     * [CompletionAcceptance.of] describes. The caret after the edit selects the first placeholder of a template, and
+     * otherwise it stands at `caretOffsetInInsert` if the item has one, and at the end of the insertion if not. Returns
+     * null if the history no longer reaches [version].
      */
-    fun acceptance(text: EditableText, caret: Int, item: CompletionItem): Pair<TextEdit, Int>? {
+    fun acceptance(text: EditableText, selection: TextRange, item: CompletionItem): CompletionAcceptance? {
         val from = anchor(text, item.replaceRange.start, Bias.LEFT) ?: return null
         val to = anchor(text, item.replaceRange.end, Bias.RIGHT) ?: return null
-        val range = TextRange(minOf(from, caret), maxOf(to, caret))
-        return TextEdit(range, item.insertText) to range.start + (item.caretOffsetInInsert ?: item.insertText.length)
+        val range = TextRange(minOf(from, selection.start), maxOf(to, selection.end))
+        return CompletionAcceptance.of(item, range, text.snapshot.value)
     }
 
     /**

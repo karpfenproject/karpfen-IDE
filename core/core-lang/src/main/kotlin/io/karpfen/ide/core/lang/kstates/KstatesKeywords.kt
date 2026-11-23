@@ -25,6 +25,12 @@ import io.karpfen.ide.core.lang.completion.Snippet
  * shaped by its arguments. The `$0` in a template is where the caret goes. The snippets that write a construct of an
  * optional language feature, such as a history or a macro, are offered only while that feature is on. The object
  * holds constant data only.
+ *
+ * Next to the one-line snippets, a position offers templates of whole constructs with placeholders: the state machine
+ * and the fragment at top level, a state and a container state where states go, a transition, a split and a join where
+ * transitions go, and a macro where macros go. A template is offered where its one-line snippet is and under the same
+ * feature switch. Its names are typical words that fit together, such as a transition between the two states of the
+ * state machine template, so the template reads without findings once it is inserted.
  */
 internal object KstatesKeywords {
 
@@ -51,6 +57,104 @@ internal object KstatesKeywords {
     private val EVAL = Snippet("EVAL { }", "EVAL { \$0 }", detail = "embedded Python")
     /** A call of a macro as the value of an action. */
     private val MACRO_CALL = Snippet("MACRO(\"…\")", "MACRO(\"\$0\")", detail = "macro call")
+
+    /** The condition of the transition templates, which waits for an event. [first] numbers its two placeholders. */
+    private fun eventCondition(first: Int): Array<String> = arrayOf(
+        "    CONDITION {",
+        "        EVENT(\"\${$first:domain}\", \"\${${first + 1}:event}\")",
+        "    }",
+    )
+
+    /** A whole state machine attached to a type, with two states and a transition between them on an event. */
+    private val MACHINE_TEMPLATE = Snippet.template(
+        "STATEMACHINE ATTACHED TO \"…\" with states and a transition",
+        "STATEMACHINE ATTACHED TO \"\${1:Type}\" {",
+        "    STATES {",
+        "        INITIAL STATE \"\${2:Idle}\" { }",
+        "        STATE \"\${3:Active}\" { }",
+        "    }",
+        "    TRANSITIONS {",
+        "        TRANSITION \"\${4:Idle}\" -> \"\${5:Active}\" {",
+        *eventCondition(6).map { "        $it" }.toTypedArray(),
+        "        }",
+        "    }",
+        "}",
+    )
+
+    /** A whole fragment, with its initial state, a final state and a transition into the final state on an event. */
+    private val FRAGMENT_TEMPLATE = Snippet.template(
+        "STATEMACHINE \"…\" FRAGMENT with a final state",
+        "STATEMACHINE \"\${1:fragment}\" FRAGMENT {",
+        "    STATES {",
+        "        INITIAL STATE \"\${2:Working}\" { }",
+        "        FINAL STATE \"\${3:Finished}\" { }",
+        "    }",
+        "    TRANSITIONS {",
+        "        TRANSITION \"\${4:Working}\" -> \"\${5:Finished}\" {",
+        *eventCondition(6).map { "        $it" }.toTypedArray(),
+        "        }",
+        "    }",
+        "}",
+    )
+
+    /** A state that sets a property when it is entered and has an empty DO block. */
+    private val STATE_TEMPLATE = Snippet.template(
+        "STATE \"…\" with ENTRY and DO",
+        "STATE \"\${1:Name}\" {",
+        "    ENTRY {",
+        "        SET(\"\${2:path}\", \"\${3:value}\")",
+        "    }",
+        "    DO {",
+        "    }",
+        "}",
+    )
+
+    /** A container state with the fragment it runs. A container state holds no actions and no inner states. */
+    private val CONTAINER_TEMPLATE = Snippet.template(
+        "CONTAINER STATE \"…\" USE \"…\" with its fragment",
+        "CONTAINER STATE \"\${1:Working}\" USE \"\${2:fragment}\" {",
+        "}",
+    )
+
+    /** A transition that waits for an event. */
+    private val TRANSITION_TEMPLATE = Snippet.template(
+        "TRANSITION \"…\" -> \"…\" on an event",
+        "TRANSITION \"\${1:Idle}\" -> \"\${2:Active}\" {",
+        *eventCondition(3),
+        "}",
+    )
+
+    /** A split into two parallel states on an event. */
+    private val SPLIT_TEMPLATE = Snippet.template(
+        "SPLIT \"…\" -> \"…\", \"…\" on an event",
+        "SPLIT \"\${1:Idle}\" -> \"\${2:Left}\", \"\${3:Right}\" {",
+        *eventCondition(4),
+        "}",
+    )
+
+    /** A join of two parallel states, taken as soon as both are active. */
+    private val JOIN_TEMPLATE = Snippet.template(
+        "JOIN \"…\", \"…\" -> \"…\" of two parallel states",
+        "JOIN \"\${1:Left}\", \"\${2:Right}\" -> \"\${3:Joined}\" {",
+        "}",
+    )
+
+    /**
+     * A macro with one parameter, a result type and a definition. The EVAL body only returns the parameter, so it holds
+     * no code that needs Python to be checked.
+     */
+    private val MACRO_TEMPLATE = Snippet.template(
+        "MACRO \"…\" with TAKES, RETURNS and DEFINITION",
+        "MACRO \"\${1:name}\" {",
+        "    TAKES(\"\${2:value}\", \"\${3:number}\")",
+        "    RETURNS(\"\${4:number}\")",
+        "    DEFINITION {",
+        "        EVAL {",
+        "            return \$(\${5:value})",
+        "        }",
+        "    }",
+        "}",
+    )
 
     /** What each operation does, for the completion list. An operation without an entry is offered without a detail. */
     private val OPERATION_DETAILS: Map<String, String> = mapOf(
@@ -83,6 +187,8 @@ internal object KstatesKeywords {
                 detail = "attachable state machine",
             ),
             Snippet("STATEMACHINE \"…\" FRAGMENT { }", "STATEMACHINE \"\$0\" FRAGMENT { }", detail = "fragment"),
+            MACHINE_TEMPLATE,
+            FRAGMENT_TEMPLATE,
         ),
         KstatesPosition.MACHINE_HEADER to offers(
             Snippet("ATTACHED TO \"…\"", "ATTACHED TO \"\$0\"", detail = "attached to the object of a type"),
@@ -97,7 +203,7 @@ internal object KstatesKeywords {
             Snippet("STATES { }", "STATES { \$0 }", detail = "states block"),
             Snippet("TRANSITIONS { }", "TRANSITIONS { \$0 }", detail = "transitions block"),
         ) + offers(KstatesFeature.MACROS, Snippet("MACROS { }", "MACROS { \$0 }", detail = "macros block")),
-        KstatesPosition.STATES to offers(STATE, INITIAL_STATE, CONTAINER_STATE, FINAL_STATE) +
+        KstatesPosition.STATES to offers(STATE, INITIAL_STATE, CONTAINER_STATE, FINAL_STATE, STATE_TEMPLATE, CONTAINER_TEMPLATE) +
             offers(KstatesFeature.HISTORY, SHALLOW_HISTORY_STATE, DEEP_HISTORY_STATE),
         KstatesPosition.STATE_BODY to
             offers(KstatesFeature.BREAKPOINTS, BREAKPOINT) +
@@ -108,6 +214,8 @@ internal object KstatesKeywords {
                 STATE,
                 INITIAL_STATE,
                 CONTAINER_STATE,
+                STATE_TEMPLATE,
+                CONTAINER_TEMPLATE,
             ) +
             offers(KstatesFeature.HISTORY, SHALLOW_HISTORY_STATE, DEEP_HISTORY_STATE),
         KstatesPosition.STATE_BREAKPOINTS to offers(
@@ -133,11 +241,16 @@ internal object KstatesKeywords {
             Snippet("ATTACH \"…\"", "ATTACH \"\$0\"", detail = "attach a state machine to the new object"),
         ) + ACTIONS,
         KstatesPosition.TRANSITIONS to
-            offers(Snippet("TRANSITION \"…\" -> \"…\" { }", "TRANSITION \"\$0\" -> \"\" { }", detail = "transition")) +
+            offers(
+                Snippet("TRANSITION \"…\" -> \"…\" { }", "TRANSITION \"\$0\" -> \"\" { }", detail = "transition"),
+                TRANSITION_TEMPLATE,
+            ) +
             offers(
                 KstatesFeature.PARALLEL,
                 Snippet("SPLIT \"…\" -> \"…\", \"…\" { }", "SPLIT \"\$0\" -> \"\", \"\" { }", detail = "fork into parallel states"),
                 Snippet("JOIN \"…\", \"…\" -> \"…\" { }", "JOIN \"\$0\", \"\" -> \"\" { }", detail = "join parallel states"),
+                SPLIT_TEMPLATE,
+                JOIN_TEMPLATE,
             ),
         KstatesPosition.TRANSITION_HEADER to offers(Snippet.keyword("NOT LOOPING", detail = "no self-loop")),
         KstatesPosition.TRANSITION_BODY to
@@ -148,7 +261,11 @@ internal object KstatesKeywords {
             Snippet("VALUE(\"…\")", "VALUE(\"\$0\")", detail = "boolean path guard"),
             Snippet.keyword("DONE", detail = "the fragment of the container state has ended"),
         ),
-        KstatesPosition.MACROS to offers(KstatesFeature.MACROS, Snippet("MACRO \"…\" { }", "MACRO \"\$0\" { }", detail = "macro definition")),
+        KstatesPosition.MACROS to offers(
+            KstatesFeature.MACROS,
+            Snippet("MACRO \"…\" { }", "MACRO \"\$0\" { }", detail = "macro definition"),
+            MACRO_TEMPLATE,
+        ),
         KstatesPosition.MACRO_BODY to offers(
             KstatesFeature.MACROS,
             Snippet("TAKES(\"…\", \"…\")", "TAKES(\"\$0\", \"\")", detail = "parameter"),

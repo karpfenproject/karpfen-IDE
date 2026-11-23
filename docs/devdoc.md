@@ -506,6 +506,8 @@ from the run dialog or the command line. The runtime caches results of Python co
   snapshot.
 - Code completion is Ctrl+M on every platform. Windows also binds Ctrl+Space. macOS and Linux leave Ctrl+Space alone,
   because it switches input sources there.
+- Completion offers templates of whole constructs next to the one-line snippets and ranks them after them. A template
+  is a `CompletionItem` with placeholders; the editor indents its lines for the line it lands on.
 - The event injector edits a JSON payload that is prefilled with a template of the event's payload type.
 - A model whose objects reference each other in a loop is not deployed, because the runtime cannot write it.
 - dsl-tools logs to its own file and to the Language Tools Output, not to the console.
@@ -679,7 +681,8 @@ Read `DefaultRuntimeConnection`, `LifecycleRules` and `RuntimeJson`.
 
 Read `ProxyTextInput`, `LayoutAwareStrokes` and `defaultKeyBindings`. The editor gets its text through a hidden text
 field at the caret, so input methods, dead keys and the accent menu work. A stroke goes to completion first, then to
-the editor's keymap. The menu bar is the only place that dispatches window shortcuts, and the menus and the editor
+the placeholders of an accepted template (`PlaceholderModel`, Tab, Shift+Tab and Escape while they are active), then
+to the editor's keymap. The menu bar is the only place that dispatches window shortcuts, and the menus and the editor
 take their strokes from the same keymap. `LayoutAwareStrokes` maps punctuation strokes by the character they type, so
 Cmd+Shift+7 on a German layout acts as Cmd+/.
 

@@ -34,6 +34,13 @@ internal sealed interface KmodelSlot {
     data class ObjectBody(val objectType: String?) : KmodelSlot
 
     /**
+     * After `has("k") ->` and at least one blank or line break in the body of an object of type [ownerType], where the
+     * contained object starts. [relation] is `k`. Directly behind the arrow is no such place: typing `->` opens no
+     * list there, so the next Enter breaks the line, and nothing accepted there sticks to the arrow.
+     */
+    data class HasValue(val ownerType: String?, val relation: String) : KmodelSlot
+
+    /**
      * The key of `prop("k"`, `has("k"` or `knows("k"` in the body of an object of type [objectType]. For `prop` the
      * [kind] is PROPERTY. [inString] is false when the caret is in the parentheses but not inside quotes yet.
      */
@@ -85,8 +92,11 @@ internal class KmodelSlots(private val caretContexts: CaretContextDetector) {
             return KmodelSlot.Key(objectType, kind, document.text.substring(range), range, inString = true)
         }
         if (string == null) {
+            val relation = statement.relationBefore(statement.size, "has")
             return when {
                 context.blocks.isEmpty() -> if (statement.isEmpty()) KmodelSlot.TopLevel else KmodelSlot.None
+                relation != null && statement.last().range.end < context.replaceRange.start ->
+                    KmodelSlot.HasValue(objectType, relation)
                 objectType != null && statement.endsStatement() -> KmodelSlot.ObjectBody(objectType)
                 else -> KmodelSlot.None
             }

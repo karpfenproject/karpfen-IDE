@@ -40,7 +40,7 @@ internal class KmodelHoverProvider(private val slots: KmodelSlots, private val t
             }
             is KmodelSlot.ObjectKey -> objectHover(request, slot.name, slot.range)
             is KmodelSlot.ObjectReference -> objectHover(request, slot.name, slot.range)
-            KmodelSlot.TopLevel, is KmodelSlot.ObjectBody, KmodelSlot.None -> null
+            KmodelSlot.TopLevel, is KmodelSlot.ObjectBody, is KmodelSlot.HasValue, KmodelSlot.None -> null
         }
 
     /** `object k: T` for the object [name] declared in the file, or null if there is none. */

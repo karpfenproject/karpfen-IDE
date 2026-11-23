@@ -58,20 +58,23 @@ internal object CompletionTriggers {
 
     /**
      * True if a request made at [offset] of text [version] still completes at [caret] in the current [text]. That is
-     * the case when nothing is selected and only identifier characters lie between the request position and the caret.
-     * The request position is mapped into the current text, and text inserted at it counts as typed after it. So the
-     * request holds while the user keeps typing or deleting in the word being completed, or when the text changed
-     * elsewhere.
+     * the case when only identifier characters lie between the request position and the caret. The request position
+     * is mapped into the current text, and text inserted at it counts as typed after it. So the request holds while
+     * the user keeps typing or deleting in the word being completed, or when the text changed elsewhere.
+     *
+     * A selection holds only when it starts at the request position. That is an explicit request over a selected word,
+     * such as a placeholder of a template, which completes that word and replaces it on acceptance. Any other
+     * selection ends the request.
      *
      * A line break, a space or other punctuation typed since, or a caret moved out of the word, ends the request and the
      * session it opened, because no trigger fired at the caret. The function also returns false if the history no
      * longer reaches [version].
      */
     fun stillHolds(text: EditableText, version: Long, offset: Int, caret: Caret): Boolean {
-        if (caret.hasSelection) return false
         val current = text.snapshot.value
         if (version > current.version) return false
         val mapped = text.mapOffset(offset, version, current.version, Bias.LEFT) ?: return false
+        if (caret.hasSelection) return caret.selection.start == mapped
         return (minOf(mapped, caret.position) until maxOf(mapped, caret.position)).all { WordBoundaries.isIdentifierChar(current[it]) }
     }
 }

@@ -16,7 +16,6 @@
 package io.karpfen.ide.ui.editor.model.completion
 
 import io.karpfen.ide.core.lang.CompletionItem
-import io.karpfen.ide.core.text.CaretMemento
 import io.karpfen.ide.core.text.EditableText
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.text.TextSnapshot
@@ -74,7 +73,8 @@ public fun interface CompletionSource {
  * @property items the filtered and sorted items. The list is never empty while the session is open.
  * @property selectedIndex the index of the highlighted item.
  * @property replaceRange the range that accepting replaces. It is the replace range of the items, extended to the caret.
- * @property filterText the text between `replaceRange.start` and the caret, which filters the items.
+ * @property filterText the text between `replaceRange.start` and the caret, or the start of its selection, which filters
+ *   the items.
  */
 public data class CompletionUiState(
     public val items: List<CompletionItem>,
@@ -120,13 +120,17 @@ public data class CompletionUiState(
  * quality, then by `sortKey`, then by label.
  *
  * [accept] inserts `insertText` over the replace range as one `EditorAction`. The action runs through the
- * [EditorActionExecutor] passed to the factory, so it makes one undo step with caret mementos. The caret goes to
- * `caretOffsetInInsert`.
+ * [EditorActionExecutor] passed to the factory, so it makes one undo step with caret mementos. The lines of the insert
+ * text after the first get the indentation of the line the insertion starts on. The caret goes to
+ * `caretOffsetInInsert`. A template, which is an item with placeholders, selects its first placeholder instead and is
+ * reported to the listener of the factory, which activates its placeholders.
  *
  * The model follows `CaretModel.state` itself. It closes when the primary caret leaves the replace range or the word
  * being completed, which means that something other than identifier characters was typed since the request. An example
  * is the space and the `{` after `DO`. It also closes when no item matches, on Escape and on focus loss through
- * [close].
+ * [close]. A selection closes it too, unless the request was made over that selection: an explicit request while a
+ * word is selected, such as a placeholder of a template, completes at the start of the selection, filters by the text
+ * before it, and accepting replaces the selection along with the replace range.
  */
 public interface CompletionSessionModel {
 
@@ -165,7 +169,8 @@ public interface CompletionSessionModel {
 /**
  * Creates a [CompletionSessionModel] for [text] and [caret]. It asks [source] for items and accepts through
  * [executor]. Caret observation and item requests run in [scope], which is the UI scope of the editor. [source] moves
- * the work off the UI thread.
+ * the work off the UI thread. [onTemplateInserted] hears of every accepted item with placeholders once it is inserted,
+ * and the editor starts the placeholders of the template there.
  */
 public fun CompletionSessionModel(
     text: EditableText,
@@ -173,7 +178,8 @@ public fun CompletionSessionModel(
     source: CompletionSource,
     executor: EditorActionExecutor,
     scope: CoroutineScope,
-): CompletionSessionModel = DefaultCompletionSessionModel(text, caret, source, executor, scope)
+    onTemplateInserted: (TemplateInsertion) -> Unit = {},
+): CompletionSessionModel = DefaultCompletionSessionModel(text, caret, source, executor, scope, onTemplateInserted)
 
 /**
  * The default [CompletionSessionModel]. It is a coordinator. [CompletionTriggers] decides the auto-triggers.
@@ -193,6 +199,7 @@ internal class DefaultCompletionSessionModel(
     private val source: CompletionSource,
     private val executor: EditorActionExecutor,
     private val scope: CoroutineScope,
+    private val onTemplateInserted: (TemplateInsertion) -> Unit = {},
 ) : CompletionSessionModel {
 
     private val uiState = MutableStateFlow<CompletionUiState?>(null)
@@ -227,12 +234,18 @@ internal class DefaultCompletionSessionModel(
         refresh()
         val item = uiState.value?.selected ?: return false
         val open = session ?: return false
-        val version = text.snapshot.value.version
-        val acceptance = open.acceptance(text, caret.primary.position, item)
+        val before = text.snapshot.value
+        val acceptance = open.acceptance(text, caret.primary.selection, item)
         close()
-        val (edit, caretAfter) = acceptance ?: return false
-        val action = CommandEditAction(ACCEPT_ID, "Accept Completion", version, listOf(edit), listOf(CaretMemento.at(caretAfter)))
-        return executor.execute(action)
+        if (acceptance == null) return false
+        val action =
+            CommandEditAction(ACCEPT_ID, "Accept Completion", before.version, listOf(acceptance.edit), listOf(acceptance.caretAfter))
+        val done = executor.execute(action)
+        val after = text.snapshot.value
+        if (done && acceptance.placeholders.isNotEmpty() && after.version == before.version + 1) {
+            onTemplateInserted(TemplateInsertion(before, after, acceptance.inserted, acceptance.placeholders, acceptance.end))
+        }
+        return done
     }
 
     override fun close() {
@@ -258,8 +271,8 @@ internal class DefaultCompletionSessionModel(
     }
 
     /**
-     * Asks the source for the items at the primary caret of the current text. A newer request cancels this one. A
-     * failing source is logged and yields no items.
+     * Asks the source for the items at the primary caret of the current text, at the start of its selection if it has
+     * one. A newer request cancels this one. A failing source is logged and yields no items.
      *
      * The job starts only after it was assigned to [request]. An eager dispatcher may complete the request at once and
      * start a newer one from [receive]. Starting late makes sure that no finished job is left in [request] then.
@@ -267,7 +280,7 @@ internal class DefaultCompletionSessionModel(
     private fun request(trigger: CompletionTrigger) {
         request?.cancel()
         val snapshot = text.snapshot.value
-        val offset = caret.primary.position
+        val offset = caret.primary.selection.start
         val job = scope.launch(start = CoroutineStart.LAZY) {
             val items = try {
                 source.items(snapshot, offset)

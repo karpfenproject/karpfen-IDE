@@ -100,7 +100,7 @@ class KmodelFeaturesTest {
         assertEquals("\"diameter\"", probe.complete(open, offset).single().insertText)
 
         val empty = ExampleProject.document(model.path, "", version = 3)
-        assertEquals(listOf("make object \"…\":\"…\" { }"), probe.labels(empty, 0))
+        assertEquals(listOf("make object \"…\":\"…\" { }"), probe.labelsWithoutTemplates(empty, 0))
     }
 
     @Test

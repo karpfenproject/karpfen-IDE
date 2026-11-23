@@ -56,6 +56,14 @@ class ServicesProbe(analysis: ProjectAnalysis = ExampleProject.analysis) {
     fun labels(document: LanguageDocument, offset: Int): List<String> =
         complete(document, offset).sortedWith(compareBy({ it.sortKey }, { it.label })).map { it.label }
 
+    /**
+     * The labels of the completion items at [offset] without the templates of whole constructs, sorted like [labels]. Tests
+     * of the one-line proposals of a position use it, and the templates have tests of their own.
+     */
+    fun labelsWithoutTemplates(document: LanguageDocument, offset: Int): List<String> =
+        complete(document, offset).filter { it.detail != "template" }
+            .sortedWith(compareBy({ it.sortKey }, { it.label })).map { it.label }
+
     /** Fails if a provider failure was reported. */
     fun assertNoFailures() = assertEquals(emptyList(), failures.toList().map { "${it.operation} ${it.language}: ${it.error}" })
 

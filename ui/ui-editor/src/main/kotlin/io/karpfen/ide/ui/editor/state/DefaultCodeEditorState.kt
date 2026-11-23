@@ -26,6 +26,7 @@ import io.karpfen.ide.ui.editor.model.action.EditorKeymap
 import io.karpfen.ide.ui.editor.model.action.typeTextAction
 import io.karpfen.ide.ui.editor.model.caret.CaretModel
 import io.karpfen.ide.ui.editor.model.completion.CompletionSessionModel
+import io.karpfen.ide.ui.editor.model.completion.PlaceholderModel
 import io.karpfen.ide.ui.editor.model.find.FindModel
 import io.karpfen.ide.ui.editor.model.navigation.GoToLineQuery
 import io.karpfen.ide.ui.foundation.keys.KeyModifier
@@ -45,8 +46,9 @@ import kotlinx.coroutines.flow.asStateFlow
  * lines. It creates the models and delegates to internal collaborators, each with one responsibility.
  *
  * The models are the `CaretModel` with the tab width of the settings, the `AutoClosedPairs`, the `FindModel` with
- * [backgroundDispatcher], and the `CompletionSessionModel`. The find and completion models use [ActionRunner] as their
- * executor. These models are created here and not injected. They are bound to this editor's text, caret and executor.
+ * [backgroundDispatcher], the `CompletionSessionModel` and the `PlaceholderModel` of the templates it inserts. The
+ * find and completion models use [ActionRunner] as their executor. These models are created here and not injected.
+ * They are bound to this editor's text, caret and executor.
  * They do not need Compose and are deterministic, because time and threads come from the injected scope and background
  * dispatcher. So the editor's tests use the real models.
  *
@@ -56,6 +58,11 @@ import kotlinx.coroutines.flow.asStateFlow
  *
  * [ActionRunner] executes every action. After each run it triggers the [CaretReveal] and refreshes the
  * [ActionEnablement].
+ *
+ * A key stroke goes to the open completion list first, then to the active placeholders of the last inserted template,
+ * and then to the keymap. So Tab accepts a proposal while the list is open, moves between placeholders while the list
+ * is closed and placeholders are active, and indents otherwise. A move between placeholders reveals the caret like an
+ * action does, so the selected placeholder is on screen.
  *
  * [EditorCompletionSource] is the suspending completion source on [backgroundDispatcher]. [HighlightPipeline] and
  * [BracketTracker] run on [backgroundDispatcher] too. The highlight pipeline includes the semantic carry-over described
@@ -101,8 +108,15 @@ internal class DefaultCodeEditorState(
     )
 
     override val find: FindModel = FindModel(text, caret, runner, scope, backgroundDispatcher)
-    override val completion: CompletionSessionModel =
-        CompletionSessionModel(text, caret, EditorCompletionSource(session, languageServices, backgroundDispatcher), runner, scope)
+    private val placeholders = PlaceholderModel(text, caret, scope)
+    override val completion: CompletionSessionModel = CompletionSessionModel(
+        text,
+        caret,
+        EditorCompletionSource(session, languageServices, backgroundDispatcher),
+        runner,
+        scope,
+        onTemplateInserted = placeholders::start,
+    )
 
     private val lookup = SymbolLookup(session, languageServices, backgroundDispatcher)
     private val navigator = DefinitionNavigator(scope, lookup::definitions)
@@ -145,6 +159,12 @@ internal class DefaultCodeEditorState(
     override fun handleKey(stroke: KeyStroke): Boolean {
         hover.hide()
         if (completion.handleKey(stroke)) {
+            enablement.refresh()
+            return true
+        }
+        val caretBefore = caret.primary
+        if (placeholders.handleKey(stroke)) {
+            if (caret.primary != caretBefore) reveal.revealPrimary()
             enablement.refresh()
             return true
         }
@@ -229,6 +249,7 @@ internal class DefaultCodeEditorState(
         if (closed) return
         closed = true
         completion.close()
+        placeholders.end()
         hover.hide()
         scope.cancel()
         overlays.closeAll()

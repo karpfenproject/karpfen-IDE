@@ -44,7 +44,7 @@ class KmetaFeaturesTest {
     fun `top level offers the type snippet with the caret in its name`() {
         val items = probe.complete(metamodel, text.length)
 
-        val item = items.single()
+        val item = items.single { it.detail != "template" }
         assertEquals("type \"Name\" \"Description\" { }", item.label)
         assertEquals(CompletionKind.SNIPPET, item.kind)
         assertEquals("type \"\" \"\" { }", item.insertText)

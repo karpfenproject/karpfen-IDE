@@ -47,6 +47,43 @@ class CompletionItemsTest {
     }
 
     @Test
+    fun `placeholder markers become ranges visited by number, and the caret marker stays the end`() {
+        val item = Snippet("t", "a(\"\${2:second}\", \"\${1:first}\") \${3:}\$0 \$(path) \${x:y}").item(range)
+
+        assertEquals("a(\"second\", \"first\")  \$(path) \${x:y}", item.insertText)
+        assertEquals(
+            listOf("first", "second", ""),
+            item.placeholders.map { item.insertText.substring(it.start, it.end) },
+            "visited by number, an empty placeholder included",
+        )
+        assertEquals(TextRange(21, 21), item.placeholders.last())
+        assertEquals(21, item.caretOffsetInInsert)
+    }
+
+    @Test
+    fun `a template joins its lines, is marked as template and ranks after the one-line snippet`() {
+        val oneLine = Snippet("STATE \"…\" { }", "STATE \"\$0\" { }").item(range)
+        val template = Snippet.template("STATE \"…\" with DO", "STATE \"\${1:Name}\" {", "    DO {", "    }", "}").item(range)
+
+        assertEquals("STATE \"Name\" {\n    DO {\n    }\n}", template.insertText)
+        assertEquals(listOf(TextRange(7, 11)), template.placeholders)
+        assertNull(template.caretOffsetInInsert, "the end of the template is the end of the insertion")
+        assertEquals("template", template.detail)
+        assertEquals(CompletionKind.SNIPPET, template.kind)
+        assertEquals(listOf(oneLine, template), listOf(template, oneLine).sortedBy { it.sortKey })
+        assertEquals(emptyList(), oneLine.placeholders)
+    }
+
+    @Test
+    fun `the builder of a template text records its pieces in the order written`() {
+        val text = TemplateTextBuilder().literal("make object \"").placeholder("lamp").literal("\":\"Lamp\" { ").caret().literal("}").build()
+
+        assertEquals("make object \"lamp\":\"Lamp\" { }", text.text)
+        assertEquals(listOf(TextRange(13, 17)), text.placeholders)
+        assertEquals(28, text.caret)
+    }
+
+    @Test
     fun `names are quoted outside strings and ranked by sort key`() {
         val quoted = nameItem("Vector", CompletionKind.TYPE, range, quoted = true, rank = 0)
         val plain = nameItem("Robot", CompletionKind.TYPE, range)

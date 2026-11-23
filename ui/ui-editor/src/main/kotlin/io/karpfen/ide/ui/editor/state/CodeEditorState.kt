@@ -192,9 +192,10 @@ public interface EditorViewModel {
 
     /**
      * Handles a key stroke of the focused text area. Completion gets the stroke first through
-     * `completion.handleKey`. Then the action of the keymap runs, if it is registered and enabled. Returns true exactly
-     * when the stroke was handled, which means completion consumed it or a bound action was enabled and executed. The
-     * view consumes exactly those strokes.
+     * `completion.handleKey`. Then the placeholders of an inserted template get Tab, Shift+Tab and Escape while they are
+     * active. Then the action of the keymap runs, if it is registered and enabled. Returns true exactly when the stroke
+     * was handled, which means completion or the placeholders consumed it or a bound action was enabled and executed.
+     * The view consumes exactly those strokes.
      *
      * So the focused component handles its strokes first, and an accelerator of the window menu only sees a stroke that
      * nobody consumed. Swing key bindings skip consumed events, and the macOS screen menu bar delivers its key

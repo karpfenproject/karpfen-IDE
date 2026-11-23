@@ -27,7 +27,9 @@ import io.karpfen.ide.core.lang.symbols.TypeCatalog
 import io.karpfen.ide.core.lang.symbols.TypeOrigin
 
 /**
- * Completion in KMeta. At top level it offers the `type "Name" "Description" { }` snippet. In a type body it offers the
+ * Completion in KMeta. At top level it offers the `type "Name" "Description" { }` snippet and the template of a whole
+ * type with placeholders, which has a `prop`, a `has` and a `knows` in a domain metamodel and a `prop` and a `has` in
+ * an event metamodel. In a type body it offers the
  * `prop`, `has`, `knows` and `list` snippets. At the second argument of `prop(` it offers `number`, `string` and
  * `boolean`. At the type argument of `has(`, `knows(` or `list(` it offers the types of [types]. These are the types
  * declared in the file, plus the domain types of the context when the file is `EVENTS.kmeta`. Outside quotes, names
@@ -44,7 +46,7 @@ internal class KmetaCompletionProvider(
         val (context, slot) = slots.at(request.document, offset)
         val replace = context.replaceRange
         return when (slot) {
-            KmetaSlot.TopLevel -> listOf(TYPE_SNIPPET.item(replace))
+            KmetaSlot.TopLevel -> listOf(TYPE_SNIPPET.item(replace), typeTemplate(request).item(replace))
             is KmetaSlot.TypeBody -> RULE_SNIPPETS.map { it.item(replace) }
             is KmetaSlot.TypeArgument -> {
                 val names = if (slot.primitive) primitives(slot) else typeNames(request, slot)
@@ -55,6 +57,13 @@ internal class KmetaCompletionProvider(
             is KmetaSlot.TypeName, is KmetaSlot.MemberName, KmetaSlot.None -> emptyList()
         }
     }
+
+    /**
+     * The template of a whole type. In an event metamodel it holds a property and a contained object, which is what a
+     * payload carries. It has no `knows`, because a payload is read as one object on its own, so a reference could
+     * only point into the payload itself.
+     */
+    private fun typeTemplate(request: FeatureRequest): Snippet = if (request.isEventsDocument) EVENT_TYPE_TEMPLATE else TYPE_TEMPLATE
 
     /** The primitive types for a `prop` type argument. */
     private fun primitives(slot: KmetaSlot.TypeArgument): List<CompletionItem> =
@@ -78,6 +87,21 @@ internal class KmetaCompletionProvider(
 
     private companion object {
         val TYPE_SNIPPET = Snippet("type \"Name\" \"Description\" { }", "type \"\$0\" \"\" { }", detail = "type definition")
+        val TYPE_TEMPLATE = Snippet.template(
+            "type \"Name\" with prop, has and knows",
+            "type \"\${1:Name}\" \"\${2:description}\" {",
+            "    prop(\"\${3:name}\", \"\${4:string}\")",
+            "    has(\"\${5:part}\", \"\${6:Type}\")",
+            "    knows(\"\${7:other}\", \"\${8:Type}\")",
+            "}",
+        )
+        val EVENT_TYPE_TEMPLATE = Snippet.template(
+            "type \"event\" with prop and has",
+            "type \"\${1:event}\" \"\${2:description}\" {",
+            "    prop(\"\${3:name}\", \"\${4:string}\")",
+            "    has(\"\${5:part}\", \"\${6:Type}\")",
+            "}",
+        )
         val LIST_SNIPPET = Snippet("list(\"…\")", "list(\"\$0\")", detail = "list of a type")
         val BEHAVES_AFTER_SNIPPET = Snippet("behaves after \"…\"", "behaves after \"\$0\"", detail = "state machine of every object")
         val RULE_SNIPPETS = listOf(

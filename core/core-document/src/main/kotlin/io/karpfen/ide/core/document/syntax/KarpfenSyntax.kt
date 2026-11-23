@@ -40,6 +40,14 @@ public object KarpfenSyntax {
     public val PRIMITIVE_TYPES: Set<String> = SimplePropertyType.entries.mapTo(LinkedHashSet()) { it.keyword }
 
     /**
+     * The dsl-tools [SimplePropertyType] that [keyword] names as it is written in the files, or null if [keyword] is
+     * none of the [PRIMITIVE_TYPES]. Code that acts on the kind of a primitive type, such as writing its default value,
+     * switches on the result, so it follows dsl-tools when a type is added or renamed.
+     */
+    public fun primitiveType(keyword: String): SimplePropertyType? =
+        SimplePropertyType.entries.firstOrNull { it.keyword == keyword }
+
+    /**
      * The KStates action operations by their upper-case names, in the order of dsl-tools' [ActionOperationType]. The
      * grammar accepts both cases. The set holds every operation except `EVENT`. `EVENT` is also the keyword of an event
      * clause in conditions and is therefore a keyword of its own.

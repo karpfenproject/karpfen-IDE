@@ -51,7 +51,7 @@ class KstatesCompletionTest {
     }
 
     private fun labelsIn(textWithCaret: String): List<String> =
-        robotDocument(textWithCaret).let { (document, offset) -> probe.labels(document, offset) }
+        robotDocument(textWithCaret).let { (document, offset) -> probe.labelsWithoutTemplates(document, offset) }
 
     private fun machine(body: String) = "STATEMACHINE ATTACHED TO \"Robot\" {\n$body\n}\n"
 
@@ -109,7 +109,9 @@ class KstatesCompletionTest {
     @Test
     fun `the constructs of the language features that are off are not offered`() {
         val off = ServicesProbe(ExampleProject.analysis.copy(languageFeatures = emptySet()))
-        val labels = { textWithCaret: String -> robotDocument(textWithCaret).let { (document, offset) -> off.labels(document, offset) } }
+        val labels = { textWithCaret: String ->
+            robotDocument(textWithCaret).let { (document, offset) -> off.labelsWithoutTemplates(document, offset) }
+        }
         val stateBody = { body: String -> machine(" STATES {\n  STATE \"a\" {\n$body\n  }\n }") }
 
         assertEquals(listOf("STATES { }", "TRANSITIONS { }"), labels(machine("  ‸")))
@@ -136,10 +138,10 @@ class KstatesCompletionTest {
 
         assertEquals(
             listOf(containerState, "DEEP HISTORY STATE \"…\" { }", finalState, "INITIAL STATE \"…\" { }", "SHALLOW HISTORY STATE \"…\" { }", "STATE \"…\" { }"),
-            histories.labels(document, offset),
+            histories.labelsWithoutTemplates(document, offset),
         )
         val (transitions, at) = robotDocument(machine(" STATES { }\n TRANSITIONS {\n  ‸\n }"))
-        assertEquals(listOf("TRANSITION \"…\" -> \"…\" { }"), histories.labels(transitions, at))
+        assertEquals(listOf("TRANSITION \"…\" -> \"…\" { }"), histories.labelsWithoutTemplates(transitions, at))
     }
 
     @Test
