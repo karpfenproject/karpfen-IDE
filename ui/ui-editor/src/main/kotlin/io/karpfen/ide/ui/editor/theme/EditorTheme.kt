@@ -28,6 +28,8 @@ import io.karpfen.ide.core.lang.HighlightStyle
  *
  * @property background the background of the text area.
  * @property foreground the colour of text without a highlight style.
+ * @property completionPreview the light text of a completion preview, the part of a proposal that is not yet text. It
+ *   is muted against [foreground], and the preview draws it without syntax colours.
  * @property gutterBackground the background of the gutter.
  * @property gutterForeground the colour of the line numbers.
  * @property currentLine the background of the caret's line.
@@ -47,6 +49,7 @@ import io.karpfen.ide.core.lang.HighlightStyle
 public data class EditorTheme(
     public val background: Color,
     public val foreground: Color,
+    public val completionPreview: Color,
     public val gutterBackground: Color,
     public val gutterForeground: Color,
     public val currentLine: Color,

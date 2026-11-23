@@ -46,8 +46,9 @@ import io.karpfen.ide.ui.editor.view.geometry.TextGeometry
 /**
  * The Compose side of one composed `CodeEditor`. It is a view helper and holds no editor logic. It offers the flows of
  * the editor state as Compose state, the text style and the cell metrics, and the [TextGeometry] of the current
- * snapshot. Reading these in the draw or layout phase invalidates only that phase, so scrolling and caret blinking do
- * not recompose the editor.
+ * snapshot. The geometry includes the completion preview of the snapshot while the completion list is open, so drawing,
+ * hit testing and the overlays all see the rows as they are drawn. Reading these in the draw or layout phase
+ * invalidates only that phase, so scrolling and caret blinking do not recompose the editor.
  */
 @Stable
 internal class EditorRenderState(
@@ -105,6 +106,7 @@ internal class EditorRenderState(
 internal fun rememberEditorRenderState(state: CodeEditorState, theme: EditorTheme): EditorRenderState {
     val settings = state.settings.collectAsState()
     val snapshot = state.snapshot.collectAsState()
+    val preview = state.completion.preview.collectAsState()
     val themeState = rememberUpdatedState(theme)
     val fontSize = settings.value.fontSize
     val textStyle = rememberUpdatedState(
@@ -116,13 +118,14 @@ internal fun rememberEditorRenderState(state: CodeEditorState, theme: EditorThem
     val metrics = rememberUpdatedState(rememberEditorMetrics(measurer, textStyle.value))
     val tabWidth = settings.value.tabDisplayWidth
     val geometry = rememberUpdatedState(
-        remember(snapshot.value, tabWidth, metrics.value) {
+        remember(snapshot.value, tabWidth, metrics.value, preview.value) {
             TextGeometry(
                 snapshot = snapshot.value,
                 tabStops = TabStops(tabWidth),
                 charWidth = metrics.value.charWidth,
                 lineHeight = metrics.value.lineHeight,
                 textLeft = metrics.value.charWidth * TEXT_LEFT_PADDING_CELLS,
+                preview = preview.value,
             )
         },
     )

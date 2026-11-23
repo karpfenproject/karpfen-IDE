@@ -40,9 +40,6 @@ import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.ui.editor.model.action.EditorActionIds
 import io.karpfen.ide.ui.editor.state.CodeEditorState
 import io.karpfen.ide.ui.foundation.keys.HostPlatform
-import io.karpfen.ide.ui.foundation.keys.KeyCode
-import io.karpfen.ide.ui.foundation.keys.KeyModifier
-import io.karpfen.ide.ui.foundation.keys.KeyStroke
 import io.karpfen.ide.ui.foundation.widgets.TreeViewTestTags
 import io.karpfen.ide.ui.workbench.Workbench
 import io.karpfen.ide.ui.workbench.WorkbenchTestTags
@@ -78,7 +75,7 @@ import kotlin.time.Duration.Companion.seconds
  * Completion follows the keymap of each platform. Ctrl+M in the focused editor opens it everywhere. The editor
  * consumes the stroke, so the Edit menu's Complete Code, whose accelerator is Ctrl+M, never sees it. With the focus in
  * the project tree, Ctrl+M reaches that menu item, which is disabled while the editor is unfocused. Ctrl+Space opens
- * completion only on Windows. On macOS and Linux it goes on unconsumed and runs no command.
+ * it on every platform too, and the editor consumes it.
  *
  * These tests do not reach the native macOS menu bar itself.
  */
@@ -213,17 +210,15 @@ class KeyRoutingEndToEndTest {
 
     @ParameterizedTest
     @EnumSource(HostPlatform::class)
-    fun `Ctrl+Space opens completion on Windows only and goes on unconsumed elsewhere`(platform: HostPlatform) =
+    fun `Ctrl+Space opens completion on every platform and reaches no menu`(platform: HostPlatform) =
         composedIde(platform) { ide, menu, editor ->
-            val windows = platform == HostPlatform.WINDOWS
             focusEditorInAttachedType(editor)
 
             onNodeWithTag(EditorAreaTestTags.EDITOR).performKeyInput { withKeyDown(Key.CtrlLeft) { pressKey(Key.Spacebar) } }
             settle(ide)
 
-            assertEquals(windows, editor.completion.state.value != null, "completion opened on $platform")
-            val ctrlSpace = KeyStroke(KeyCode.SPACE, setOf(KeyModifier.CTRL))
-            assertEquals(if (windows) listOf() else listOf(ctrlSpace), menu.unconsumed, "what the editor left unconsumed on $platform")
+            assertNotNull(editor.completion.state.value, "completion opened on $platform")
+            assertEquals(listOf(), menu.unconsumed, "the editor consumed Ctrl+Space on $platform")
             assertEquals(listOf(), menu.ran, "no command ran")
         }
 

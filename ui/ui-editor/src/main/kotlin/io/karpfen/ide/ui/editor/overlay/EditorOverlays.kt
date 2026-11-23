@@ -79,8 +79,16 @@ public interface EditorOverlayHost {
     /** The monospace text style of the editor. Popups that show code use it. */
     public val textStyle: TextStyle
 
-    /** The rectangle of the primary caret, or null if the caret is scrolled out of view. */
+    /** The rectangle of the primary caret, one row tall, or null if the caret is scrolled out of view. */
     public val caretBounds: Rect?
+
+    /**
+     * The rectangle of the primary caret reaching down to the last row that shows the caret's line, or null if the
+     * caret is scrolled out of view. While a completion preview adds rows below the caret's line, it reaches down to the
+     * last of them, so a popup placed below it stands below the preview. Otherwise it is [caretBounds]. The default
+     * implementation knows of no preview.
+     */
+    public val caretLineBounds: Rect? get() = caretBounds
 
     /**
      * True if the primary caret is out of view and stays there, because the user scrolled it away. It is false while

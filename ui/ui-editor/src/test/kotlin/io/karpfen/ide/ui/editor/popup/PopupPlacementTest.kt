@@ -58,6 +58,17 @@ class PopupPlacementTest {
     }
 
     @Test
+    fun `the preferred anchor is kept while the popup fits on a side of it and else the one with more room is taken`() {
+        val preview = Rect(caret.left, caret.top, caret.right, 200f)
+        assertEquals(preview, PopupPlacement.anchorFor(preview, caret, 100, area.height), "fits below the preview")
+        assertEquals(preview, PopupPlacement.anchorFor(preview, caret, 100, 220), "fits above the caret line")
+        val tall = Rect(0f, 0f, 1f, 300f)
+        val top = Rect(0f, 0f, 1f, 16f)
+        assertEquals(top, PopupPlacement.anchorFor(tall, top, 100, area.height), "no room at all beside the preview")
+        assertEquals(tall, PopupPlacement.anchorFor(tall, Rect(0f, 0f, 1f, 300f), 100, area.height), "the fallback has no more room")
+    }
+
+    @Test
     fun `a popup is moved left to end inside the area but never beyond its left edge`() {
         val right = Rect(380f, 0f, 381f, 16f)
         assertEquals(IntOffset(400 - 120, 16), PopupPlacement.topLeft(right, IntSize(120, 50), area))

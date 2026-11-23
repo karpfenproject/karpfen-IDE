@@ -46,7 +46,8 @@ import kotlin.math.roundToInt
  * [ProxyTextInput] at the caret, which owns keyboard focus. It fills its parent, which is the coordinate space of the
  * overlay host. Its size is read in composition, so a resize recomposes and reports the new geometry to the viewport.
  * The content height includes [EditorViewport.CARET_MARGIN_LINES] extra lines, so the last line can be revealed with
- * its margin.
+ * its margin. It counts the rows of the geometry, so the rows a completion preview adds can be scrolled to. A preview
+ * changes only the content size and never the scroll position.
  */
 @Composable
 internal fun EditorTextArea(render: EditorRenderState, focusRequester: FocusRequester, modifier: Modifier = Modifier) {
@@ -75,7 +76,7 @@ internal fun EditorTextArea(render: EditorRenderState, focusRequester: FocusRequ
             viewportHeight = areaSize.height.toFloat(),
             lineHeight = metrics.lineHeight,
             contentWidth = geometry.textLeft + (maxColumns + RIGHT_PADDING_CELLS) * metrics.charWidth,
-            contentHeight = (geometry.snapshot.lineCount + EditorViewport.CARET_MARGIN_LINES) * metrics.lineHeight,
+            contentHeight = (geometry.rowCount + EditorViewport.CARET_MARGIN_LINES) * metrics.lineHeight,
         )
     }
     val caretVisible = rememberCaretVisible(render.focused.value, render.carets.value to geometry.snapshot.version)

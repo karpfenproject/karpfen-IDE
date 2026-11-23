@@ -28,8 +28,13 @@ import io.karpfen.ide.ui.editor.state.visibleLines
  */
 internal class TextAreaFrame(val geometry: TextGeometry, val viewport: ViewportSnapshot) {
 
-    /** The lines laid out for drawing. These are the visible lines plus [EditorViewport.DEFAULT_OVERSCAN] lines on each side. */
-    val laidOut: IntRange = viewport.visibleLines(geometry.snapshot.lineCount, EditorViewport.DEFAULT_OVERSCAN)
+    /**
+     * The lines laid out for drawing. These are the lines on the visible rows plus [EditorViewport.DEFAULT_OVERSCAN]
+     * rows on each side. A line drawn on several rows, the line of a completion preview, counts once.
+     */
+    val laidOut: IntRange = viewport.visibleLines(geometry.rowCount, EditorViewport.DEFAULT_OVERSCAN).let { rows ->
+        if (rows.isEmpty()) rows else geometry.shift.lineAt(rows.first)..geometry.shift.lineAt(rows.last)
+    }
 
     /** Returns the text area x of the content x [x]. */
     fun toAreaX(x: Float): Float = x - viewport.scrollX
@@ -37,11 +42,21 @@ internal class TextAreaFrame(val geometry: TextGeometry, val viewport: ViewportS
     /** Returns the text area y of the content y [y]. */
     fun toAreaY(y: Float): Float = y - viewport.scrollY
 
-    /** Returns the caret rectangle at [offset], [width] wide and one line tall, whether it is visible or not. */
+    /** Returns the caret rectangle at [offset], [width] wide and one row tall, whether it is visible or not. */
     fun caretRect(offset: Int, width: Float): Rect {
         val x = toAreaX(geometry.xOf(offset))
-        val top = toAreaY(geometry.lineTop(geometry.lineOf(offset)))
+        val top = toAreaY(geometry.rowTop(geometry.rowOf(offset)))
         return Rect(x - width / 2f, top, x + width / 2f, top + geometry.lineHeight)
+    }
+
+    /**
+     * Returns [caret], the caret rectangle at [offset], extended down to the bottom of the last row that shows the line
+     * of [offset]. On the line of a completion preview that is the last row of the preview, so a popup placed below it
+     * does not cover the preview. On any other line it is [caret] itself.
+     */
+    fun belowLineOf(offset: Int, caret: Rect): Rect {
+        val bottom = toAreaY(geometry.rowTop(geometry.shift.lastRowOf(geometry.lineOf(offset))) + geometry.lineHeight)
+        return if (bottom > caret.bottom) Rect(caret.left, caret.top, caret.right, bottom) else caret
     }
 
     /** True if [rect], given in text area coordinates, intersects the visible area. */
@@ -55,8 +70,8 @@ internal class TextAreaFrame(val geometry: TextGeometry, val viewport: ViewportS
     fun characterRect(offset: Int): Rect? {
         val line = geometry.lineOf(offset)
         if (line !in laidOut) return null
-        val left = toAreaX(geometry.xOf(offset))
-        val top = toAreaY(geometry.lineTop(line))
+        val left = toAreaX(geometry.cellXOf(offset))
+        val top = toAreaY(geometry.rowTop(geometry.cellRowOf(offset)))
         val right = if (offset < geometry.snapshot.length && geometry.snapshot[offset] != '\n') {
             toAreaX(geometry.xOf(offset + 1))
         } else {

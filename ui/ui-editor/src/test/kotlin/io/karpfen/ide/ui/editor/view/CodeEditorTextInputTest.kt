@@ -101,7 +101,7 @@ class CodeEditorTextInputTest {
     )
 
     @Test
-    fun `a stroke the editor handled does not type its character - Ctrl+Space on Windows`() = runComposeUiTest {
+    fun `a stroke the editor handled does not type its character - Ctrl+Space`() = runComposeUiTest {
         val ui = EditorUi(this, completing(), HostPlatform.WINDOWS)
         ui.compose("")
         ui.editor.requestFocus()

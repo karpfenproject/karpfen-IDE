@@ -38,6 +38,7 @@ internal object EditorPalettes {
     val light: EditorTheme = EditorTheme(
         background = Color(0xFFFFFFFF),
         foreground = Color(0xFF1E1F22),
+        completionPreview = Color(0xFF9A9EA8),
         gutterBackground = Color(0xFFF7F8FA),
         gutterForeground = Color(0xFF6E7380),
         currentLine = Color(0xFFF5F8FE),
@@ -76,6 +77,7 @@ internal object EditorPalettes {
     val dark: EditorTheme = EditorTheme(
         background = Color(0xFF1E1F22),
         foreground = Color(0xFFDFE1E5),
+        completionPreview = Color(0xFF7A7E86),
         gutterBackground = Color(0xFF2B2D30),
         gutterForeground = Color(0xFF8C909A),
         currentLine = Color(0xFF26282E),

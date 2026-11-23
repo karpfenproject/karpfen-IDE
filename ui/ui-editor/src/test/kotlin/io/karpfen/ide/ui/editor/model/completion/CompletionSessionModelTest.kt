@@ -474,11 +474,88 @@ class CompletionSessionModelTest {
             }
             if (random.nextInt(3) != 0) return@repeat
             advanceUntilIdle()
+            assertEquals(f.completion.state.value != null, f.completion.preview.value != null, "a preview exactly while open")
             val state = f.completion.state.value ?: return@repeat
             val caret = f.editor.caret.primary.position
             assertTrue(caret in state.replaceRange.start..state.replaceRange.end, "the caret is inside the range")
             assertEquals(f.editor.plain.substring(state.replaceRange.start, caret), state.filterText)
             assertTrue(state.items.all { CompletionRanking.qualityOf(it.label, state.filterText) != null })
+            assertEquals(f.editor.text.snapshot.value.version, f.completion.preview.value?.version, "the preview is of the current text")
         }
+    }
+
+    /** The first row of the preview, or null while there is none. */
+    private val Fixture.previewRow: String? get() = completion.preview.value?.rows?.first()
+
+    @Test
+    fun `the preview shows the highlighted item and follows the selection at once`() = completionTest("x pr| y") { f ->
+        assertNull(f.completion.preview.value, "no preview while closed")
+        f.completion.open()
+        advanceUntilIdle()
+        assertEquals("x print y", f.previewRow)
+        assertEquals(4, f.completion.preview.value?.realColumns, "the typed pr is real text")
+
+        f.completion.moveSelection(1)
+        assertEquals("x prop y", f.previewRow, "arrow keys")
+        f.completion.select(2)
+        assertEquals("x parse_rule y", f.previewRow, "a click on an entry")
+        assertTrue(f.completion.handleKey(key(KeyCode.PAGE_UP)))
+        assertEquals("x print y", f.previewRow, "page keys")
+        assertEquals("x pr y", f.editor.plain, "the text never changes")
+    }
+
+    @Test
+    fun `typing that narrows the list moves the preview to the item highlighted then`() = completionTest("x pr|") { f ->
+        f.completion.open()
+        advanceUntilIdle()
+        f.completion.select(1)
+        assertEquals("x prop", f.previewRow)
+
+        f.type("i")
+
+        assertEquals(listOf("print"), f.labels)
+        assertEquals("x print", f.previewRow)
+        assertEquals(5, f.completion.preview.value?.realColumns, "the typed pri is real text")
+    }
+
+    @Test
+    fun `the preview ends when the list closes for any reason`() = completionTest("x pr|") { f ->
+        val closings = listOf<Fixture.() -> Unit>(
+            { completion.close() },
+            { completion.handleKey(key(KeyCode.ESCAPE)) },
+            { type(" ") },
+            { editor.caret.moveTo(0) },
+            { completion.accept() },
+        )
+        for (closing in closings) {
+            f.editor.caret.moveTo(f.editor.plain.indexOf("pr") + 2)
+            f.completion.open()
+            advanceUntilIdle()
+            assertNotNull(f.completion.preview.value)
+            f.closing()
+            advanceUntilIdle()
+            assertNull(f.completion.state.value)
+            assertNull(f.completion.preview.value)
+            f.editor.run(EditorActionIds.UNDO)
+        }
+    }
+
+    @Test
+    fun `accepting puts the text exactly where the preview showed it`() = completionTest("STATES {\n  ST| x\n}") { f ->
+        f.source.labels = listOf("STATE", "STATES")
+        f.source.itemFor = { label, range ->
+            CompletionItem(label, CompletionKind.SNIPPET, "$label \"a\" {\n    DO\n}", range, null, null, null, label)
+        }
+        f.completion.open()
+        advanceUntilIdle()
+        f.completion.moveSelection(1)
+        val preview = assertNotNull(f.completion.preview.value)
+        val lines = f.editor.plain.split('\n')
+        val shown = (lines.take(preview.line) + preview.rows + lines.drop(preview.line + 1)).joinToString("\n")
+
+        assertTrue(f.completion.accept())
+
+        assertEquals("STATES {\n  STATES \"a\" {\n      DO\n  } x\n}", f.editor.plain)
+        assertEquals(shown, f.editor.plain)
     }
 }

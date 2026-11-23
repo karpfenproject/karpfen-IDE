@@ -504,10 +504,13 @@ from the run dialog or the command line. The runtime caches results of Python co
 - The default tick delay is 50 ms and the default event time to live is 3000 ms (`EnvironmentDefaults`).
 - Observation is a switch that can be turned on and off while a run is live. When it is off, Pull fetches one
   snapshot.
-- Code completion is Ctrl+M on every platform. Windows also binds Ctrl+Space. macOS and Linux leave Ctrl+Space alone,
-  because it switches input sources there.
+- Code completion is Ctrl+M and Ctrl+Space on every platform. The menu shows Ctrl+M, because macOS and Linux input
+  methods may take Ctrl+Space before the editor sees it.
 - Completion offers templates of whole constructs next to the one-line snippets and ranks them after them. A template
   is a `CompletionItem` with placeholders; the editor indents its lines for the line it lands on.
+- While the completion list is open, the text area shows the highlighted proposal in place, from the same acceptance
+  that taking it applies (`CompletionPreview`). The lines below a proposal of several lines move down for display only
+  (`LineShift` in `TextGeometry`), and clicks hit the rows as they are drawn.
 - The event injector edits a JSON payload that is prefilled with a template of the event's payload type.
 - A model whose objects reference each other in a loop is not deployed, because the runtime cannot write it.
 - dsl-tools logs to its own file and to the Language Tools Output, not to the console.

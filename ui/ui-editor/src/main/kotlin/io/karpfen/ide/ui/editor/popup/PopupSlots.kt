@@ -19,7 +19,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.focus.FocusRequester
 import io.karpfen.ide.ui.editor.overlay.EditorOverlayHost
 
@@ -69,17 +71,33 @@ internal fun FindBarSlot(host: EditorOverlayHost, intents: PopupIntents) {
  * keystroke or request that opened the list scrolls to it. A caret the user scrolled away
  * ([EditorOverlayHost.isCaretScrolledAway]) closes the session through [PopupIntents.completionHidden]. So a list
  * nobody sees never takes keys such as Enter, Tab and the arrows from the text area.
+ *
+ * The list stands below the rows of a completion preview ([EditorOverlayHost.caretLineBounds]), and at the caret
+ * when the preview leaves too little room ([CompletionAnchor]). The preview follows the selected entry, so its height
+ * changes with every selection. While the pointer is on the list, the list keeps the anchor it had when the pointer
+ * entered it. So a click on an entry does not move the list away from under the pointer, and a double click on an
+ * entry with a taller or shorter preview still accepts it.
  */
 @Composable
 internal fun CompletionSlot(host: EditorOverlayHost, intents: PopupIntents) {
     val state by host.state.completion.state.collectAsState()
     val open = state ?: return
-    val anchor = host.caretBounds
-    if (anchor == null) {
+    val caret = host.caretBounds
+    if (caret == null) {
         if (host.isCaretScrolledAway) LaunchedEffect(open) { intents.completionHidden() }
         return
     }
-    CompletionPopup(open, anchor, host.theme, host.textStyle, intents::selectCompletion, intents::acceptCompletion)
+    var kept by remember { mutableStateOf<CompletionAnchor?>(null) }
+    val anchor = kept ?: CompletionAnchor(caret, host.caretLineBounds ?: caret)
+    CompletionPopup(
+        open,
+        anchor,
+        host.theme,
+        host.textStyle,
+        intents::selectCompletion,
+        intents::acceptCompletion,
+        onPointerOver = { over -> kept = if (over) anchor else null },
+    )
 }
 
 /** Shows the hover tooltip while `overlays.hover` is set and the start of its range, which is the anchor, is on screen. */

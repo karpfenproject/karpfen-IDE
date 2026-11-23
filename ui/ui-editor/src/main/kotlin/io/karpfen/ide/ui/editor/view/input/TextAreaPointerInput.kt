@@ -60,34 +60,46 @@ import kotlinx.coroutines.launch
  *
  * Presses are taken in the initial pass and consumed, so the proxy text field below them never reacts to the mouse.
  *
+ * A press while a completion preview shows is hit-tested with the frame that draws the preview, so it lands on the text
+ * the user sees. The press closes the list, and the lines below the preview move back under the pointer. Two rules
+ * keep the rest of the gesture on what the user pointed at. A press that continues the click series of such a press,
+ * the second click of a double click, is hit-tested with the same frame as the first one. And the pointer extends the
+ * selection only once it has moved farther than the touch slop from the press, so a hand that shakes a little during
+ * the click does not select up to the line that moved under the pointer.
+ *
  * @param frame returns the text area at the current scroll position, or null before the first layout. It is read at
  *   every event.
  */
 internal fun Modifier.textAreaPointerInput(model: EditorViewModel, frame: () -> TextAreaFrame?): Modifier =
     pointerInput(model) {
         val clicks = ClickCounter(viewConfiguration.doubleTapTimeoutMillis, viewConfiguration.touchSlop)
+        var previewSeries: TextAreaFrame? = null
         coroutineScope {
             val timers: CoroutineScope = this
             awaitEachGesture {
                 val event = awaitDownWithAnyButton()
                 val down = event.changes.first { it.changedToDownIgnoreConsumed() }
-                val at = frame() ?: return@awaitEachGesture
+                val live = frame() ?: return@awaitEachGesture
                 down.consume()
                 val position = down.position
                 if (event.buttons.isSecondaryPressed) {
-                    model.openContextMenuAt(at.offsetAt(position.x, position.y), position.x, position.y)
+                    model.openContextMenuAt(live.offsetAt(position.x, position.y), position.x, position.y)
                     return@awaitEachGesture
                 }
                 if (!event.buttons.isPrimaryPressed) return@awaitEachGesture
                 val count = clicks.press(down.uptimeMillis, position.x, position.y)
+                if (count == 1) previewSeries = live.takeIf { it.geometry.preview != null }
+                val at = previewSeries?.takeIf { it.geometry.snapshot.version == live.geometry.snapshot.version } ?: live
                 model.pointerPressed(at.offsetAt(position.x, position.y), count, event.keyboardModifiers.toKeyModifiers())
+                var dragging = at.geometry.preview == null
                 var last = position
                 var autoScroll: Job? = null
                 try {
                     while (true) {
                         val change = awaitPointerEvent(PointerEventPass.Initial).changes.firstOrNull { it.id == down.id } ?: break
                         if (!change.pressed) break
-                        if (change.positionChanged()) {
+                        if (!dragging) dragging = (change.position - position).getDistance() > viewConfiguration.touchSlop
+                        if (dragging && change.positionChanged()) {
                             last = change.position
                             frame()?.let { model.pointerDragged(it.offsetAt(last.x, last.y)) }
                             val outside = last.x < 0f || last.y < 0f || last.x > size.width || last.y > size.height

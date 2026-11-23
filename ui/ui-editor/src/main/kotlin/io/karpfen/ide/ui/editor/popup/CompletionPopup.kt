@@ -39,9 +39,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.isSpecified
+import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
@@ -62,25 +62,28 @@ import io.karpfen.ide.ui.editor.model.completion.CompletionUiState
 import io.karpfen.ide.ui.editor.theme.EditorTheme
 
 /**
- * The completion list. It is anchored below [anchor], or above it if there is no room below. It shows at most
- * [CompletionUiState.MAX_VISIBLE_ROWS] rows at once. Each row has a kind badge, the label with the matched prefix
- * emphasized, and the detail. The selected row is kept visible.
+ * The completion list. It is anchored below the anchor that [anchor] resolves for the height of the list, or above it
+ * if there is no room below. It shows at most [CompletionUiState.MAX_VISIBLE_ROWS] rows at once. Each row has a kind
+ * badge, the label with the matched prefix emphasized, and the detail. The selected row is kept visible.
  *
  * A click selects a row through [onSelect], and a double click accepts through [onAccept]. The list never takes
- * keyboard focus. The text area keeps focus, and the model handles the keys.
+ * keyboard focus. The text area keeps focus, and the model handles the keys. [onPointerOver] reports true when the
+ * pointer enters the list and false when it leaves it.
  */
 @Composable
 internal fun CompletionPopup(
     state: CompletionUiState,
-    anchor: Rect,
+    anchor: CompletionAnchor,
     theme: EditorTheme,
     textStyle: TextStyle,
     onSelect: (Int) -> Unit,
     onAccept: () -> Unit,
+    onPointerOver: (Boolean) -> Unit = {},
 ) {
     val metrics = rememberCompletionListMetrics(textStyle)
-    AnchoredPopupLayout(anchor) {
-        CompletionList(state, metrics, theme, textStyle, onSelect, onAccept)
+    val listHeight = metrics.height(state.items.size)
+    AnchoredPopupLayout({ area -> anchor.resolve(listHeight, area.height) }) {
+        CompletionList(state, metrics, theme, textStyle, onSelect, onAccept, onPointerOver)
     }
 }
 
@@ -139,7 +142,10 @@ private fun rememberCompletionListMetrics(textStyle: TextStyle): CompletionListM
     }
 }
 
-/** The scrollable list of the items of [state] in a popup surface sized by [metrics]. It keeps the selected row visible. */
+/**
+ * The scrollable list of the items of [state] in a popup surface sized by [metrics]. It keeps the selected row visible
+ * and reports the pointer entering and leaving it through [onPointerOver].
+ */
 @Composable
 private fun CompletionList(
     state: CompletionUiState,
@@ -148,14 +154,30 @@ private fun CompletionList(
     textStyle: TextStyle,
     onSelect: (Int) -> Unit,
     onAccept: () -> Unit,
+    onPointerOver: (Boolean) -> Unit,
 ) {
     val listState = rememberLazyListState()
     LaunchedEffect(listState, state) { listState.reveal(state.selectedIndex) }
+    val pointerOver by rememberUpdatedState(onPointerOver)
     val density = LocalDensity.current
     val width = with(density) { metrics.width(state.items).toDp() }
     val height = with(density) { metrics.height(state.items.size).toDp() }
     val rowHeight = with(density) { metrics.rowHeight.toDp() }
-    PopupSurface(theme, Modifier.width(width).heightIn(max = height).testTag(EditorPopupTags.COMPLETION)) {
+    val surface = Modifier
+        .width(width)
+        .heightIn(max = height)
+        .pointerInput(Unit) {
+            awaitPointerEventScope {
+                while (true) {
+                    when (awaitPointerEvent().type) {
+                        PointerEventType.Enter -> pointerOver(true)
+                        PointerEventType.Exit -> pointerOver(false)
+                    }
+                }
+            }
+        }
+        .testTag(EditorPopupTags.COMPLETION)
+    PopupSurface(theme, surface) {
         LazyColumn(state = listState) {
             itemsIndexed(state.items) { index, item ->
                 CompletionRow(item, index, index == state.selectedIndex, state.filterText, rowHeight, theme, textStyle, onSelect, onAccept)

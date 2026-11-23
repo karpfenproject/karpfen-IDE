@@ -16,11 +16,13 @@
 package io.karpfen.ide.ui.editor.view
 
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import io.karpfen.ide.core.lang.HighlightStyle
+import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.ui.editor.theme.EditorTheme
 import io.karpfen.ide.ui.editor.view.geometry.DisplayLine
 
@@ -33,10 +35,16 @@ internal data class LineSpan(val startColumn: Int, val endColumn: Int, val style
  * wrapping and kept in [cache]. The cache key is the line text together with the spans and the font settings. So only
  * lines that changed or scrolled in are measured. A cached layout is used only if it was measured for exactly the same
  * styled text and style, so a hash collision of the spans leads to a new measurement.
+ *
+ * A line may also carry light columns, the light text of a completion preview. They are drawn in the theme's
+ * `completionPreview` colour and take no syntax colour.
  */
 internal class LineLayouter(private val measurer: TextMeasurer, private val cache: LineLayoutCache) {
 
-    /** Returns the layout of [line] with [spans] in [style]. [fontSize] is in sp, and [tabWidth] is the tab display width. */
+    /**
+     * Returns the layout of [line] with [spans] in [style]. [fontSize] is in sp, and [tabWidth] is the tab display width.
+     * [light] holds the columns of the line drawn as light text, and it is empty for a line without a preview.
+     */
     fun layout(
         line: DisplayLine,
         spans: List<LineSpan>,
@@ -44,9 +52,11 @@ internal class LineLayouter(private val measurer: TextMeasurer, private val cach
         theme: EditorTheme,
         fontSize: Float,
         tabWidth: Int,
+        light: TextRange = TextRange.EMPTY,
     ): TextLayoutResult {
-        val styled = styledText(line, spans, theme)
-        val key = LineLayoutKey(line.source, HASH_FACTOR * spans.hashCode() + System.identityHashCode(theme), fontSize, tabWidth)
+        val styled = styledText(line, spans, theme, light)
+        val hash = HASH_FACTOR * (HASH_FACTOR * spans.hashCode() + light.hashCode()) + System.identityHashCode(theme)
+        val key = LineLayoutKey(line.source, hash, fontSize, tabWidth)
         cache.get(key)?.let { cached ->
             if (cached.layoutInput.text == styled && cached.layoutInput.style == style) return cached
         }
@@ -56,11 +66,11 @@ internal class LineLayouter(private val measurer: TextMeasurer, private val cach
     }
 
     /**
-     * Returns the display text of [line] with the theme's style of every span. The span columns are mapped to display
-     * offsets.
+     * Returns the display text of [line] with the theme's style of every span and the preview colour over [light]. The
+     * columns are mapped to display offsets.
      */
-    private fun styledText(line: DisplayLine, spans: List<LineSpan>, theme: EditorTheme): AnnotatedString {
-        if (spans.isEmpty()) return AnnotatedString(line.text)
+    private fun styledText(line: DisplayLine, spans: List<LineSpan>, theme: EditorTheme, light: TextRange): AnnotatedString {
+        if (spans.isEmpty() && light.isEmpty) return AnnotatedString(line.text)
         val builder = AnnotatedString.Builder(line.text)
         for (span in spans) {
             val spanStyle = theme.styles[span.style] ?: continue
@@ -68,12 +78,15 @@ internal class LineLayouter(private val measurer: TextMeasurer, private val cach
             val end = line.displayOffsetOf(span.endColumn)
             if (start < end) builder.addStyle(spanStyle, start, end)
         }
+        val lightStart = line.displayOffsetOf(light.start)
+        val lightEnd = line.displayOffsetOf(light.end)
+        if (lightStart < lightEnd) builder.addStyle(SpanStyle(color = theme.completionPreview), lightStart, lightEnd)
         return builder.toAnnotatedString()
     }
 
     /** Holds the constant of the key hashing. */
     private companion object {
-        /** The multiplier that combines the hash of the spans with the identity of the theme. */
+        /** The multiplier that combines the hashes of the spans and the light columns with the identity of the theme. */
         const val HASH_FACTOR = 31
     }
 }

@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.ui.editor.popup
 
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.ComposeUiTest
@@ -208,6 +209,65 @@ class CompletionPopupTest {
         openCompletion(harness)
 
         assertEquals(areaWidth, boundsInTextArea(EditorPopupTags.COMPLETION).right.value, 0.5f)
+    }
+
+    @Test
+    fun `the list stands below a preview and keeps its place while the pointer is on it`() = popupTest("") { harness ->
+        harness.model.completionItems = completionItems(labels(3))
+        runOnIdle {
+            harness.host.caretBounds = Rect(80f, 32f, 81f, 48f)
+            harness.host.previewBounds = { caret -> Rect(caret.left, caret.top, caret.right, caret.bottom + 32f) }
+        }
+        openCompletion(harness)
+        assertEquals(80f / density.density, boundsInTextArea(EditorPopupTags.COMPLETION).top.value, 0.5f)
+
+        onNodeWithTag(EditorPopupTags.COMPLETION).performMouseInput { moveTo(center) }
+        runOnIdle { harness.host.previewBounds = { caret -> Rect(caret.left, caret.top, caret.right, caret.bottom + 96f) } }
+        waitForIdle()
+        assertEquals(80f / density.density, boundsInTextArea(EditorPopupTags.COMPLETION).top.value, 0.5f, "kept under the pointer")
+
+        onNodeWithTag(TEXT_AREA).performMouseInput { moveTo(Offset(1f, 1f)) }
+        waitForIdle()
+        assertEquals(144f / density.density, boundsInTextArea(EditorPopupTags.COMPLETION).top.value, 0.5f, "below the preview again")
+    }
+
+    @Test
+    fun `a double click accepts an entry whose preview is taller than the one of the selected entry`() =
+        popupTest("x = it", caretAt = 6) { harness ->
+            val model = harness.model
+            model.completionItems = completionItems(listOf("item", "itemCount", "items"))
+            runOnIdle {
+                harness.host.caretBounds = Rect(16f, 32f, 17f, 48f)
+                harness.host.previewBounds = { caret ->
+                    val rows = if (model.completion.state.value?.selectedIndex == 1) 4 else 1
+                    Rect(caret.left, caret.top, caret.right, caret.top + rows * 16f)
+                }
+            }
+            openCompletion(harness)
+
+            onNodeWithTag(EditorPopupTags.completionRow(1)).performMouseInput { moveTo(center) }
+            waitForIdle()
+            onNodeWithTag(EditorPopupTags.completionRow(1)).performMouseInput { doubleClick() }
+
+            runOnIdle {
+                assertEquals("x = itemCount", model.plain)
+                assertNull(model.completion.state.value)
+            }
+        }
+
+    @Test
+    fun `a preview taller than the room anchors the list at the caret so it stays visible`() = popupTest("") { harness ->
+        harness.model.completionItems = completionItems(labels(3))
+        val areaHeight = heightOf(TEXT_AREA) * density.density
+        runOnIdle {
+            harness.host.caretBounds = Rect(16f, 0f, 17f, 16f)
+            harness.host.previewBounds = { caret -> Rect(caret.left, caret.top, caret.right, areaHeight) }
+        }
+        openCompletion(harness)
+
+        val bounds = boundsInTextArea(EditorPopupTags.COMPLETION)
+        assertEquals(16f / density.density, bounds.top.value, 0.5f, "below the caret line")
+        assertTrue(bounds.bottom.value - bounds.top.value > 0f, "the list has rows to show")
     }
 
     @Test

@@ -38,7 +38,7 @@ import org.slf4j.LoggerFactory
 
 /** Why completion opened. */
 public enum class CompletionTrigger {
-    /** An explicit request, through the completion key Ctrl+M or the Complete Code command. */
+    /** An explicit request, through the completion keys Ctrl+M and Ctrl+Space or the Complete Code command. */
     EXPLICIT,
 
     /** An identifier character typed after at least one identifier character. */
@@ -137,6 +137,14 @@ public interface CompletionSessionModel {
     /** The open session, or null when closed. */
     public val state: StateFlow<CompletionUiState?>
 
+    /**
+     * What accepting the highlighted item would give, for the text area to show while the list is open, or null while
+     * it is closed. It follows [state]: every change of the highlighted item, of the filter and of the text computes it
+     * again from the same acceptance that [accept] applies, for the primary caret. It is null as well when the replaced
+     * range spans lines, which [CompletionPreview] does not show.
+     */
+    public val preview: StateFlow<CompletionPreview?>
+
     /** Opens completion at the primary caret, or opens it again if it is already open. */
     public fun open(trigger: CompletionTrigger = CompletionTrigger.EXPLICIT)
 
@@ -203,6 +211,7 @@ internal class DefaultCompletionSessionModel(
 ) : CompletionSessionModel {
 
     private val uiState = MutableStateFlow<CompletionUiState?>(null)
+    private val previewState = MutableStateFlow<CompletionPreview?>(null)
     private var session: CompletionSession? = null
     private var request: Job? = null
 
@@ -211,6 +220,8 @@ internal class DefaultCompletionSessionModel(
     }
 
     override val state: StateFlow<CompletionUiState?> = uiState.asStateFlow()
+
+    override val preview: StateFlow<CompletionPreview?> = previewState.asStateFlow()
 
     override fun open(trigger: CompletionTrigger) = request(trigger)
 
@@ -227,7 +238,7 @@ internal class DefaultCompletionSessionModel(
 
     override fun select(index: Int) {
         val current = uiState.value ?: return
-        if (index in current.items.indices) uiState.value = current.copy(selectedIndex = index)
+        if (index in current.items.indices) show(current.copy(selectedIndex = index))
     }
 
     override fun accept(): Boolean {
@@ -312,7 +323,7 @@ internal class DefaultCompletionSessionModel(
             return
         }
         session = CompletionSession.of(items, snapshot, offset)
-        uiState.value = null
+        show(null)
         refresh()
     }
 
@@ -323,13 +334,23 @@ internal class DefaultCompletionSessionModel(
     private fun refresh() {
         val open = session ?: return
         val next = open.uiState(text, caret.primary, uiState.value)
-        if (next == null) dismiss() else uiState.value = next
+        if (next == null) dismiss() else show(next)
     }
 
     /** Closes the visible session. A running request is kept, because it may open a new session. */
     private fun dismiss() {
         session = null
-        uiState.value = null
+        show(null)
+    }
+
+    /**
+     * Publishes [next] as the visible state together with its preview. The preview is the acceptance of the highlighted
+     * item for the primary caret, the same one [accept] applies, shown over the current text. So the two never differ.
+     */
+    private fun show(next: CompletionUiState?) {
+        val acceptance = next?.let { session?.acceptance(text, caret.primary.selection, it.selected) }
+        uiState.value = next
+        previewState.value = acceptance?.let { CompletionPreview.of(it, text.snapshot.value) }
     }
 
     /** The id of the accept edits and the logger. */

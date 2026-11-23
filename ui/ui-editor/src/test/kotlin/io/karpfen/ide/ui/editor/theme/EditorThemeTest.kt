@@ -53,4 +53,14 @@ class EditorThemeTest {
             assertTrue(contrast(theme.gutterForeground, theme.gutterBackground) >= 3f, "$name line numbers")
         }
     }
+
+    @Test
+    fun `the light text of a completion preview is fainter than every text colour and still legible`() {
+        themes.forEach { (name, theme) ->
+            val preview = contrast(theme.completionPreview, theme.background)
+            val faintestText = (theme.styles.values.map { it.color } + theme.foreground).minOf { contrast(it, theme.background) }
+            assertTrue(preview < faintestText, "$name: preview $preview, faintest text $faintestText")
+            assertTrue(preview >= 2f, "$name: preview contrast $preview")
+        }
+    }
 }

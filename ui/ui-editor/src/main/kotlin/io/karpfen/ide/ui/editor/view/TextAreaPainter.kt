@@ -27,6 +27,7 @@ import io.karpfen.ide.core.lang.HighlightSpan
 import io.karpfen.ide.core.text.EditableText
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.ui.editor.model.caret.Caret
+import io.karpfen.ide.ui.editor.model.completion.CompletionPreview
 import io.karpfen.ide.ui.editor.model.find.FindResult
 import io.karpfen.ide.ui.editor.state.BracketMatchSnapshot
 import io.karpfen.ide.ui.editor.state.HighlightSnapshot
@@ -72,6 +73,10 @@ internal class TextAreaContent(
  * diagnostic underlines and the caret. Every range of an older version is mapped with `EditableText.mapRange`, the
  * single range-mapping rule. That applies to highlight spans, find matches, diagnostics and bracket matches. A range is
  * never mapped by mapping its two bounds separately. A range that does not map is not drawn.
+ *
+ * Every place comes from the rows of the geometry. While a completion preview shows, the line of the preview is drawn
+ * as the rows of the preview, with its real runs in their syntax colours and its light text in the preview colour, and
+ * the decorations of the lines below are drawn on their moved rows.
  */
 internal class TextAreaPainter(private val layouter: LineLayouter, private val metrics: PainterMetrics) {
 
@@ -109,9 +114,9 @@ internal class TextAreaPainter(private val layouter: LineLayouter, private val m
     /** Paints the background of the primary caret's line, if that line is laid out. */
     private fun DrawScope.paintCurrentLine(content: TextAreaContent, lines: IntRange) {
         val frame = content.frame
-        val line = frame.geometry.lineOf(content.carets.first().position)
-        if (line !in lines) return
-        val top = frame.toAreaY(frame.geometry.lineTop(line))
+        val caret = content.carets.first().position
+        if (frame.geometry.lineOf(caret) !in lines) return
+        val top = frame.toAreaY(frame.geometry.rowTop(frame.geometry.rowOf(caret)))
         background(Rect(0f, top, size.width, top + frame.geometry.lineHeight), content.theme.currentLine)
     }
 
@@ -142,7 +147,7 @@ internal class TextAreaPainter(private val layouter: LineLayouter, private val m
             val left = frame.toAreaX(segment.left)
             val right = frame.toAreaX(segment.right)
             if (right < 0f || left > size.width) continue
-            val top = frame.toAreaY(geometry.lineTop(segment.line))
+            val top = frame.toAreaY(geometry.rowTop(segment.row))
             background(Rect(left, top, right, top + geometry.lineHeight), color)
         }
     }
@@ -158,7 +163,8 @@ internal class TextAreaPainter(private val layouter: LineLayouter, private val m
 
     /**
      * Paints the laid-out lines with the highlight spans that intersect [window]. The spans are cut into spans per line,
-     * in line columns, and the lines are laid out through the [LineLayouter].
+     * in line columns, and the lines are laid out through the [LineLayouter]. The line of a completion preview is drawn
+     * as the rows of the preview instead, by [paintPreview].
      */
     private fun DrawScope.paintText(content: TextAreaContent, window: TextRange) {
         val frame = content.frame
@@ -178,10 +184,30 @@ internal class TextAreaPainter(private val layouter: LineLayouter, private val m
                 if (start < end) lineSpans += LineSpan(start, end, spans[index].item.style)
                 index++
             }
-            val display = DisplayLine.of(geometry.snapshot.lineText(line), geometry.tabStops)
-            val layout = layouter.layout(display, lineSpans, content.textStyle, content.theme, content.fontSize, geometry.tabStops.tabWidth)
-            drawText(layout, topLeft = Offset(frame.toAreaX(geometry.textLeft), frame.toAreaY(geometry.lineTop(line))))
+            val preview = geometry.preview
+            if (preview != null && preview.line == line) {
+                paintPreview(content, preview, lineSpans)
+            } else {
+                paintRow(content, geometry.snapshot.lineText(line), lineSpans, TextRange.EMPTY, geometry.lineTop(line))
+            }
         }
+    }
+
+    /** Paints the rows of [preview] with the syntax colours of its line, [lineSpans], on its real runs. */
+    private fun DrawScope.paintPreview(content: TextAreaContent, preview: CompletionPreview, lineSpans: List<LineSpan>) {
+        val geometry = content.frame.geometry
+        preview.rows.forEachIndexed { row, text ->
+            paintRow(content, text, previewRowSpans(preview, row, lineSpans), preview.ghost(row), geometry.rowTop(preview.line + row))
+        }
+    }
+
+    /** Lays out [text] with [spans] and the light columns [light], and draws it at the content y [top]. */
+    private fun DrawScope.paintRow(content: TextAreaContent, text: String, spans: List<LineSpan>, light: TextRange, top: Float) {
+        val frame = content.frame
+        val geometry = frame.geometry
+        val display = DisplayLine.of(text, geometry.tabStops)
+        val layout = layouter.layout(display, spans, content.textStyle, content.theme, content.fontSize, geometry.tabStops.tabWidth, light)
+        drawText(layout, topLeft = Offset(frame.toAreaX(geometry.textLeft), frame.toAreaY(top)))
     }
 
     /** Paints the underlines of the diagnostics in [window]. They are wavy for errors and warnings, and dotted for the others. */
@@ -198,7 +224,7 @@ internal class TextAreaPainter(private val layouter: LineLayouter, private val m
                 Severity.INFO, Severity.HINT -> content.theme.info
             }
             for (segment in underlineSegments(frame, range)) {
-                val y = frame.toAreaY(geometry.lineTop(segment.line) + geometry.lineHeight) - metrics.waveAmplitude - metrics.stroke
+                val y = frame.toAreaY(geometry.rowTop(segment.row) + geometry.lineHeight) - metrics.waveAmplitude - metrics.stroke
                 val left = frame.toAreaX(segment.left)
                 val right = frame.toAreaX(segment.right)
                 if (diagnostic.severity == Severity.ERROR || diagnostic.severity == Severity.WARNING) {
@@ -225,7 +251,7 @@ internal class TextAreaPainter(private val layouter: LineLayouter, private val m
                 val x = geometry.xOf(range.start)
                 val atEnd = range.start == geometry.lineRange(line).end && x > geometry.textLeft
                 val left = if (atEnd) x - geometry.charWidth else x
-                listOf(TextGeometry.Segment(line, left, left + geometry.charWidth))
+                listOf(TextGeometry.Segment(line, left, left + geometry.charWidth, geometry.rowOf(range.start)))
             }
         }
     }

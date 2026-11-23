@@ -50,6 +50,16 @@ internal object PopupPlacement {
         return maxOf(below, above, 0)
     }
 
+    /**
+     * Returns the anchor for a popup [popupHeight] pixels high in an area [areaHeight] pixels high. That is [preferred]
+     * if the popup fits below or above it. Otherwise it is [fallback] if that leaves more room, and [preferred] if not.
+     * A tall preferred anchor can leave no room on either side, and the fallback then keeps the popup visible.
+     */
+    fun anchorFor(preferred: Rect, fallback: Rect, popupHeight: Int, areaHeight: Int): Rect {
+        val fits = popupHeight <= areaHeight - preferred.bottom.roundToInt() || popupHeight <= preferred.top.roundToInt()
+        return if (fits || maxHeight(fallback, areaHeight) <= maxHeight(preferred, areaHeight)) preferred else fallback
+    }
+
     /** Returns the top left corner of a popup of size [popup], anchored at [anchor] in an area of size [area]. */
     fun topLeft(anchor: Rect, popup: IntSize, area: IntSize): IntOffset {
         val below = anchor.bottom.roundToInt()
@@ -74,11 +84,22 @@ internal object PopupPlacement {
  */
 @Composable
 internal fun AnchoredPopupLayout(anchor: Rect, content: @Composable () -> Unit) {
+    AnchoredPopupLayout({ anchor }, content)
+}
+
+/**
+ * Lays out [content] like the [AnchoredPopupLayout] with a fixed anchor, but asks [anchorIn] for the anchor once the
+ * size of the overlay area is known. A popup that chooses between anchors by the room they leave, such as the
+ * completion list, uses it.
+ */
+@Composable
+internal fun AnchoredPopupLayout(anchorIn: (area: IntSize) -> Rect, content: @Composable () -> Unit) {
     Layout(content = content, modifier = Modifier.fillMaxSize()) { measurables, constraints ->
         val area = IntSize(
             if (constraints.hasBoundedWidth) constraints.maxWidth else UNBOUNDED_AREA,
             if (constraints.hasBoundedHeight) constraints.maxHeight else UNBOUNDED_AREA,
         )
+        val anchor = anchorIn(area)
         val limits = Constraints(maxWidth = area.width, maxHeight = PopupPlacement.maxHeight(anchor, area.height))
         val placeables = measurables.map { it.measure(limits) }
         layout(constraints.constrainWidth(area.width), constraints.constrainHeight(area.height)) {

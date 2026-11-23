@@ -252,6 +252,14 @@ class FakeOverlayHost(
 
     override var caretBounds: Rect? by mutableStateOf(boundsOf(state.caret.primary.position))
 
+    /**
+     * Returns the rectangle from the caret bounds down to the last row of a completion preview, or null without a
+     * preview. The test sets it. It is read while the popups compose, so it may depend on the selected entry.
+     */
+    var previewBounds: (caret: Rect) -> Rect? by mutableStateOf({ _ -> null })
+
+    override val caretLineBounds: Rect? get() = caretBounds?.let { previewBounds(it) ?: it }
+
     /** True while the view is about to reveal the caret because a scroll request is pending. */
     var revealPending: Boolean by mutableStateOf(false)
 
@@ -270,6 +278,7 @@ class FakeOverlayHost(
 fun testEditorTheme(): EditorTheme = EditorTheme(
     background = Color(0xFFFFFFFF),
     foreground = Color(0xFF202020),
+    completionPreview = Color(0xFFA0A0A0),
     gutterBackground = Color(0xFFF0F0F0),
     gutterForeground = Color(0xFF909090),
     currentLine = Color(0xFFF5F5F5),

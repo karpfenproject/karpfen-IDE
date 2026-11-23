@@ -17,7 +17,7 @@ package io.karpfen.ide.ui.editor.view.input
 
 /**
  * Keeps a key press that the editor handled from also typing its character. A platform sends a "typed" event after the
- * key-down of a printable key. For example, Ctrl+Space, the second completion key on Windows, would type a space. When
+ * key-down of a printable key. For example, Ctrl+Space, the second completion key, would type a space. When
  * the editor consumed the key-down, the typed event that follows it is swallowed as well.
  *
  * Every key-down decides again, so the gate never swallows a character of a press the editor did not handle. Commits

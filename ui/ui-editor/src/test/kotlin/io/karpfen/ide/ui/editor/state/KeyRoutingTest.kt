@@ -35,8 +35,8 @@ import kotlin.test.assertTrue
 
 /**
  * The key routing of the editor state. `handleKey` asks the completion session first and then the keymap, and it
- * returns true exactly for the strokes it handled. The completion keys depend on the platform. Ctrl+M works everywhere,
- * and Ctrl+Space works only on Windows.
+ * returns true exactly for the strokes it handled. Ctrl+M and Ctrl+Space request completion on every platform, with
+ * the Control key also on macOS.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class KeyRoutingTest {
@@ -87,15 +87,15 @@ class KeyRoutingTest {
 
     @ParameterizedTest
     @EnumSource(HostPlatform::class)
-    fun `Ctrl+Space requests completion on Windows only and goes on unhandled elsewhere`(platform: HostPlatform) =
+    fun `Ctrl+Space requests completion on every platform`(platform: HostPlatform) =
         editorTest("abc", platform = platform, services = completing()) { harness ->
             harness.state.caret.moveTo(3)
-            val windows = platform == HostPlatform.WINDOWS
 
-            assertEquals(windows, harness.press(KeyCode.SPACE, KeyModifier.CTRL), "handled on $platform")
+            assertTrue(harness.press(KeyCode.SPACE, KeyModifier.CTRL), "handled on $platform")
             advanceUntilIdle()
 
-            assertEquals(windows, harness.state.completion.state.value != null, "completion open on $platform")
+            assertEquals(listOf("alpha", "beta", "gamma"), harness.state.completion.state.value?.items?.map { it.label })
+            assertEquals("abc", harness.plain, "nothing typed")
         }
 
     @Test

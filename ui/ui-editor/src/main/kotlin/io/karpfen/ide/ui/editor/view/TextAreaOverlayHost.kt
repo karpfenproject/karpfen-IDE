@@ -58,6 +58,9 @@ internal class TextAreaOverlayHost(
     override val caretBounds: Rect?
         get() = frame()?.let(::visibleCaret)
 
+    override val caretLineBounds: Rect?
+        get() = frame()?.let { at -> visibleCaret(at)?.let { at.belowLineOf(primaryCaret(), it) } }
+
     override val isCaretScrolledAway: Boolean
         get() = caretBounds == null && !scrollPending() && liveFrame()?.let(::visibleCaret) == null
 

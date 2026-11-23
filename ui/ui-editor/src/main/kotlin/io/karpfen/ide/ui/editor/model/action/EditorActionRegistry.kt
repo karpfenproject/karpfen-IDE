@@ -49,8 +49,8 @@ public fun EditorActionRegistry(actions: Collection<EditorAction> = defaultEdito
  * is primary+D. Move line is Alt+Shift+Up and Alt+Shift+Down. Tab indents and Shift+Tab outdents. Toggle comment is
  * primary+/. Copy, cut and paste use the usual keys. Undo is primary+Z and redo is primary+Shift+Z. Find is primary+F
  * and replace is primary+R. Find next and find previous are Cmd+G and Shift+Cmd+G on macOS, and F3 and Shift+F3
- * elsewhere. Go to line is Cmd+L on macOS and Ctrl+G elsewhere. Completion is Ctrl+M on every platform, and on Windows
- * also Ctrl+Space. Go to definition is primary+B.
+ * elsewhere. Go to line is Cmd+L on macOS and Ctrl+G elsewhere. Completion is Ctrl+M and Ctrl+Space on every
+ * platform. Go to definition is primary+B.
  *
  * Bindings are key strokes, compared with `KeyStroke` equality per platform. Punctuation bindings such as primary+/
  * work on every keyboard layout, because the key adapter reports a punctuation key by the character it produces. On a

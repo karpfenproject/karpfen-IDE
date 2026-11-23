@@ -149,7 +149,7 @@ class EditorActionRegistryTest {
     }
 
     @Test
-    fun `completion is Ctrl+M on every platform and also Ctrl+Space on Windows`() {
+    fun `completion is Ctrl+M and Ctrl+Space on every platform`() {
         val ctrlM = KeyStroke(KeyCode.M, setOf(KeyModifier.CTRL))
         val ctrlSpace = KeyStroke(KeyCode.SPACE, setOf(KeyModifier.CTRL))
         val completionStrokes = HostPlatform.entries.associateWith { platform ->
@@ -159,14 +159,12 @@ class EditorActionRegistryTest {
 
         assertEquals(
             mapOf(
-                HostPlatform.MAC_OS to listOf(ctrlM),
+                HostPlatform.MAC_OS to listOf(ctrlM, ctrlSpace),
                 HostPlatform.WINDOWS to listOf(ctrlM, ctrlSpace),
-                HostPlatform.LINUX to listOf(ctrlM),
+                HostPlatform.LINUX to listOf(ctrlM, ctrlSpace),
             ),
             completionStrokes,
         )
-        assertNull(defaultEditorKeymap(HostPlatform.MAC_OS).actionFor(ctrlSpace), "macOS keeps Ctrl+Space for input sources")
-        assertNull(defaultEditorKeymap(HostPlatform.LINUX).actionFor(ctrlSpace), "Linux keeps Ctrl+Space for input methods")
         assertNull(defaultEditorKeymap(HostPlatform.MAC_OS).actionFor(KeyStroke(KeyCode.M, setOf(KeyModifier.META))), "Cmd+M minimizes")
     }
 

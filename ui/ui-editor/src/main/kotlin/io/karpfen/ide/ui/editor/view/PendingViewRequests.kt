@@ -46,7 +46,7 @@ internal fun PendingViewRequests(render: EditorRenderState, focusRequester: Focu
         if (!laidOut || geometry.snapshot.version != editor.snapshot.value.version) return@LaunchedEffect
         val offset = request.offset.coerceIn(0, geometry.snapshot.length)
         val x = geometry.xOf(offset)
-        val top = geometry.lineTop(geometry.lineOf(offset))
+        val top = geometry.rowTop(geometry.rowOf(offset))
         editor.viewport.reveal(x, top, x + geometry.charWidth, top + geometry.lineHeight, request.center)
         editor.consumeScrollRequest(request)
     }

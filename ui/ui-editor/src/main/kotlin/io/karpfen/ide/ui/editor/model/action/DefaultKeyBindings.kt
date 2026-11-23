@@ -30,14 +30,15 @@ internal data class KeyBinding(val shortcut: KeyShortcut, val actionId: String)
  * deletes the line, Cmd+G finds next and Cmd+L goes to a line. Windows and Linux use Ctrl for words, Ctrl+Home and
  * Ctrl+End, Ctrl+Y, F3 and Ctrl+G.
  *
- * Completion is Ctrl+M on every platform. On macOS this is the physical Control key too. It is the first completion
- * binding, so the Complete Code item in the window's Edit menu shows Ctrl+M everywhere. Windows binds Ctrl+Space as a
- * second completion key, because Windows users expect it. macOS and Linux leave Ctrl+Space to the system. macOS
- * switches input sources with it, and input method frameworks on Linux commonly use it to toggle the input method.
+ * Completion is Ctrl+M and Ctrl+Space on every platform. On macOS both use the physical Control key, as in other
+ * editors there. Ctrl+Space is the completion key that users of other editors and IDEs expect. Ctrl+M stays the first
+ * completion binding, so the Complete Code item in the window's Edit menu shows Ctrl+M everywhere. The system may take
+ * Ctrl+Space before the editor sees it: macOS switches input sources with it when that shortcut is on, and input
+ * method frameworks on Linux commonly use it to toggle the input method. Ctrl+M then still completes, and the menu
+ * names the key that always reaches the editor.
  */
 internal fun defaultKeyBindings(platform: HostPlatform): List<KeyBinding> = buildList {
     val mac = platform == HostPlatform.MAC_OS
-    val windows = platform == HostPlatform.WINDOWS
     movement(EditorActionIds.CARET_LEFT, EditorActionIds.SELECT_LEFT, KeyCode.LEFT)
     movement(EditorActionIds.CARET_RIGHT, EditorActionIds.SELECT_RIGHT, KeyCode.RIGHT)
     movement(EditorActionIds.CARET_UP, EditorActionIds.SELECT_UP, KeyCode.UP)
@@ -92,7 +93,7 @@ internal fun defaultKeyBindings(platform: HostPlatform): List<KeyBinding> = buil
         bind(EditorActionIds.GO_TO_LINE, KeyCode.G, primary = true)
     }
     bind(EditorActionIds.COMPLETION, KeyCode.M, ctrl = true)
-    if (windows) bind(EditorActionIds.COMPLETION, KeyCode.SPACE, ctrl = true)
+    bind(EditorActionIds.COMPLETION, KeyCode.SPACE, ctrl = true)
     bind(EditorActionIds.GO_TO_DEFINITION, KeyCode.B, primary = true)
 }
 
