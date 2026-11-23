@@ -111,8 +111,15 @@ class JsonSettingsRepositoryTest {
                 theme = ThemeMode.DARK,
                 uiScale = 1.2f,
                 toolWindows = mapOf("RUNTIME" to ToolWindowLayout(visible = true, size = 400f)),
-                openFiles = listOf("lamp.kstates"),
-                activeFile = "lamp.kstates",
+                editorPanes = StoredPanes(
+                    StoredPanes.Node.Split(
+                        StoredPanes.Orientation.ROW,
+                        0.5f,
+                        StoredPanes.Node.Pane(listOf("lamp.kstates"), "lamp.kstates"),
+                        StoredPanes.Node.Pane(listOf("lamp.kmeta"), "lamp.kmeta"),
+                    ),
+                    activePane = 1,
+                ),
             )
         }
         assertEquals(changed.project, ProjectSettingsFile.parse(Files.readString(projectFile)))

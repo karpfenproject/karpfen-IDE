@@ -26,10 +26,10 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,12 +43,9 @@ import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.notation.diagram.edit.DiagramChange
 import io.karpfen.ide.notation.diagram.layout.DiagramLayout
 import io.karpfen.ide.notation.sync.DiagramState
-import io.karpfen.ide.notation.sync.DiagramTracker
 import io.karpfen.ide.notation.sync.VisFiles
 import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.nio.file.Path
 
@@ -84,6 +81,11 @@ import java.nio.file.Path
  *
  * An entry that leaves the diagram for another one, such as the page of a container state, calls [onFollow] with the
  * name the model refers to. The caller finds the file of that name and opens its diagram.
+ *
+ * The diagram derived from the text and its layout by hand belong to the file, and [shared] holds them for every pane
+ * that shows the diagram of the same file. Panes that are given the same [shared] therefore always show the same
+ * arrangement, also while a box is dragged in one of them, and the companion file is written once per change. The
+ * zoom, the position, the menus and the code cells belong to each pane. The default shares with no other pane.
  */
 @Composable
 public fun DiagramPane(
@@ -99,6 +101,7 @@ public fun DiagramPane(
     onSelect: (TextRange) -> Unit = {},
     onLayoutSaved: () -> Unit = {},
     onFollow: (String) -> Unit = {},
+    shared: SharedDiagrams = rememberSharedDiagrams(),
 ) {
     val notation = when (kind) {
         DiagramKind.STATECHART -> DiagramNotation.STATECHART
@@ -106,14 +109,19 @@ public fun DiagramPane(
         DiagramKind.OBJECTS -> DiagramNotation.OBJECTS
     }
     NotationPane(
-        notation, session, modelFile, modifier, reloadKey, live, cellEditor, languageFeatures, modelTypes, onSelect, onLayoutSaved, onFollow,
+        notation, shared, session, modelFile, modifier, reloadKey, live, cellEditor, languageFeatures, modelTypes, onSelect, onLayoutSaved,
+        onFollow,
     )
 }
 
-/** The pane of a diagram of the kind [notation]. It ties the view to the text of [session] and to the companion file. */
+/**
+ * The pane of a diagram of the kind [notation]. It ties the view to the share of the diagram in [shared], which
+ * follows the text of [session] and holds the layout of the companion file.
+ */
 @Composable
 private fun <D : Any, L : DiagramLayout> NotationPane(
     notation: DiagramNotation<D, L>,
+    shared: SharedDiagrams,
     session: DocumentSession,
     modelFile: Path,
     modifier: Modifier,
@@ -126,22 +134,13 @@ private fun <D : Any, L : DiagramLayout> NotationPane(
     onLayoutSaved: () -> Unit,
     onFollow: (String) -> Unit,
 ) {
-    val state by produceState<DiagramState<D>>(DiagramState.EMPTY, session, notation) {
-        val tracker = DiagramTracker(notation.projection)
-        combine(session.text.snapshot, session.parse) { snapshot, outcome -> tracker.update(snapshot, outcome) }.collect { value = it }
-    }
-    val scope = rememberCoroutineScope()
     val visFile = remember(modelFile) { VisFiles.pathFor(modelFile) }
-    val saved by rememberUpdatedState(onLayoutSaved)
-    val editing = remember(visFile, notation) {
-        DiagramEditing(notation.arrangement) { layout ->
-            scope.launch {
-                withContext(Dispatchers.IO) { VisFiles.write(visFile, layout) }
-                saved()
-            }
-        }
-    }
-    LaunchedEffect(visFile, reloadKey) {
+    val lease = remember(shared, session, visFile, notation) { shared.lease(notation, session, modelFile) }
+    val share = lease.share
+    SideEffect { share.onSaved = onLayoutSaved }
+    val state by share.state.collectAsState()
+    val editing = share.editing
+    LaunchedEffect(editing, reloadKey) {
         editing.loaded(withContext(Dispatchers.IO) { VisFiles.read(visFile) })
     }
     val shown by rememberUpdatedState(state)

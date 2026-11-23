@@ -15,12 +15,29 @@
  */
 package io.karpfen.ide.ui.workbench.tabs.view
 
-/** Test tags of the editor area, [EditorArea]. The tabs themselves carry the tags of `TabStripTestTags`. */
+/**
+ * Test tags of the editor area: the tree of panes, [EditorPaneTree], and the area of each pane, [EditorArea]. The tabs
+ * themselves carry the tags of `TabStripTestTags`.
+ *
+ * Each pane carries its own tag, [pane], and each split its own, [split]. The parts of a pane, such as its editor, its
+ * diagram and its buttons, carry the same tags in every pane. With one pane they are unique. With several panes a test
+ * finds the part of one pane below that pane's tag, for example with `hasTestTag(EDITOR) and
+ * hasAnyAncestor(hasTestTag(pane(id)))`.
+ */
 public object EditorAreaTestTags {
-    /** The editor area as a whole, with the tab strip, the banner and the editor. */
+    /** The editor area as a whole, with all its panes. */
     public const val AREA: String = "Workbench.editorArea"
 
-    /** The `CodeEditor` of the active tab. */
+    /** The area of the pane with the id [value], with its tab strip, its banner, its editor and its bar. */
+    public fun pane(value: Int): String = "Workbench.editorPane:$value"
+
+    /** The split with the id [value], with its two parts and the border between them. */
+    public fun split(value: Int): String = "Workbench.editorSplit:$value"
+
+    /** The button of a pane's tab strip that splits the pane towards the side named [side], such as `RIGHT`. */
+    public fun splitButton(side: String): String = "Workbench.splitPane:$side"
+
+    /** The `CodeEditor` of the active tab of a pane. */
     public const val EDITOR: String = "Workbench.editor"
 
     /** The bar below the editor, with the zoom controls of the editor's font size. */

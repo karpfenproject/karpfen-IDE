@@ -139,9 +139,9 @@ class FolderFlowTest {
                         "karpfen-runtime/single_robot_example/cleaning_robot.kstates",
                         "karpfen-runtime/single_robot_example/cleaning_robot.kmeta",
                     ),
-                    stored.openFiles,
+                    stored.editorPanes.openFiles,
                 )
-                assertEquals("karpfen-runtime/single_robot_example/cleaning_robot.kstates", stored.activeFile)
+                assertEquals("karpfen-runtime/single_robot_example/cleaning_robot.kstates", stored.editorPanes.activeFile)
 
                 Files.delete(meta)
                 open(root)

@@ -25,19 +25,21 @@ import java.util.IdentityHashMap
 
 /**
  * Collects the `navigationRequests` of each editor from the moment its tab opens until it closes. Every target goes to
- * [navigate], which is the mediator's `navigateTo` intent. A definition lookup that finishes after a tab switch
- * therefore still navigates. Navigation never depends on a composable being on screen.
+ * [navigate] together with the editor that asked for it, so the mediator navigates in the pane of that editor and not
+ * in whichever pane is active when the request arrives. A definition lookup that finishes after a tab switch or a
+ * focus move to another pane therefore still navigates where it was asked for. Navigation never depends on a
+ * composable being on screen.
  */
 internal class EditorNavigationCollector(
     private val scope: CoroutineScope,
-    private val navigate: (Location) -> Unit,
+    private val navigate: (EditorHandle, Location) -> Unit,
 ) {
     private val collectors = IdentityHashMap<EditorHandle, Job>()
 
     /** Starts collecting the navigation requests of [editor]. Does nothing if they are collected already. */
     fun start(editor: EditorHandle) {
         if (editor in collectors) return
-        collectors[editor] = scope.launch(start = CoroutineStart.UNDISPATCHED) { editor.navigationRequests.collect { navigate(it) } }
+        collectors[editor] = scope.launch(start = CoroutineStart.UNDISPATCHED) { editor.navigationRequests.collect { navigate(editor, it) } }
     }
 
     /** Stops collecting the navigation requests of [editor]. */

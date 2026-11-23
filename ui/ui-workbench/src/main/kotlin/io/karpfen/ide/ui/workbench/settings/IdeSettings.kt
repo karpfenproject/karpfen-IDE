@@ -41,11 +41,10 @@ import kotlinx.serialization.Serializable
  * @property toolWindows the visibility, size and place of the tool windows, keyed by tool window name. The key is
  *   `ToolWindowId.name` from the workbench's layout package. A missing entry means the default layout. An unknown
  *   entry is kept but ignored. Part of the project.
- * @property openFiles the files open in tabs, relative to the project folder with forward slashes, in the order of
- *   the tabs. Part of the project.
- * @property activeFile the file of the active tab, named like the [openFiles], or null. Part of the project.
- * @property activeBridges the bridge files that were started with the last run, named like the [openFiles]. The
- *   run dialog has them ticked. Part of the project.
+ * @property editorPanes the editor panes with the files open in their tabs, relative to the project folder with
+ *   forward slashes, the active tab of every pane and the active pane. Part of the project.
+ * @property activeBridges the bridge files that were started with the last run, named like the files of the
+ *   [editorPanes]. The run dialog has them ticked. Part of the project.
  * @property captureRuns whether the last run was started with its capture to a file switched on. The run dialog has
  *   its capture box ticked if so. Part of the project.
  * @property resultCaching whether the last run was started with the result cache of Python code on. The run dialog
@@ -65,8 +64,7 @@ public data class IdeSettings(
     public val windowBounds: WindowBounds? = null,
     public val runtimeWindowBounds: WindowBounds? = null,
     public val toolWindows: Map<String, ToolWindowLayout> = emptyMap(),
-    public val openFiles: List<String> = emptyList(),
-    public val activeFile: String? = null,
+    public val editorPanes: StoredPanes = StoredPanes.EMPTY,
     public val activeBridges: List<String> = emptyList(),
     public val captureRuns: Boolean = false,
     public val resultCaching: Boolean = true,

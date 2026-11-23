@@ -18,6 +18,7 @@ package io.karpfen.ide.ui.workbench.command
 import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.runtime.session.plan.ProjectFeature
 import io.karpfen.ide.ui.workbench.layout.ToolWindowId
+import io.karpfen.ide.ui.workbench.tabs.SplitSide
 
 /**
  * Ids of the commands that `WorkbenchState.registerCommands` registers in the `CommandRegistry`. The application's
@@ -42,6 +43,32 @@ public object WorkbenchCommandIds {
 
     /** Close Tab in the File menu. It closes the active tab. */
     public const val CLOSE_TAB: String = "workbench.closeTab"
+
+    /** Split Right in the View menu. It opens the active file in a new pane right of the active pane. */
+    public const val SPLIT_RIGHT: String = "workbench.splitRight"
+
+    /** Split Left in the View menu. It opens the active file in a new pane left of the active pane. */
+    public const val SPLIT_LEFT: String = "workbench.splitLeft"
+
+    /** Split Down in the View menu. It opens the active file in a new pane below the active pane. */
+    public const val SPLIT_DOWN: String = "workbench.splitDown"
+
+    /** Split Up in the View menu. It opens the active file in a new pane above the active pane. */
+    public const val SPLIT_UP: String = "workbench.splitUp"
+
+    /** Focus Next Pane in the View menu. It moves the focus to the next editor pane. */
+    public const val FOCUS_NEXT_PANE: String = "workbench.focusNextPane"
+
+    /** Focus Previous Pane in the View menu. It moves the focus to the previous editor pane. */
+    public const val FOCUS_PREVIOUS_PANE: String = "workbench.focusPreviousPane"
+
+    /** The id of the split command that puts the new pane on [side], one of the four split constants above. */
+    public fun split(side: SplitSide): String = when (side) {
+        SplitSide.RIGHT -> SPLIT_RIGHT
+        SplitSide.LEFT -> SPLIT_LEFT
+        SplitSide.DOWN -> SPLIT_DOWN
+        SplitSide.UP -> SPLIT_UP
+    }
 
     /** Prefix of the tool window toggles of the View menu. [toggleToolWindow] builds the full ids. */
     public const val TOGGLE_TOOL_WINDOW_PREFIX: String = "workbench.toggle."

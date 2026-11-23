@@ -25,17 +25,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Density
-import io.karpfen.ide.core.lang.Location
-import io.karpfen.ide.core.lang.kmodel.KmodelObjectWriter
-import io.karpfen.ide.core.workspace.analysis.ProjectFragments
-import io.karpfen.ide.core.workspace.files.FileKind
-import io.karpfen.ide.runtime.session.debug.DebuggerState
 import io.karpfen.ide.ui.editor.theme.LocalEditorTheme
 import io.karpfen.ide.ui.editor.theme.darkEditorTheme
 import io.karpfen.ide.ui.editor.theme.lightEditorTheme
@@ -54,23 +48,17 @@ import io.karpfen.ide.ui.workbench.outline.view.OutlineView
 import io.karpfen.ide.ui.workbench.output.view.OutputView
 import io.karpfen.ide.ui.workbench.problems.view.ProblemsView
 import io.karpfen.ide.ui.workbench.projecttree.view.ProjectTreeView
-import io.karpfen.ide.ui.workbench.runtime.DiagramLives
-import io.karpfen.ide.ui.workbench.runtime.LiveInstance
 import io.karpfen.ide.ui.workbench.runtime.view.RuntimeToolWindow
 import io.karpfen.ide.ui.workbench.state.WorkbenchState
 import io.karpfen.ide.ui.workbench.statusbar.view.StatusBarActions
 import io.karpfen.ide.ui.workbench.statusbar.view.WorkbenchStatusBar
-import io.karpfen.ide.ui.workbench.tabs.EditorViewMode
-import io.karpfen.ide.ui.workbench.tabs.view.CodeCellEditor
-import io.karpfen.ide.ui.workbench.tabs.view.EditorArea
 import io.karpfen.ide.ui.workbench.tabs.view.LocalWindowDensity
-import io.karpfen.ide.ui.workbench.validation.ValidateButtonUiState
 import io.karpfen.ide.ui.workbench.welcome.view.WelcomeView
 import java.nio.file.Path
 
 /**
- * The content of the workbench window. The Project tree sits on the left. The editor tabs with the `CodeEditor` and
- * its popups fill the centre. The Outline sits on the right. Problems, the Language Tools Output and the Runtime tool
+ * The content of the workbench window. The Project tree sits on the left. The editor panes, each with its tabs, its
+ * `CodeEditor` and its popups, fill the centre, see [EditorPanes]. The Outline sits on the right. Problems, the Language Tools Output and the Runtime tool
  * window sit at the bottom over the whole width, above the status bar. Dialogs are shown over all of it. While no folder is open, the window
  * shows the welcome view with "Open Folder…" and the recent folders instead.
  *
@@ -128,7 +116,7 @@ public fun Workbench(state: WorkbenchState, modifier: Modifier = Modifier, detac
                             layoutState = state.layout,
                             panes = WorkbenchPanes(
                                 project = { ProjectPane(state) },
-                                editor = { EditorPane(state) },
+                                editor = { EditorPanes(state) },
                                 outline = { OutlinePane(state) },
                                 problems = { ProblemsPane(state) },
                                 output = { OutputPane(state) },
@@ -234,74 +222,6 @@ private fun ProjectPane(state: WorkbenchState) {
             modifier = Modifier.fillMaxSize(),
         )
     }
-}
-
-/** The editor area with [state]'s tabs and active editor. */
-@Composable
-private fun EditorPane(state: WorkbenchState) {
-    val tabs by state.tabs.tabs.collectAsState()
-    val active by state.tabs.active.collectAsState()
-    val activeEditor by state.tabs.activeEditor.collectAsState()
-    val viewModes by state.tabs.viewModes.collectAsState()
-    val workspace by state.workspace.collectAsState()
-    val diskRevision = workspace?.scanRevision?.collectAsState()?.value ?: 0L
-    val settings by state.settings.collectAsState()
-    val canValidate by state.validation.canValidate.collectAsState()
-    val validating by state.validation.isBusy.collectAsState()
-    val running = state.runtime.collectAsState().value?.selected?.collectAsState()?.value?.takeIf { it.isLive }?.session
-    val observed = running?.model?.collectAsState()?.value
-    val debugger = running?.debugger?.state?.collectAsState()?.value ?: DebuggerState.Unavailable
-    val chosenInstances = remember(running) { mutableStateMapOf<Path, LiveInstance>() }
-    val chosen = active?.let { chosenInstances[it] }
-    val run = remember(observed, debugger, active, chosen) {
-        val file = active
-        if (running == null || observed == null || file == null) {
-            null
-        } else {
-            DiagramLives.of(observed.states, file, debugger, chosen)
-        }
-    }
-    val analysis = workspace?.analysis?.collectAsState()?.value
-    val pages = remember(analysis) { analysis?.let(::ProjectFragments) }
-    val pageUsers = remember(pages, active) {
-        val file = active
-        pages?.all()?.firstOrNull { it.path == file }?.let { pages.usersOf(it.name) }
-    }
-    val modelTypes = remember(analysis, active) {
-        val file = active?.takeIf { FileKind.of(it.fileName?.toString().orEmpty()) == FileKind.KMODEL }
-        if (analysis == null || file == null) KmodelObjectWriter.NONE else KmodelObjectWriter.of(analysis, file)
-    }
-    val services by state.languageServices.collectAsState()
-    val cellEditor = remember(activeEditor, services, workspace) {
-        val editor = activeEditor
-        val known = services
-        if (editor == null || known == null) null else CodeCellEditor(editor, known, workspace)
-    }
-    EditorArea(
-        tabs = tabs,
-        activePath = active,
-        activeEditor = activeEditor,
-        onActivate = state.tabs::activate,
-        onClose = { path -> state.closeTab(path) },
-        onResolveConflict = { path, resolution -> state.resolveConflict(path, resolution) },
-        editorFontSize = settings.editorFontSize,
-        onZoomEditor = { state.zoomEditor(it) },
-        viewMode = active?.let(viewModes::get) ?: EditorViewMode.TEXT,
-        onViewMode = { mode -> active?.let { state.tabs.setViewMode(it, mode) } },
-        onSelectInText = { range -> active?.let { state.navigateTo(Location(it, range)) } },
-        diskRevision = diskRevision,
-        onDiagramSaved = { state.refreshFiles() },
-        run = run,
-        onShowInstance = { use -> active?.let { chosenInstances[it] = use } },
-        cellEditor = cellEditor,
-        languageFeatures = settings.languageFeatures,
-        modelTypes = modelTypes,
-        validation = ValidateButtonUiState(enabled = canValidate, busy = validating),
-        onValidate = { state.validation.validate() },
-        onOpenPage = { name -> active?.let { state.openPage(it, name) } },
-        pageUsers = pageUsers,
-        onOpenUser = { user -> active?.let { state.openWithDiagram(user, it) } },
-    )
 }
 
 /** The Outline tool window of [state]'s active document. */

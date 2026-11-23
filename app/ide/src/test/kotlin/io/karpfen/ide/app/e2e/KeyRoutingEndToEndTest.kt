@@ -26,6 +26,7 @@ import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performTextInput
@@ -76,6 +77,9 @@ import kotlin.time.Duration.Companion.seconds
  * consumes the stroke, so the Edit menu's Complete Code, whose accelerator is Ctrl+M, never sees it. With the focus in
  * the project tree, Ctrl+M reaches that menu item, which is disabled while the editor is unfocused. Ctrl+Space opens
  * it on every platform too, and the editor consumes it.
+ *
+ * The focused editor leaves the strokes of the editor panes to the menu on every platform: the primary modifier with
+ * Alt and an arrow splits the active pane, and F6 and Shift+F6 move the focus between the panes.
  *
  * These tests do not reach the native macOS menu bar itself.
  */
@@ -221,6 +225,44 @@ class KeyRoutingEndToEndTest {
             assertEquals(listOf(), menu.unconsumed, "the editor consumed Ctrl+Space on $platform")
             assertEquals(listOf(), menu.ran, "no command ran")
         }
+
+    @ParameterizedTest
+    @EnumSource(HostPlatform::class)
+    fun `the split strokes in the focused editor reach the menu's splits, and F6 and Shift+F6 move the focus between the panes`(
+        platform: HostPlatform,
+    ) = composedIde(platform) { ide, menu, editor ->
+        val state = ide.session.state
+        val primary = if (platform == HostPlatform.MAC_OS) Key.MetaLeft else Key.CtrlLeft
+        val original = text(editor)
+        onNodeWithTag(EditorAreaTestTags.EDITOR).requestFocus()
+        settle(ide)
+
+        onNodeWithTag(EditorAreaTestTags.EDITOR).performKeyInput {
+            withKeyDown(primary) { withKeyDown(Key.AltLeft) { pressKey(Key.DirectionRight) } }
+        }
+        settle(ide)
+
+        assertEquals(listOf(WorkbenchCommandIds.SPLIT_RIGHT), menu.ran, "the editor left the stroke to the menu on $platform")
+        val (left, right) = state.tabs.layout.value.panes.map { it.id }
+        assertEquals(listOf(machine), state.tabs.layout.value.pane(right)?.tabs, "the new pane on the right shows the file")
+        assertEquals(right, state.tabs.activePane.value, "and is the active pane")
+        assertEquals(original, text(editor), "the stroke typed and moved nothing")
+        assertTrue(assertNotNull(state.tabs.editorFor(right, machine)).isFocused.value, "the editor of the new pane has the focus")
+
+        onNode(isFocused()).performKeyInput { pressKey(Key.F6) }
+        settle(ide)
+        assertEquals(left, state.tabs.activePane.value, "F6 moves on to the next pane, after the last comes the first")
+        onNode(isFocused()).performKeyInput { withKeyDown(Key.ShiftLeft) { pressKey(Key.F6) } }
+        settle(ide)
+
+        assertEquals(right, state.tabs.activePane.value, "Shift+F6 moves back")
+        assertTrue(assertNotNull(state.tabs.editorFor(right, machine)).isFocused.value, "the editor of the right pane has the focus")
+        onNode(hasTestTag(EditorAreaTestTags.EDITOR) and hasAnyAncestor(hasTestTag(EditorAreaTestTags.pane(right.value)))).assertIsFocused()
+        assertEquals(
+            listOf(WorkbenchCommandIds.SPLIT_RIGHT, WorkbenchCommandIds.FOCUS_NEXT_PANE, WorkbenchCommandIds.FOCUS_PREVIOUS_PANE),
+            menu.ran,
+        )
+    }
 
     /** Focuses the editor with the caret at the start of the attached type's name, where completion offers types. */
     private fun ComposeUiTest.focusEditorInAttachedType(editor: CodeEditorState) {

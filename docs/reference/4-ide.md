@@ -15,12 +15,13 @@ The same program also validates and runs a project from a terminal, without a wi
 
 The window has a menu bar, an editor area in the middle, tool windows around it and a status bar at the bottom. Each
 tool window can be shown and hidden in the *View* menu, and its border to the editor area can be dragged. The
-*Runtime* tool window can also be moved into a window of its own.
+*Runtime* tool window can also be moved into a window of its own. The editor area can be split into panes.
+[4.2.11 Editor panes](4.2-text-editor.md#4211-editor-panes) describes them.
 
 | Part | Place | What it shows |
 |---|---|---|
 | *Project* | Left | The files of the folder in three sections, one for the project file and the descriptors, one for the folder and one for the bridge files. |
-| Editor area | Middle | One tab per open file. Below the editor a bar holds the buttons *Text*, *Split* and *Diagram* for files with a diagram, the button *Validate* and the font size of the editor. Above the diagram of a fragment a bar names the files that use it. |
+| Editor area | Middle | One pane or several, each with one tab per open file. Below the editor a bar holds the buttons *Text*, *Split* and *Diagram* for files with a diagram, the button *Validate* and the font size of the editor. Above the diagram of a fragment a bar names the files that use it. |
 | *Outline* | Right | What the active file is made of. These are the types of a metamodel, the objects of a model, the states and transitions of a state machine, and the header of a fragment. |
 | *Problems* | Bottom | The problems of the project in the groups *Local* and *Global*. It is hidden while there is no problem. |
 | *Language Tools Output* | Bottom | The log of the language tools that read and check the files. |
@@ -62,6 +63,12 @@ says what a click does: the entry for histories reads *Switch On Histories* whil
 | *View* | *Problems* | Shows or hides the *Problems* tool window. | [4.2.6 Problems](4.2-text-editor.md#426-problems) |
 | *View* | *Language Tools Output* | Shows or hides the log of the language tools. | The table of the window above |
 | *View* | *Runtime* | Shows or hides the *Runtime* tool window. | [4.5.4 The Runtime tool window](4.5-running.md#454-the-runtime-tool-window) |
+| *View* | *Split Right* | Opens a pane to the right of the active pane. | [4.2.11 Editor panes](4.2-text-editor.md#4211-editor-panes) |
+| *View* | *Split Left* | Opens a pane to the left of the active pane. | [4.2.11 Editor panes](4.2-text-editor.md#4211-editor-panes) |
+| *View* | *Split Down* | Opens a pane below the active pane. | [4.2.11 Editor panes](4.2-text-editor.md#4211-editor-panes) |
+| *View* | *Split Up* | Opens a pane above the active pane. | [4.2.11 Editor panes](4.2-text-editor.md#4211-editor-panes) |
+| *View* | *Focus Next Pane* | Makes the next pane the active pane. | [4.2.11 Editor panes](4.2-text-editor.md#4211-editor-panes) |
+| *View* | *Focus Previous Pane* | Makes the pane before the active pane. | [4.2.11 Editor panes](4.2-text-editor.md#4211-editor-panes) |
 | *View* | *Light Theme* | Draws the window in light colours. | [4.1.6 The project file](4.1-projects.md#416-the-project-file) |
 | *View* | *Dark Theme* | Draws the window in dark colours. | [4.1.6 The project file](4.1-projects.md#416-the-project-file) |
 | *Navigate* | *Go to Line…* | Moves the caret to a line by its number. | [4.2.7 Find and replace](4.2-text-editor.md#427-find-and-replace) |

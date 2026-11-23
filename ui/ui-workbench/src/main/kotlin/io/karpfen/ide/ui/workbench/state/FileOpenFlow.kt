@@ -19,6 +19,7 @@ import io.karpfen.ide.core.workspace.document.OpenResult
 import io.karpfen.ide.core.workspace.files.FileKind
 import io.karpfen.ide.ui.workbench.dialog.DialogState
 import io.karpfen.ide.ui.workbench.files.ProjectFileOperations
+import io.karpfen.ide.ui.workbench.tabs.PaneId
 import java.io.IOException
 import java.nio.file.Path
 import kotlinx.coroutines.CoroutineDispatcher
@@ -40,17 +41,20 @@ internal class FileOpenFlow(
     private val ioDispatcher: CoroutineDispatcher,
 ) {
 
-    /** Opens [path]. Returns true if it is now the active editor tab. */
-    suspend fun openFile(path: Path): Boolean {
+    /**
+     * Opens [path] in the pane [pane], or in the active pane if [pane] is null or gone. Returns true if it is now the
+     * active editor tab of the active pane, which the pane it opened in has become.
+     */
+    suspend fun openFile(path: Path, pane: PaneId? = null): Boolean {
         if (FileKind.of(path.fileName.toString()) == FileKind.BRIDGE) {
             bridges.open(path)
             return false
         }
-        return openInEditor(path)
+        return openInEditor(path, pane)
     }
 
-    /** Opens [path] in an editor tab, or outside the IDE if the editor cannot open it. */
-    private suspend fun openInEditor(path: Path): Boolean = when (val result = lifecycle.open(path)) {
+    /** Opens [path] in an editor tab of [pane], or outside the IDE if the editor cannot open it. */
+    private suspend fun openInEditor(path: Path, pane: PaneId?): Boolean = when (val result = lifecycle.open(path, pane)) {
         is OpenResult.Opened -> true
         is OpenResult.Unsupported -> {
             openExternally(path)

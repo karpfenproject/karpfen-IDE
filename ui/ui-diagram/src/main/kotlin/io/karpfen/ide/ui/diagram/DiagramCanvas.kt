@@ -265,24 +265,34 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
             .clipToBounds()
             .onSizeChanged { viewSize = it }
             .pointerInput(editing, faults) {
-                var grabbed = false
-                detectDragGestures(
-                    onDragStart = { position ->
+                val grab = ElementGrab(editing)
+                try {
+                    detectDragGestures(
+                        onDragStart = { position ->
+                            val shown = current
+                            grab.held = shown != null && faults.guard("taking hold of an element", { false }) {
+                                editing.startDrag(shown.diagram, shown.layout, pointAt(position))
+                            }
+                        },
+                        onDragEnd = {
+                            grab.held = false
+                            current?.let { shown -> faults.guard("dropping an element", editing::cancelDrag) { editing.endDrag(shown.diagram) } }
+                        },
+                        onDragCancel = {
+                            grab.held = false
+                            current?.let { shown -> faults.guard("dropping an element", editing::cancelDrag) { editing.endDrag(shown.diagram) } }
+                        },
+                    ) { change, drag ->
+                        change.consume()
                         val shown = current
-                        grabbed = shown != null && faults.guard("taking hold of an element", { false }) {
-                            editing.startDrag(shown.diagram, shown.layout, pointAt(position))
+                        if (grab.held && shown != null) {
+                            faults.guard("moving an element", editing::cancelDrag) { editing.dragTo(shown.diagram, pointAt(change.position)) }
+                        } else {
+                            pan += drag
                         }
-                    },
-                    onDragEnd = { current?.let { shown -> faults.guard("dropping an element", editing::cancelDrag) { editing.endDrag(shown.diagram) } } },
-                    onDragCancel = { current?.let { shown -> faults.guard("dropping an element", editing::cancelDrag) { editing.endDrag(shown.diagram) } } },
-                ) { change, drag ->
-                    change.consume()
-                    val shown = current
-                    if (grabbed && shown != null) {
-                        faults.guard("moving an element", editing::cancelDrag) { editing.dragTo(shown.diagram, pointAt(change.position)) }
-                    } else {
-                        pan += drag
                     }
+                } finally {
+                    grab.giveUp()
                 }
             }
             .pointerInput(editing, faults) {
@@ -457,6 +467,26 @@ private fun <D, L : DiagramLayout> inARow(arrangement: DiagramArrangement<D, L>,
 
 /** A press of the primary button: its [time] in milliseconds of uptime and its [position] on the canvas, in pixels. */
 private class Press(val time: Long, val position: Offset)
+
+/**
+ * Whether the drag gestures of one diagram canvas hold an element of [editing]. An element taken hold of is held until
+ * its drag ends in a drop. The editing may be shared with the diagrams of other panes and outlives the canvas, so a
+ * drag must never leave it in the middle of a drag. A drag that is cut off because the canvas leaves the screen or
+ * moves in the composition, as when its pane closes or is split, ends in neither callback of the gesture detection.
+ * The canvas therefore calls [giveUp] when its gesture detection ends.
+ */
+private class ElementGrab(private val editing: DiagramEditing<*, *>) {
+
+    /** True while the canvas holds an element. */
+    var held: Boolean = false
+
+    /** Gives a held element up: its place goes back to where it was before the drag, and nothing is saved. */
+    fun giveUp() {
+        if (!held) return
+        held = false
+        editing.cancelDrag()
+    }
+}
 
 /** The context menu to show: its [entries] and the [position] of the pointer on the canvas, in pixels. */
 private class MenuRequest(val position: Offset, val entries: List<ContextMenuAction>)

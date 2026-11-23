@@ -38,6 +38,8 @@ import io.karpfen.ide.ui.workbench.settings.Zoom
 import io.karpfen.ide.ui.workbench.settings.ZoomStep
 import io.karpfen.ide.ui.workbench.statusbar.StatusBarState
 import io.karpfen.ide.ui.workbench.tabs.EditorTabsState
+import io.karpfen.ide.ui.workbench.tabs.PaneId
+import io.karpfen.ide.ui.workbench.tabs.SplitSide
 import io.karpfen.ide.ui.workbench.templates.FileTemplateKind
 import io.karpfen.ide.ui.workbench.validation.ValidationState
 import kotlinx.coroutines.CoroutineScope
@@ -62,8 +64,9 @@ import java.nio.file.Path
  * - [WorkspaceHolder] holds the open workspace, its language services and the window title.
  * - [SubStateBindings] binds the read-only sub-states to the workspace, the active editor, the layout and the runtime.
  * - [EditorNavigationCollector] collects the `navigationRequests` of each tab from open to close and hands them to
- *   [navigateTo].
- * - [EditorLifecycle] opens and closes documents together with their editors and tabs.
+ *   `NavigationFlow.navigateFrom`, which navigates in the pane of the asking editor.
+ * - [EditorLifecycle] opens and closes documents together with the editors and tabs of their views in the panes, and
+ *   splits panes.
  * - [SaveFlow] saves documents and asks before it writes over a change made on disk.
  * - [UnsavedChangesFlow] asks about unsaved changes before a tab closes, the folder switches, a file is renamed or the
  *   IDE exits.
@@ -77,7 +80,7 @@ import java.nio.file.Path
  * - [RenameFlow] renames files and directories and reopens what was open below them.
  * - [LayoutPersister] writes `layout.state` into the settings, debounced by about 500 ms and once more on exit. The
  *   layout itself is restored in [start] and again whenever a folder is opened.
- * - [OpenFilesPersister] writes the open files into the settings of the project the same way.
+ * - [EditorPanesPersister] writes the editor panes and their open files into the settings of the project the same way.
  * - [ProjectFlow] switches to the settings of the project in a folder when the folder opens. These are the theme, the
  *   zoom, the layout of the tool windows, the runtime choice and the open files, all stored in the folder's
  *   `.karpfenproject`.
@@ -126,7 +129,9 @@ internal class DefaultWorkbenchState(
         .map { EditorSettings(fontSize = it.editorFontSize) }
         .stateIn(ownScope, SharingStarted.Eagerly, EditorSettings(fontSize = services.settings.settings.value.editorFontSize))
     private val bindings = SubStateBindings(ownScope, tabs, projectTree, outline, problems, statusBar, output, layout)
-    private val navigation = EditorNavigationCollector(ownScope, ::navigateTo)
+    private val navigation: EditorNavigationCollector = EditorNavigationCollector(ownScope) { editor, location ->
+        runner.launch("navigate") { navigationFlow.navigateFrom(editor, location) }
+    }
     private val lifecycle = EditorLifecycle(
         ownScope, holder, tabs, services.editorStateFactory, editorSettings, services.editorKeymap, navigation,
     )
@@ -134,14 +139,14 @@ internal class DefaultWorkbenchState(
     private val unsaved = UnsavedChangesFlow(saving, dialogs)
     private val bridgeForms = BridgeFormFlow(holder, projectTree, dialogs, services.settings, services.ioDispatcher)
     private val fileOpen = FileOpenFlow(lifecycle, bridgeForms, dialogs, services.fileOperations, services.ioDispatcher)
-    private val navigationFlow = NavigationFlow(fileOpen, tabs)
+    private val navigationFlow: NavigationFlow = NavigationFlow(fileOpen, tabs)
     private val pages = PageFlow(holder, fileOpen, tabs, dialogs)
     private val tabFlows = TabFlows(tabs, lifecycle, unsaved, saving, dialogs)
     private val runtimes =
         RuntimeHolder(ownScope, services, WorkbenchRunSupport(runner, tabs, saving, dialogs, layout, validation), bindings)
     private val persister = LayoutPersister(ownScope, layout, services.settings)
-    private val openFiles = OpenFilesPersister(ownScope, tabs, holder, services.settings)
-    private val project = ProjectFlow(services.settings, holder, layout, persister, openFiles, tabs, lifecycle, services.ioDispatcher)
+    private val panesPersister = EditorPanesPersister(ownScope, tabs, holder, services.settings)
+    private val project = ProjectFlow(services.settings, holder, layout, persister, panesPersister, tabs, lifecycle, services.ioDispatcher)
     private val folders = FolderFlow(
         ownScope, holder, tabs, lifecycle, unsaved, bindings, runtimes, project, services.workspaceFactory,
         services.languageServicesFactory, services.settings, services.folderChooser, dialogs, services.ioDispatcher,
@@ -160,7 +165,7 @@ internal class DefaultWorkbenchState(
     override suspend fun start() {
         layout.restore(services.settings.load())
         persister.start()
-        openFiles.start()
+        panesPersister.start()
         project.showProjectFile(ownScope)
     }
 
@@ -170,13 +175,20 @@ internal class DefaultWorkbenchState(
 
     override fun openFile(path: Path): Job = runner.launch("open file") { fileOpen.openFile(path.normalized()) }
 
-    override fun navigateTo(location: Location): Job = runner.launch("navigate") { navigationFlow.navigateTo(location) }
+    override fun navigateTo(location: Location): Job {
+        val pane = tabs.activePane.value
+        return runner.launch("navigate") { navigationFlow.navigateTo(location, pane) }
+    }
 
-    override fun openPage(from: Path, fragment: String): Job =
-        runner.launch("open page") { pages.openPage(from.normalized(), fragment) }
+    override fun openPage(from: Path, fragment: String): Job {
+        val pane = tabs.activePane.value
+        return runner.launch("open page") { pages.openPage(from.normalized(), fragment, pane) }
+    }
 
-    override fun openWithDiagram(path: Path, from: Path): Job =
-        runner.launch("open diagram") { pages.openWithDiagram(path.normalized(), from.normalized()) }
+    override fun openWithDiagram(path: Path, from: Path): Job {
+        val pane = tabs.activePane.value
+        return runner.launch("open diagram") { pages.openWithDiagram(path.normalized(), from.normalized(), pane) }
+    }
 
     override fun openNode(path: Path): Job {
         if (!projectTree.isDirectory(path)) return openFile(path)
@@ -216,12 +228,18 @@ internal class DefaultWorkbenchState(
 
     override fun saveAll(): Job = runner.launch("save all") { tabFlows.saveAll() }
 
-    override fun closeTab(path: Path): Job {
+    override fun closeTab(path: Path): Job = closeTab(tabs.activePane.value, path)
+
+    override fun closeTab(pane: PaneId, path: Path): Job {
         val tab = path.normalized()
-        return runner.launchOnce(CloseTab(tab), "close tab") { tabFlows.closeTab(tab) }
+        return runner.launchOnce(CloseTab(pane, tab), "close tab") { tabFlows.closeTab(pane, tab) }
     }
 
     override fun closeActiveTab(): Job = tabs.active.value?.let(::closeTab) ?: NOTHING_TO_DO
+
+    override fun splitPane(pane: PaneId, side: SplitSide): Job = runner.launch("split pane") { lifecycle.split(pane, side) }
+
+    override fun splitActivePane(side: SplitSide): Job = splitPane(tabs.activePane.value, side)
 
     override fun refreshFiles(): Job = runner.launch("refresh files") { holder.workspace.value?.refresh() }
 
@@ -244,7 +262,7 @@ internal class DefaultWorkbenchState(
         unsaved.confirm(tabs.documents()).also { mayExit ->
             if (mayExit) {
                 persister.persistNow()
-                openFiles.persistNow()
+                panesPersister.persistNow()
             }
         }
     }
@@ -264,7 +282,7 @@ internal class DefaultWorkbenchState(
     }
 
     override fun close() {
-        openFiles.pause()
+        panesPersister.pause()
         folders.closeWorkspace()
         ownScope.cancel()
     }
@@ -275,8 +293,8 @@ internal class DefaultWorkbenchState(
      */
     private fun Path.normalized(): Path = toAbsolutePath().normalize()
 
-    /** The [IntentRunner.launchOnce] key for closing the tab of [path]. */
-    private data class CloseTab(val path: Path)
+    /** The [IntentRunner.launchOnce] key for closing the tab of [path] in [pane]. */
+    private data class CloseTab(val pane: PaneId, val path: Path)
 
     private companion object {
         /** The job of an intent with nothing to do. */

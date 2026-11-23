@@ -71,14 +71,14 @@ internal class FileOperationFlows(
     }
 
     /**
-     * Asks for confirmation, closes the affected tabs without saving, deletes [path] and refreshes the workspace. The
-     * open folder itself cannot be deleted. The workspace is refreshed even when the deletion fails.
+     * Asks for confirmation, closes the affected tabs in every pane without saving, deletes [path] and refreshes the
+     * workspace. The open folder itself cannot be deleted. The workspace is refreshed even when the deletion fails.
      */
     suspend fun delete(path: Path) {
         val workspace = holder.workspace.value?.takeIf { it.root != path } ?: return
         val answer = dialogs.ask(DialogRequest.ConfirmDelete(path, toTrash = fileOperations.supportsTrash))
         if (answer != DialogResponse.Confirm) return
-        tabs.documents().map { it.path }.filter { it.startsWith(path) }.forEach { lifecycle.close(it) }
+        tabs.documents().map { it.path }.filter { it.startsWith(path) }.forEach { lifecycle.closeEverywhere(it) }
         try {
             withContext(ioDispatcher) { fileOperations.delete(path) }
         } catch (e: IOException) {

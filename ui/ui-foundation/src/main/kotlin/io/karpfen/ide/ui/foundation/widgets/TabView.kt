@@ -54,8 +54,9 @@ import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
 
 /**
  * One tab of a [TabStrip] with its icon, title, dirty dot and close button. The selected tab has the window background
- * and an accent underline. A primary click selects the tab. A middle click or the close button closes it. The middle
- * click is consumed in the initial pointer pass, before the selection sees it.
+ * and an underline, in the accent colour while [emphasized] and in the muted text colour otherwise. A primary click
+ * selects the tab. A middle click or the close button closes it. The middle click is consumed in the initial pointer
+ * pass, before the selection sees it.
  */
 @Composable
 internal fun TabView(
@@ -64,10 +65,11 @@ internal fun TabView(
     onSelect: (String) -> Unit,
     onClose: (String) -> Unit,
     modifier: Modifier = Modifier,
+    emphasized: Boolean = true,
 ) {
     val colors = KarpfenTheme.colors
     val currentOnClose = rememberUpdatedState(onClose)
-    val accent = colors.accent
+    val accent = if (emphasized) colors.accent else colors.textMuted
     WithTooltip(tab.tooltip, modifier.fillMaxHeight()) {
         Row(
             Modifier

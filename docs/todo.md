@@ -7,8 +7,12 @@ refer to.
 
 ### Editor and language support
 
-- There is no folding UI, no find-usages UI, no rename refactoring, no command that reformats a file and no split
-  editor. dsl-tools 2.0 has printers for the three languages, but the IDE does not use them.
+- There is no folding UI, no find-usages UI, no rename refactoring and no command that reformats a file. dsl-tools
+  2.0 has printers for the three languages, but the IDE does not use them.
+- A tab cannot be dragged from one editor pane to another, and a pane cannot be detached into a window of its own.
+- Some Linux desktops take Ctrl+Alt with an arrow key for switching workspaces, and some Windows graphics drivers for
+  turning the screen. There the four splits are reached through the View menu and the buttons of a pane only. This is
+  not tried out.
 - The caret model holds a list of carets, but the editor offers no way to add a second one.
 - The undo history has no limit.
 - On a German Windows layout, Ctrl+Shift+7 does not reach Toggle Comment.

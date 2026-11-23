@@ -36,7 +36,8 @@ import kotlin.test.assertTrue
 /**
  * The key routing of the editor state. `handleKey` asks the completion session first and then the keymap, and it
  * returns true exactly for the strokes it handled. Ctrl+M and Ctrl+Space request completion on every platform, with
- * the Control key also on macOS.
+ * the Control key also on macOS. The strokes of the window's pane commands, the primary modifier with Alt and an arrow
+ * and F6 with or without Shift, are left to the window menu on every platform.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class KeyRoutingTest {
@@ -96,6 +97,23 @@ class KeyRoutingTest {
 
             assertEquals(listOf("alpha", "beta", "gamma"), harness.state.completion.state.value?.items?.map { it.label })
             assertEquals("abc", harness.plain, "nothing typed")
+        }
+
+    @ParameterizedTest
+    @EnumSource(HostPlatform::class)
+    fun `the strokes of the editor panes are not handled by the editor on any platform`(platform: HostPlatform) =
+        editorTest("one two\nthree", platform = platform) { harness ->
+            val primary = if (platform == HostPlatform.MAC_OS) KeyModifier.META else KeyModifier.CTRL
+            harness.state.caret.moveTo(4)
+
+            listOf(KeyCode.RIGHT, KeyCode.LEFT, KeyCode.DOWN, KeyCode.UP).forEach { arrow ->
+                assertFalse(harness.press(arrow, primary, KeyModifier.ALT), "$primary+Alt+$arrow splits a pane on $platform")
+            }
+            assertFalse(harness.press(KeyCode.F6), "F6 focuses the next pane on $platform")
+            assertFalse(harness.press(KeyCode.F6, KeyModifier.SHIFT), "Shift+F6 focuses the previous pane on $platform")
+
+            assertEquals(4, harness.state.caret.primary.position, "no stroke moved the caret")
+            assertEquals("one two\nthree", harness.plain)
         }
 
     @Test

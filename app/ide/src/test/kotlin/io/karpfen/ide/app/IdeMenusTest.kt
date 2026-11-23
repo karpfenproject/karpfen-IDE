@@ -93,9 +93,19 @@ class IdeMenusTest {
     }
 
     @Test
-    fun `View has one toggle per tool window in enum order and the two themes`() {
+    fun `View has one toggle per tool window in enum order, the pane commands and the two themes`() {
         assertEquals(
-            ToolWindowId.entries.map { "workbench.toggle.${it.name}" } + listOf(WorkbenchCommandIds.THEME_LIGHT, WorkbenchCommandIds.THEME_DARK),
+            ToolWindowId.entries.map { "workbench.toggle.${it.name}" } +
+                listOf(
+                    WorkbenchCommandIds.SPLIT_RIGHT,
+                    WorkbenchCommandIds.SPLIT_LEFT,
+                    WorkbenchCommandIds.SPLIT_DOWN,
+                    WorkbenchCommandIds.SPLIT_UP,
+                    WorkbenchCommandIds.FOCUS_NEXT_PANE,
+                    WorkbenchCommandIds.FOCUS_PREVIOUS_PANE,
+                    WorkbenchCommandIds.THEME_LIGHT,
+                    WorkbenchCommandIds.THEME_DARK,
+                ),
             menu(IdeMenus.VIEW).itemIds(),
         )
         assertEquals(ToolWindowId.entries.map(WorkbenchCommandIds::toggleToolWindow), menu(IdeMenus.VIEW).itemIds().take(ToolWindowId.entries.size))

@@ -32,6 +32,7 @@ import io.karpfen.ide.ui.workbench.dialog.DialogRequest
 import io.karpfen.ide.ui.workbench.dialog.DialogResponse
 import io.karpfen.ide.ui.workbench.layout.ToolWindowId
 import io.karpfen.ide.ui.workbench.settings.ThemeMode
+import io.karpfen.ide.ui.workbench.tabs.SplitSide
 import io.karpfen.ide.ui.workbench.testing.TestWorkbench
 import io.karpfen.ide.ui.workbench.testing.switchOnLanguageFeatures
 import io.karpfen.ide.ui.workbench.testing.withWorkbench
@@ -189,6 +190,38 @@ class CommandsTest {
     }
 
     @Test
+    fun `the split commands need an open file and split the active pane, the focus commands need a second pane`() =
+        scenario { registry ->
+            val arrows = mapOf(
+                SplitSide.RIGHT to KeyCode.RIGHT, SplitSide.LEFT to KeyCode.LEFT, SplitSide.DOWN to KeyCode.DOWN, SplitSide.UP to KeyCode.UP,
+            )
+            arrows.forEach { (side, key) ->
+                val command = assertNotNull(registry.find(WorkbenchCommandIds.split(side)))
+                assertEquals(KeyShortcut(key, primary = true, alt = true), command.shortcut)
+                assertFalse(command.isEnabled.value, "no file is open")
+            }
+            assertEquals("Split Right", registry.find(WorkbenchCommandIds.SPLIT_RIGHT)?.title)
+            assertEquals(KeyShortcut(KeyCode.F6), registry.find(WorkbenchCommandIds.FOCUS_NEXT_PANE)?.shortcut)
+            assertEquals(KeyShortcut(KeyCode.F6, shift = true), registry.find(WorkbenchCommandIds.FOCUS_PREVIOUS_PANE)?.shortcut)
+            assertFalse(registry.enabled(WorkbenchCommandIds.FOCUS_NEXT_PANE), "one pane")
+
+            open(root)
+            openEditor(machine)
+            val first = state.tabs.activePane.value
+            assertTrue(registry.enabled(WorkbenchCommandIds.SPLIT_DOWN))
+            assertTrue(registry.execute(WorkbenchCommandIds.SPLIT_DOWN))
+            settle()
+
+            val second = state.tabs.activePane.value
+            assertEquals(listOf(first, second), state.tabs.layout.value.panes.map { it.id }, "the new pane is below")
+            assertTrue(registry.enabled(WorkbenchCommandIds.FOCUS_NEXT_PANE))
+            assertTrue(registry.execute(WorkbenchCommandIds.FOCUS_PREVIOUS_PANE))
+            assertEquals(first, state.tabs.activePane.value)
+            assertTrue(registry.execute(WorkbenchCommandIds.FOCUS_NEXT_PANE))
+            assertEquals(second, state.tabs.activePane.value)
+        }
+
+    @Test
     fun `file commands follow the tabs and call the intents`() = scenario { registry ->
         open(root)
         openEditor(machine)
@@ -206,6 +239,28 @@ class CommandsTest {
         settle()
         assertTrue(state.tabs.tabs.value.isEmpty())
         assertFalse(registry.enabled(WorkbenchCommandIds.SAVE))
+    }
+
+    @Test
+    fun `Save All is enabled by a dirty file in a pane that is not the active one`() = scenario { registry ->
+        open(root)
+        openEditor(machine)
+        val first = state.tabs.activePane.value
+        state.splitActivePane(SplitSide.RIGHT).joinSettled()
+        val second = state.tabs.activePane.value
+        val other = machine.resolveSibling("cleaning_robot.kmeta")
+        openEditor(other)
+        state.closeTab(second, machine).joinSettled()
+        document(machine).session.text.apply(listOf(TextEdit.insert(0, "// x\n")), EditOrigin.Typing)
+        settle()
+
+        assertEquals(second, state.tabs.activePane.value)
+        assertFalse(state.tabs.tabs.value.any { it.isDirty }, "the active pane shows no dirty file")
+        assertTrue(registry.enabled(WorkbenchCommandIds.SAVE_ALL), "the dirty file in $first counts")
+        registry.execute(WorkbenchCommandIds.SAVE_ALL)
+        settle()
+        assertTrue(Files.readString(machine).startsWith("// x"))
+        assertFalse(registry.enabled(WorkbenchCommandIds.SAVE_ALL))
     }
 
     @Test

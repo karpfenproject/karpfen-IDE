@@ -29,7 +29,8 @@ import io.karpfen.ide.ui.workbench.tabs.EditorTabsState
  * A document may have an unresolved conflict with a change on disk. That is `OpenDocument.conflict`, which the banner
  * offers to resolve with Reload or Keep mine. Such a document is only saved after the user confirmed the overwrite
  * through [DialogRequest.ConfirmOverwrite]. One dialog covers all of them. On Cancel they stay unsaved and in
- * conflict, and the first of them becomes the active tab, so its banner shows. The other documents are saved anyway.
+ * conflict, and the first of them becomes the active tab, so its banner shows. That is its tab in the active pane, or
+ * else in the first pane that shows it, which then becomes the active pane. The other documents are saved anyway.
  * A failed save leads to an error dialog.
  */
 internal class SaveFlow(
@@ -46,7 +47,7 @@ internal class SaveFlow(
             dialogs.ask(DialogRequest.ConfirmOverwrite(inConflict.map { it.path })) == DialogResponse.Confirm
         val saving = if (overwrite) documents else documents - inConflict.toSet()
         val failures = saving.map { workspace.documents.save(it.path) }.filterIsInstance<SaveResult.Failed>()
-        if (!overwrite) tabs.activate(inConflict.first().path)
+        if (!overwrite) tabs.reveal(inConflict.first().path)
         if (failures.isNotEmpty()) dialogs.showError(failureTitle(failures), failures.joinToString("\n") { it.message })
         return overwrite && failures.isEmpty()
     }

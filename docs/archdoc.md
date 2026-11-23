@@ -188,9 +188,10 @@ the root package. It depends on runtime-protocol and is used by ui-workbench and
 ### ui-foundation
 
 The building blocks that the editor, the workbench and the application share. It knows no IDE feature. The package
-`widgets` holds `TreeView` with `TreeNode`, `TabStrip` and `StatusBar`. The package `layout` holds `SplitPane` and
-`ToolWindow`, `theme` holds `KarpfenTheme` and `icons` holds `KarpfenIcons`. `CommandRegistry` in `command` holds the
-commands and menus. `KeyStroke`, `KeyShortcut` and `HostPlatform` in `keys` are the key model, and `keys.compose`
+`widgets` holds `TreeView` with `TreeNode`, `TabStrip` and `StatusBar`. The package `layout` holds `SplitPane`, a split
+with one part of a fixed size for the tool windows, `ShareSplitPane`, a split by a share of the space for the editor
+panes, and `ToolWindow`. `theme` holds `KarpfenTheme` and `icons` holds `KarpfenIcons`. `CommandRegistry` in
+`command` holds the commands and menus. `KeyStroke`, `KeyShortcut` and `HostPlatform` in `keys` are the key model, and `keys.compose`
 converts Compose key events into it. It depends on no other module and is used by every other UI module.
 
 ### ui-editor
@@ -208,12 +209,14 @@ It depends on ui-foundation and core-lang and is used by ui-workbench.
 The content of the IDE window. `WorkbenchState` in the package `state` is the mediator that owns the opened workspace
 and its language services and coordinates the feature states. Each feature package, such as `projecttree`, `tabs`,
 `outline`, `problems`, `statusbar`, `output` or `runtime`, holds a Compose-free state class and a `view` sub-package
-with its composables. `RuntimeState` in the package `runtime` is the state of the Runtime tool window. The package `bridges` hosts the
-bridges of a run: `RunBridges` starts and stops them with the environment, `BridgeLoader` reads their files, and
-`SessionModelLink` puts them on the session of the run. The same package holds the form of a bridge file:
-`BridgeFormState` with its `BridgeDraft`, opened and saved by `BridgeFormFlow` in the package `state` and drawn by
-`BridgeFormLayer`. `WorkbenchServices` holds the collaborators,
-`defaultWorkbenchServices` is the production wiring, and the `Workbench` composable lays out the window. It depends on
+with its composables. `EditorTabsState` in the package `tabs` holds the editor panes, arranged as the immutable
+`PaneLayout`. The package `settings` stores them in the project file as `StoredPanes`, which knows nothing of the
+panes, and `StoredPaneLayouts` in the package `state` converts between the two. `RuntimeState` in the package
+`runtime` is the state of the Runtime tool window. The package `bridges` hosts the bridges of a run: `RunBridges`
+starts and stops them with the environment, `BridgeLoader` reads their files, and `SessionModelLink` puts them on the
+session of the run. The same package holds the form of a bridge file: `BridgeFormState` with its `BridgeDraft`,
+opened and saved by `BridgeFormFlow` in the package `state` and drawn by `BridgeFormLayer`. `WorkbenchServices` holds
+the collaborators, `defaultWorkbenchServices` is the production wiring, and the `Workbench` composable lays out the window. It depends on
 ui-editor, ui-foundation, core-lang, runtime-session, runtime-host, ui-diagram, bridge-api, bridge-http, bridge-mqtt
 and bridge-ros, and is used by app/ide.
 
@@ -261,7 +264,9 @@ canvas that can be moved, zoomed and arranged. The canvas, `DiagramCanvas`, and 
 gestures into changes, are the same for every kind of diagram. `DiagramFaults` keeps a failure inside the view, so it
 cannot stop the window. What differs sits in a `DiagramNotation`: the
 projection, the arrangement and a `DiagramPainter`, which is `StatechartPainter` or `StructurePainter`. ui-workbench
-shows the pane next to the editor or in its place, as the user chooses per file.
+shows the pane next to the editor or in its place, as the user chooses per file. `SharedDiagrams` holds, per file and
+kind of diagram, the tracker and the `DiagramEditing` for every pane of a window that shows that diagram, so two editor
+panes of one file show one arrangement.
 
 ### bridge-api and bridge-mapping
 

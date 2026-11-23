@@ -18,6 +18,7 @@ package io.karpfen.ide.ui.workbench.state
 import io.karpfen.ide.ui.workbench.dialog.DialogRequest
 import io.karpfen.ide.ui.workbench.dialog.DialogResponse
 import io.karpfen.ide.ui.workbench.tabs.EditorViewMode
+import io.karpfen.ide.ui.workbench.tabs.SplitSide
 import io.karpfen.ide.ui.workbench.testing.TestWorkbench
 import io.karpfen.ide.ui.workbench.testing.withWorkbench
 import kotlinx.coroutines.test.runTest
@@ -96,6 +97,23 @@ class PageFlowTest {
 
         assertEquals(lamp, state.tabs.active.value)
         assertEquals(EditorViewMode.DIAGRAM, state.tabs.viewModes.value[lamp])
+    }
+
+    @Test
+    fun `a page opens in the active pane with the view mode the file has there`() = scenario {
+        openEditor(lamp)
+        state.tabs.setViewMode(lamp, EditorViewMode.SPLIT)
+        val first = state.tabs.activePane.value
+        state.splitActivePane(SplitSide.RIGHT).joinSettled()
+        val second = state.tabs.activePane.value
+        state.tabs.setViewMode(lamp, EditorViewMode.DIAGRAM)
+
+        state.openPage(lamp, "bulb_test").joinSettled()
+
+        assertEquals(second, state.tabs.activePane.value)
+        assertEquals(listOf(lamp, fragment), state.tabs.tabs.value.map { it.path })
+        assertEquals(EditorViewMode.DIAGRAM, state.tabs.viewModes.value[fragment])
+        assertEquals(listOf(lamp), state.tabs.layout.value.pane(first)?.tabs, "the other pane stays as it was")
     }
 
     @Test

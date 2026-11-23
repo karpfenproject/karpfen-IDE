@@ -41,7 +41,9 @@ import io.karpfen.ide.ui.workbench.layout.ToolWindowId
  * The window menus. File holds Open Folder…, Open Recent, Save, Save All and Close Tab. Edit holds Undo, Redo, Cut,
  * Copy, Paste, Select All, Find, Replace, Find Next, Find Previous, Toggle Comment, Duplicate Line and Complete Code.
  * View holds one toggle per entry of `ToolWindowId.entries`, the Runtime tool window among them, with the entry's
- * `title` and the command `WorkbenchCommandIds.toggleToolWindow(id)`, followed by the light and the dark theme.
+ * `title` and the command `WorkbenchCommandIds.toggleToolWindow(id)`, then the four splits of the active editor pane
+ * (Split Right, Split Left, Split Down, Split Up), then Focus Next Pane and Focus Previous Pane, and last the light and
+ * the dark theme.
  * Navigate holds Go to Line and Go to Definition. Run holds Run, Stop, Validate Project, the debugger's Pause, Resume
  * and Step, Start Runtime, Stop Runtime, Configure Bridge and the submenu Language Features. That submenu holds one
  * switch per entry of `KstatesFeature.entries`, with the command `WorkbenchCommandIds.languageFeature(feature)`, whose
@@ -127,6 +129,14 @@ public object IdeMenus {
         VIEW,
         ToolWindowId.entries.map { id -> item(WorkbenchCommandIds.toggleToolWindow(id)) } +
             listOf(
+                MenuEntry.Separator,
+                item(WorkbenchCommandIds.SPLIT_RIGHT),
+                item(WorkbenchCommandIds.SPLIT_LEFT),
+                item(WorkbenchCommandIds.SPLIT_DOWN),
+                item(WorkbenchCommandIds.SPLIT_UP),
+                MenuEntry.Separator,
+                item(WorkbenchCommandIds.FOCUS_NEXT_PANE),
+                item(WorkbenchCommandIds.FOCUS_PREVIOUS_PANE),
                 MenuEntry.Separator,
                 item(WorkbenchCommandIds.THEME_LIGHT),
                 item(WorkbenchCommandIds.THEME_DARK),

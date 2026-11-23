@@ -20,6 +20,7 @@ import io.karpfen.ide.runtime.session.plan.ProjectFeature
 import io.karpfen.ide.ui.workbench.settings.IdeSettings
 import io.karpfen.ide.ui.workbench.settings.ProjectSettings
 import io.karpfen.ide.ui.workbench.settings.ProjectSettingsFile
+import io.karpfen.ide.ui.workbench.settings.StoredPanes
 import io.karpfen.ide.ui.workbench.settings.project
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
@@ -47,8 +48,7 @@ class ReadOnlySettingsTest {
         val written = ProjectSettings(
             languageFeatures = setOf(KstatesFeature.HISTORY, KstatesFeature.PARALLEL),
             projectFeatures = setOf(ProjectFeature.TRUE_PARALLEL),
-            openFiles = listOf("lamp.kstates"),
-            activeFile = "lamp.kstates",
+            editorPanes = StoredPanes.single(listOf("lamp.kstates"), "lamp.kstates"),
             bridges = listOf("http.kbridge.json"),
             capture = true,
             editorFontSize = 20f,

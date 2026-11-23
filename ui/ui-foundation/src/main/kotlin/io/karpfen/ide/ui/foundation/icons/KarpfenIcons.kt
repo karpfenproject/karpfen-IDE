@@ -23,8 +23,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
  *
  * All icons are 16 by 16 dp. The file-type icons [Folder], [File], [Kmeta], [Kmodel], [Kstates] and [Json] and the
  * severity icons [Error], [Warning] and [Info] carry their own colours. Render them untinted, with `Image` or with
- * `Icon` and `tint = Color.Unspecified`. The glyph icons [Close], [ChevronRight], [ChevronDown], [Search], [Detach]
- * and [Dock] are black and meant to be tinted with a palette colour, for example
+ * `Icon` and `tint = Color.Unspecified`. The glyph icons [Close], [ChevronRight], [ChevronDown], [Search], [Detach],
+ * [Dock], [SplitRight], [SplitLeft], [SplitDown] and [SplitUp] are black and meant to be tinted with a palette colour,
+ * for example
  * `Icon(KarpfenIcons.Close, null, tint = KarpfenTheme.colors.textMuted)`.
  */
 public object KarpfenIcons {
@@ -44,6 +45,10 @@ public object KarpfenIcons {
     private val searchIcon by lazy(IconShapes::search)
     private val detachIcon by lazy(IconShapes::detach)
     private val dockIcon by lazy(IconShapes::dock)
+    private val splitRightIcon by lazy(IconShapes::splitRight)
+    private val splitLeftIcon by lazy(IconShapes::splitLeft)
+    private val splitDownIcon by lazy(IconShapes::splitDown)
+    private val splitUpIcon by lazy(IconShapes::splitUp)
 
     /** A folder. */
     public val Folder: ImageVector get() = folderIcon
@@ -89,4 +94,16 @@ public object KarpfenIcons {
 
     /** Dock (moves a detached tool window back into the main window). */
     public val Dock: ImageVector get() = dockIcon
+
+    /** Split right (opens a new editor pane to the right). */
+    public val SplitRight: ImageVector get() = splitRightIcon
+
+    /** Split left (opens a new editor pane to the left). */
+    public val SplitLeft: ImageVector get() = splitLeftIcon
+
+    /** Split down (opens a new editor pane below). */
+    public val SplitDown: ImageVector get() = splitDownIcon
+
+    /** Split up (opens a new editor pane above). */
+    public val SplitUp: ImageVector get() = splitUpIcon
 }

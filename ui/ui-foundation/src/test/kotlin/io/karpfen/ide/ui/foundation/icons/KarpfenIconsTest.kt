@@ -63,6 +63,10 @@ class KarpfenIconsTest {
         "Search" to KarpfenIcons.Search,
         "Detach" to KarpfenIcons.Detach,
         "Dock" to KarpfenIcons.Dock,
+        "SplitRight" to KarpfenIcons.SplitRight,
+        "SplitLeft" to KarpfenIcons.SplitLeft,
+        "SplitDown" to KarpfenIcons.SplitDown,
+        "SplitUp" to KarpfenIcons.SplitUp,
     )
     private val all = coloured + glyphs
 
@@ -76,7 +80,7 @@ class KarpfenIconsTest {
 
     @Test
     fun `every icon of the IDE exists as a named 16 dp vector`() {
-        assertEquals(15, all.size)
+        assertEquals(19, all.size)
         all.forEach { (name, icon) ->
             assertEquals(name, icon.name)
             assertEquals(16.dp, icon.defaultWidth, name)

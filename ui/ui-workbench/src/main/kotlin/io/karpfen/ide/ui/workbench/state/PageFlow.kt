@@ -19,6 +19,7 @@ import io.karpfen.ide.core.workspace.analysis.ProjectFragments
 import io.karpfen.ide.ui.workbench.dialog.DialogState
 import io.karpfen.ide.ui.workbench.tabs.EditorTabsState
 import io.karpfen.ide.ui.workbench.tabs.EditorViewMode
+import io.karpfen.ide.ui.workbench.tabs.PaneId
 import java.nio.file.Path
 
 /**
@@ -35,20 +36,27 @@ internal class PageFlow(
     private val dialogs: DialogState,
 ) {
 
-    /** Opens the diagram of the fragment named [fragment], as the file at [from] finds it. */
-    suspend fun openPage(from: Path, fragment: String) {
+    /**
+     * Opens the diagram of the fragment named [fragment], as the file at [from] finds it, in the pane [pane] that shows
+     * [from], or in the active pane if [pane] is null or gone.
+     */
+    suspend fun openPage(from: Path, fragment: String, pane: PaneId? = null) {
         val analysis = holder.workspace.value?.analysis?.value ?: return
         val declared = ProjectFragments(analysis).named(fragment, near = from)
         if (declared == null) {
             dialogs.showError("Cannot open the page $fragment", "No file of the project declares the fragment \"$fragment\".")
             return
         }
-        openWithDiagram(declared.path, from)
+        openWithDiagram(declared.path, from, pane)
     }
 
-    /** Opens [path] and shows its diagram the way the file at [from] shows it. */
-    suspend fun openWithDiagram(path: Path, from: Path) {
-        val mode = tabs.viewModes.value[from]?.takeIf { it != EditorViewMode.TEXT } ?: EditorViewMode.DIAGRAM
-        if (files.openFile(path)) tabs.setViewMode(path, mode)
+    /**
+     * Opens [path] in the pane [pane] that shows [from], or in the active pane if [pane] is null or gone, and shows its
+     * diagram there the way that pane shows the file at [from].
+     */
+    suspend fun openWithDiagram(path: Path, from: Path, pane: PaneId? = null) {
+        val source = pane?.let(tabs.panes.value::get) ?: tabs.panes.value[tabs.activePane.value]
+        val mode = source?.viewModes?.get(from)?.takeIf { it != EditorViewMode.TEXT } ?: EditorViewMode.DIAGRAM
+        if (files.openFile(path, pane)) tabs.setViewMode(tabs.activePane.value, path, mode)
     }
 }

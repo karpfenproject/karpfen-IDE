@@ -42,9 +42,11 @@ import kotlin.math.roundToInt
  * `theme` is `light`, `dark` or `system`. `zoom` is the scale of the workbench in percent. `pane.<name>` is `shown` or
  * `hidden` followed by the size of the tool window in dp. A third word `detached` says that the tool window is shown in
  * a window of its own, as in `pane.runtime = shown 400 detached`. The size is then the one of its docked place. Every
- * open file has its own `open` line, in the order of the tabs. Every bridge that was started with the last run has its
- * own `bridge` line. The line `capture = on` says that the last run was captured to a file. It is only there while that
- * is on, and a capture line with another value counts as off. The line `resultCache = off` says that the last run was
+ * open file has its own `open` line, in the order of the tabs, and `active` names the file of the active tab. A split
+ * editor area has the lines `split`, `open.<number>`, `active.<number>` and `activePane` instead, as [StoredPanesLines]
+ * describes. Every bridge that was started with the last run has its own `bridge` line. The line `capture = on` says
+ * that the last run was captured to a file. It is only there while that is on, and a capture line with another value
+ * counts as off. The line `resultCache = off` says that the last run was
  * started with the result cache of Python code off. It is only there while that is off, and a line with another value
  * counts as on. Every optional language feature that is switched on has its own line `feature.<name> = on`, with the
  * `KstatesFeature.id` as its name, such as `feature.tickLimit = on`. A feature that is off has no line, and a feature
@@ -91,11 +93,11 @@ public object ProjectSettingsFile {
     /** The settings that [text] holds. */
     public fun parse(text: String): ProjectSettings {
         var settings = ProjectSettings()
-        val open = ArrayList<String>()
         val bridges = ArrayList<String>()
         val features = LinkedHashSet<KstatesFeature>()
         val projectFeatures = LinkedHashSet<ProjectFeature>()
         val others = ArrayList<String>()
+        val panes = StoredPanesLines()
         for (line in text.lines()) {
             val trimmed = line.trim()
             if (trimmed.isEmpty() || trimmed.startsWith(COMMENT)) continue
@@ -113,8 +115,7 @@ public object ProjectSettingsFile {
                 key.startsWith(PANE) -> pane(value)?.let { layout ->
                     settings = settings.copy(toolWindows = settings.toolWindows + (key.removePrefix(PANE).uppercase() to layout))
                 }
-                key == "open" -> if (value.isNotEmpty() && value !in open) open.add(value)
-                key == "active" -> if (value.isNotEmpty()) settings = settings.copy(activeFile = value)
+                panes.read(key, value) -> Unit
                 key == "bridge" -> if (value.isNotEmpty() && value !in bridges) bridges.add(value)
                 key == CAPTURE -> settings = settings.copy(capture = value.equals(ON, ignoreCase = true))
                 key == RESULT_CACHE -> settings = settings.copy(resultCaching = !value.equals(OFF, ignoreCase = true))
@@ -126,8 +127,7 @@ public object ProjectSettingsFile {
             }
         }
         return settings.copy(
-            openFiles = open,
-            activeFile = settings.activeFile?.takeIf { it in open },
+            editorPanes = panes.panes(),
             bridges = bridges,
             languageFeatures = features,
             projectFeatures = ProjectFeature.allowedBy(projectFeatures, features),
@@ -145,8 +145,7 @@ public object ProjectSettingsFile {
             val place = if (layout.detached) " $DETACHED" else ""
             appendLine("$PANE${name.lowercase()} = ${if (layout.visible) "shown" else "hidden"} ${layout.size.roundToInt()}$place")
         }
-        settings.openFiles.forEach { appendLine("open = $it") }
-        settings.activeFile?.let { appendLine("active = $it") }
+        StoredPanesLines.format(settings.editorPanes).forEach(::appendLine)
         settings.bridges.forEach { appendLine("bridge = $it") }
         if (settings.capture) appendLine("$CAPTURE = $ON")
         if (!settings.resultCaching) appendLine("$RESULT_CACHE = $OFF")

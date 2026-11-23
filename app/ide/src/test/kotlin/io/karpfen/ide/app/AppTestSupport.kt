@@ -47,6 +47,8 @@ import io.karpfen.ide.ui.workbench.state.WorkbenchServices
 import io.karpfen.ide.ui.workbench.state.WorkbenchState
 import io.karpfen.ide.ui.workbench.statusbar.StatusBarState
 import io.karpfen.ide.ui.workbench.tabs.EditorTabsState
+import io.karpfen.ide.ui.workbench.tabs.PaneId
+import io.karpfen.ide.ui.workbench.tabs.SplitSide
 import io.karpfen.ide.ui.workbench.templates.FileTemplateKind
 import io.karpfen.ide.ui.workbench.templates.FileTemplates
 import io.karpfen.ide.ui.workbench.templates.TemplateContext
@@ -164,7 +166,10 @@ internal class FakeWorkbenchState(val scope: CoroutineScope, val services: Workb
     override fun saveActive(): Job = unexpected("saveActive")
     override fun saveAll(): Job = unexpected("saveAll")
     override fun closeTab(path: Path): Job = unexpected("closeTab")
+    override fun closeTab(pane: PaneId, path: Path): Job = unexpected("closeTab")
     override fun closeActiveTab(): Job = unexpected("closeActiveTab")
+    override fun splitPane(pane: PaneId, side: SplitSide): Job = unexpected("splitPane")
+    override fun splitActivePane(side: SplitSide): Job = unexpected("splitActivePane")
 
     override fun refreshFiles(): Job = unexpected("refreshFiles")
 

@@ -19,6 +19,8 @@ import io.karpfen.ide.core.lang.Location
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.ui.editor.state.EditorHandle
 import io.karpfen.ide.ui.workbench.tabs.EditorTabsState
+import io.karpfen.ide.ui.workbench.tabs.EditorViewMode
+import io.karpfen.ide.ui.workbench.tabs.PaneId
 
 /**
  * The flow behind `navigateTo`. It opens the file of the location through [FileOpenFlow], so files the editor cannot
@@ -37,13 +39,26 @@ import io.karpfen.ide.ui.workbench.tabs.EditorTabsState
 internal class NavigationFlow(private val files: FileOpenFlow, private val tabs: EditorTabsState) {
 
     /**
-     * Opens the file of [location] and puts the caret at the start of its mapped range. The caret is scrolled to the
-     * centre and the editor gets the focus.
+     * Navigates to [location] in the pane of [editor], which asked for it, as [navigateTo] does. So a definition
+     * lookup that answers after the focus moved to another pane still opens where it was asked for. If [editor] has no
+     * tab any more, the active pane is used.
      */
-    suspend fun navigateTo(location: Location) {
+    suspend fun navigateFrom(editor: EditorHandle, location: Location) {
+        navigateTo(location, tabs.paneOf(editor))
+    }
+
+    /**
+     * Opens the file of [location] in the pane [pane], or in the active pane if [pane] is null or gone, and puts the
+     * caret of that pane's editor at the start of the mapped range. The pane becomes the active one. The caret is
+     * scrolled to the centre and the editor gets the focus. A pane that shows the file's diagram alone switches to
+     * the text and the diagram next to each other, so the place shows.
+     */
+    suspend fun navigateTo(location: Location, pane: PaneId? = null) {
         val path = location.path.toAbsolutePath().normalize()
-        if (!files.openFile(path)) return
-        val editor = tabs.editorFor(path) ?: return
+        if (!files.openFile(path, pane)) return
+        val shown = tabs.activePane.value
+        val editor = tabs.editorFor(shown, path) ?: return
+        if (tabs.panes.value[shown]?.viewModes?.get(path) == EditorViewMode.DIAGRAM) tabs.setViewMode(shown, path, EditorViewMode.SPLIT)
         val offset = targetRange(editor, location).start
         editor.caret.moveTo(offset)
         editor.scrollTo(offset, center = true)

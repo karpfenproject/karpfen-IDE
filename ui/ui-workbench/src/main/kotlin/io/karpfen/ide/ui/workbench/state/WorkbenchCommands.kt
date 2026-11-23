@@ -25,7 +25,10 @@ import io.karpfen.ide.ui.workbench.layout.ToolWindowId
 import io.karpfen.ide.ui.workbench.problems.ProblemsState
 import io.karpfen.ide.ui.workbench.settings.SettingsRepository
 import io.karpfen.ide.ui.workbench.settings.ThemeMode
+import io.karpfen.ide.ui.workbench.tabs.EditorPaneState
 import io.karpfen.ide.ui.workbench.tabs.EditorTabsState
+import io.karpfen.ide.ui.workbench.tabs.PaneId
+import io.karpfen.ide.ui.workbench.tabs.SplitSide
 import java.nio.file.Path
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -39,7 +42,8 @@ import kotlinx.coroutines.launch
 
 /**
  * Registers the workbench's own commands from `WorkbenchCommandIds`. They are Open Folder…, one Open Recent command
- * per recent folder, Save, Save All, Close Tab, one toggle per `ToolWindowId` and the theme switches. The Open Recent
+ * per recent folder, Save, Save All, Close Tab, the four splits of the active pane, the two focus moves between the
+ * panes, one toggle per `ToolWindowId` and the theme switches. The Open Recent
  * commands are kept up to date with the settings. Each command calls a non-suspending intent of [intents] or an intent
  * of [layout].
  */
@@ -53,12 +57,12 @@ internal class WorkbenchCommands(
 ) {
 
     /**
-     * Registers the commands in [registry]. Save and Close Tab need an active tab. Save All needs a dirty tab. The
+     * Registers the commands in [registry]. Save and Close Tab need an active tab. Save All needs a dirty tab in any pane. The
      * toggle of the Problems tool window needs a problem to show, because the tool window stays closed without one.
      */
     fun register(registry: CommandRegistry) {
         val hasActiveTab = tabs.active.map { it != null }.eagerly(tabs.active.value != null)
-        val hasDirtyTab = tabs.tabs.map { list -> list.any { it.isDirty } }.eagerly(tabs.tabs.value.any { it.isDirty })
+        val hasDirtyTab = tabs.panes.map(::anyDirty).eagerly(anyDirty(tabs.panes.value))
         registry.register(Command(WorkbenchCommandIds.OPEN_FOLDER, "Open Folder…", primary(KeyCode.O)) { intents.chooseAndOpenFolder() })
         registry.register(Command(WorkbenchCommandIds.SAVE, "Save", primary(KeyCode.S), hasActiveTab) { intents.saveActive() })
         registry.register(
@@ -69,6 +73,7 @@ internal class WorkbenchCommands(
         registry.register(
             Command(WorkbenchCommandIds.CLOSE_TAB, "Close Tab", primary(KeyCode.W), hasActiveTab) { intents.closeActiveTab() },
         )
+        registerPaneCommands(registry, hasActiveTab)
         val hasProblems = problems.state.map { !it.isEmpty }.eagerly(!problems.state.value.isEmpty)
         ToolWindowId.entries.forEach { id ->
             val available = if (id == ToolWindowId.PROBLEMS) hasProblems else Command.ALWAYS_ENABLED
@@ -79,6 +84,33 @@ internal class WorkbenchCommands(
         registry.register(Command(WorkbenchCommandIds.THEME_LIGHT, "Light Theme") { layout.setTheme(ThemeMode.LIGHT) })
         registry.register(Command(WorkbenchCommandIds.THEME_DARK, "Dark Theme") { layout.setTheme(ThemeMode.DARK) })
         registerRecentFolders(registry)
+    }
+
+    /**
+     * Registers the commands of the editor panes. Split Right, Split Left, Split Down and Split Up split the active
+     * pane on the platform's primary modifier, Alt and the arrow towards the new pane. They need an active tab, as
+     * [hasActiveTab] says. Focus Next Pane on F6 and Focus Previous Pane on Shift+F6 need a second pane.
+     */
+    private fun registerPaneCommands(registry: CommandRegistry, hasActiveTab: StateFlow<Boolean>) {
+        SplitSide.entries.forEach { side ->
+            val shortcut = KeyShortcut(SPLIT_KEYS.getValue(side), primary = true, alt = true)
+            registry.register(
+                Command(WorkbenchCommandIds.split(side), SPLIT_TITLES.getValue(side), shortcut, hasActiveTab) {
+                    intents.splitActivePane(side)
+                },
+            )
+        }
+        val severalPanes = tabs.layout.map { it.panes.size > 1 }.eagerly(tabs.layout.value.panes.size > 1)
+        registry.register(
+            Command(WorkbenchCommandIds.FOCUS_NEXT_PANE, "Focus Next Pane", KeyShortcut(KeyCode.F6), severalPanes) {
+                tabs.focusNextPane()
+            },
+        )
+        registry.register(
+            Command(
+                WorkbenchCommandIds.FOCUS_PREVIOUS_PANE, "Focus Previous Pane", KeyShortcut(KeyCode.F6, shift = true), severalPanes,
+            ) { tabs.focusPreviousPane() },
+        )
     }
 
     /**
@@ -99,9 +131,27 @@ internal class WorkbenchCommands(
         }
     }
 
+    /**
+     * True if a tab of any pane is dirty. Save All saves the documents of every pane, so a dirty file in a pane other
+     * than the active one enables it as well.
+     */
+    private fun anyDirty(panes: Map<PaneId, EditorPaneState>): Boolean = panes.values.any { pane -> pane.tabs.any { it.isDirty } }
+
     /** [key] with the platform's primary modifier, which is Cmd on macOS and Ctrl elsewhere. */
     private fun primary(key: KeyCode): KeyShortcut = KeyShortcut(key, primary = true)
 
     /** This flow as a state flow in [scope], starting with [initial]. */
     private fun <T> Flow<T>.eagerly(initial: T): StateFlow<T> = stateIn(scope, SharingStarted.Eagerly, initial)
+
+    private companion object {
+        /** The arrow key of each split, pointing towards the new pane. */
+        val SPLIT_KEYS: Map<SplitSide, KeyCode> = mapOf(
+            SplitSide.RIGHT to KeyCode.RIGHT, SplitSide.LEFT to KeyCode.LEFT, SplitSide.DOWN to KeyCode.DOWN, SplitSide.UP to KeyCode.UP,
+        )
+
+        /** The title of each split command. */
+        val SPLIT_TITLES: Map<SplitSide, String> = mapOf(
+            SplitSide.RIGHT to "Split Right", SplitSide.LEFT to "Split Left", SplitSide.DOWN to "Split Down", SplitSide.UP to "Split Up",
+        )
+    }
 }

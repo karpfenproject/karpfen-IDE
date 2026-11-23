@@ -21,9 +21,9 @@ import io.karpfen.ide.runtime.session.plan.ProjectFeature
 /**
  * The settings that belong to one project, which is the folder the IDE has open. They are stored in the file
  * `.karpfenproject` in that folder, so a project carries them along when it is copied or checked out on another
- * machine. They are the look of the workbench, the layout of its tool windows, which files are open, which bridges
- * were started with the last run, whether runs are captured to files, whether the runtime caches results of Python
- * code, and which optional language features and features of the project are switched on.
+ * machine. They are the look of the workbench, the layout of its tool windows, the editor panes and the files open in
+ * them, which bridges were started with the last run, whether runs are captured to files, whether the runtime caches
+ * results of Python code, and which optional language features and features of the project are switched on.
  *
  * Nothing in here depends on the machine. The open files are named relative to the project folder with forward
  * slashes. The place of the window on the screen and the recent folders stay in the settings of the user.
@@ -32,8 +32,8 @@ import io.karpfen.ide.runtime.session.plan.ProjectFeature
  * @property uiScale the factor by which the whole workbench is drawn larger or smaller, 1 for the normal size.
  * @property editorFontSize the font size of the editors in sp.
  * @property toolWindows the visibility, size and place of the tool windows, keyed by `ToolWindowId.name`.
- * @property openFiles the files that are open in tabs, in the order of the tabs.
- * @property activeFile the file of the active tab, or null if no tab is open.
+ * @property editorPanes the editor panes with the files that are open in their tabs, the active tab of every pane and
+ *   the active pane.
  * @property bridges the bridge files that were started with the last run, named like the open files.
  * @property capture whether the last run was started with its capture to a file switched on.
  * @property resultCaching whether the last run was started with the result cache of Python code on, which is the
@@ -50,8 +50,7 @@ public data class ProjectSettings(
     public val uiScale: Float = Zoom.DEFAULT_UI_SCALE,
     public val editorFontSize: Float = Zoom.DEFAULT_EDITOR_FONT_SIZE,
     public val toolWindows: Map<String, ToolWindowLayout> = emptyMap(),
-    public val openFiles: List<String> = emptyList(),
-    public val activeFile: String? = null,
+    public val editorPanes: StoredPanes = StoredPanes.EMPTY,
     public val bridges: List<String> = emptyList(),
     public val capture: Boolean = false,
     public val resultCaching: Boolean = true,
@@ -68,7 +67,7 @@ public data class ProjectSettings(
 /** The part of these settings that belongs to the open project. */
 public val IdeSettings.project: ProjectSettings
     get() = ProjectSettings(
-        theme, uiScale, editorFontSize, toolWindows, openFiles, activeFile, activeBridges, captureRuns, resultCaching,
+        theme, uiScale, editorFontSize, toolWindows, editorPanes, activeBridges, captureRuns, resultCaching,
         languageFeatures, projectFeatures, otherProjectLines,
     )
 
@@ -81,8 +80,7 @@ public fun IdeSettings.withProject(project: ProjectSettings): IdeSettings = copy
     uiScale = project.uiScale,
     editorFontSize = project.editorFontSize,
     toolWindows = project.toolWindows,
-    openFiles = project.openFiles,
-    activeFile = project.activeFile,
+    editorPanes = project.editorPanes,
     activeBridges = project.bridges,
     captureRuns = project.capture,
     resultCaching = project.resultCaching,

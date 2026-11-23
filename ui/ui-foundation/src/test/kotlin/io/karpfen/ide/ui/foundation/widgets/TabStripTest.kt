@@ -15,8 +15,11 @@
  */
 package io.karpfen.ide.ui.foundation.widgets
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.ui.platform.testTag
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -46,7 +49,7 @@ import kotlin.test.assertTrue
 
 /**
  * Headless UI tests of [TabStrip]: selecting, closing with the button and with a middle click, the dirty dot, the
- * tooltip and scrolling when the tabs overflow.
+ * tooltip, scrolling when the tabs overflow, the trailing slot and a strip that is not emphasized.
  */
 @OptIn(ExperimentalTestApi::class)
 class TabStripTest {
@@ -253,5 +256,48 @@ class TabStripTest {
 
         tab("b.kmodel").assertDoesNotExist()
         tab("c.kstates").assertIsSelected()
+    }
+
+    @Test
+    fun `the trailing slot sits at the right end next to overflowing tabs and takes clicks`() = runComposeUiTest {
+        var clicks = 0
+        setThemedContent {
+            Box(Modifier.width(300.dp)) {
+                TabStrip(
+                    tabs = manyTabs(12),
+                    selectedId = "t0",
+                    onSelect = {},
+                    onClose = {},
+                    trailing = { Box(Modifier.size(22.dp).testTag(TRAILING).clickable { clicks++ }) },
+                )
+            }
+        }
+
+        val trailing = onNodeWithTag(TRAILING).assertIsDisplayed().getUnclippedBoundsInRoot()
+        val strip = onNodeWithTag(TabStripTestTags.STRIP).getUnclippedBoundsInRoot()
+        assertEquals(300f, trailing.right.value, 0.5f, "the slot ends at the right end of the strip")
+        assertEquals(trailing.left.value, strip.right.value, 0.5f, "the scrolled tabs end where the slot begins")
+        onNodeWithTag(TRAILING).performClick()
+        assertEquals(1, clicks)
+    }
+
+    @Test
+    fun `a strip that is not emphasized still marks and selects its tabs`() = runComposeUiTest {
+        val harness = Harness(threeTabs, selectedId = "a.kmeta")
+        setThemedContent {
+            Box(Modifier.width(600.dp)) {
+                TabStrip(harness.tabs, harness.selectedId, onSelect = { harness.selectedId = it }, onClose = {}, emphasized = false)
+            }
+        }
+
+        tab("a.kmeta").assertIsSelected()
+        tab("b.kmodel").performClick()
+        waitForIdle()
+        tab("b.kmodel").assertIsSelected()
+    }
+
+    private companion object {
+        /** The tag of the content of the trailing slot. */
+        const val TRAILING = "trailing"
     }
 }

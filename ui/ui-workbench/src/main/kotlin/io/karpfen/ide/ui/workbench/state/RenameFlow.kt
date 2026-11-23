@@ -31,10 +31,11 @@ import java.nio.file.Path
  * dialog over the affected open documents. For a file that is the file itself. For a directory it is every open
  * document below it. Cancel aborts the rename.
  *
- * The flow then closes those documents, renames on [ioDispatcher] and refreshes the workspace. It reopens each document
- * under its new path at its former tab position, and the active tab stays active. When the rename fails, an error
- * dialog says why and the documents are reopened under their old paths. The opened folder itself is never renamed
- * here.
+ * The flow then renames on [ioDispatcher] and refreshes the workspace. Every tab of an affected document, in every
+ * pane, then shows the document under its new path through `EditorLifecycle.move`, in the same place, with the same
+ * active tabs, the same active pane and the same view modes. The documents under the old paths close without saving,
+ * so changes that the dialog discarded are gone. When the rename fails, an error dialog says why and the documents stay
+ * open under their old paths as they are. The opened folder itself is never renamed here.
  */
 internal class RenameFlow(
     private val holder: WorkspaceHolder,
@@ -59,9 +60,6 @@ internal class RenameFlow(
         val affected = tabs.documents().filter { it.path.startsWith(path) }
         if (!unsaved.confirm(affected)) return
 
-        val positions = affected.map { it.path }.associateWith(tabs::indexOf)
-        val active = tabs.active.value
-        positions.keys.forEach { lifecycle.close(it) }
         val renamed = try {
             withContext(ioDispatcher) { fileOperations.rename(path, newName) }.toAbsolutePath().normalize()
         } catch (e: IOException) {
@@ -69,10 +67,8 @@ internal class RenameFlow(
             null
         }
         workspace.refresh()
-
-        val moved = { old: Path -> if (renamed == null) old else renamed.resolve(path.relativize(old)).normalize() }
-        positions.entries.sortedBy { it.value }.forEach { (old, index) -> lifecycle.open(moved(old), index) }
-        active?.let { tabs.activate(if (it in positions) moved(it) else it) }
-        renamed?.let(projectTree::reveal)
+        if (renamed == null) return
+        affected.map { it.path }.forEach { old -> lifecycle.move(old, renamed.resolve(path.relativize(old)).normalize()) }
+        projectTree.reveal(renamed)
     }
 }

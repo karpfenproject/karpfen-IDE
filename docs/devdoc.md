@@ -124,8 +124,9 @@ The IDE keeps its files in `~/.karpfen-ide`. The environment variable `KARPFEN_I
 and the bounds of the window of the detached Runtime tool window.
 
 Everything else belongs to the open project and is stored in `.karpfenproject` in the project folder: the theme, the
-two zoom values, the tool window layout with whether the Runtime tool window is detached, the runtime host, the open files and the bridges of the last run. The file is
-plain text with one `key = value` per line, as `ProjectSettingsFile` reads and writes it. Paths in it are relative, so
+two zoom values, the tool window layout with whether the Runtime tool window is detached, the runtime host, the
+editor panes with their open files and the bridges of the last run. The file is plain text with one `key = value`
+per line, as `ProjectSettingsFile` reads and writes it. Paths in it are relative, so
 it means the same on every machine and can be committed. Reading never fails: a value that makes no sense falls back
 to its default, and lines with unknown keys are kept. The file is written only when a project value changes, so a
 folder that is only looked at gets no file. In memory both parts are one `IdeSettings` value, and `SettingsRepository`
@@ -714,6 +715,41 @@ Read `SourceLoader`, `AtomicTextFileStore` and `DiskSynchronizer`. Line separato
 normalized on load and restored on save. Saving writes a temporary file and moves it over the target in one step, so
 a crash never leaves a truncated file. A change on disk to a document without unsaved edits reloads it as one undoable
 change. A document with unsaved edits gets a banner with Reload and Keep mine.
+
+### Editor panes
+
+Read `PaneLayout` and `EditorTabsState`. The editor area is a tree of splits whose leaves are panes, each with its own
+tabs and active tab, and one active pane. A file shown in several panes has one open document and one editor per
+pane, so text, undo history and dirty mark are shared while carets, scrolling and view modes are not.
+`EditorLifecycle` opens a document with the first view of its file and closes it with the last, which is also the
+only close that asks about unsaved changes. The flows of `EditorTabsState` without a pane in their name follow the
+active pane, which is how the outline, the status bar, the editor commands, Save, Close Tab and a run reach the file
+the user works on.
+
+`EditorPanes` in the root package of ui-workbench draws the tree through `EditorPaneTree`, with a `ShareSplitPane` for
+every split and an `EditorArea` for every pane. Each pane is a movable content kept by its id, so a pane that moves in
+the tree, because it or a neighbour is split or closed, keeps what its composables remember, such as the zoom of its
+diagram. The callbacks of a pane name the pane, never the active one; an intent that acts on the active pane, such as
+`navigateTo` or `openPage`, is called after the pane was made active and acts on the pane that is active when it is
+called. A navigation that an editor asks for, such as Go to Definition, runs in the pane of that editor. A navigation
+into a pane that shows the diagram alone switches it to text and diagram, so the place shows. A press anywhere in a
+pane makes it active, as does its editor gaining the focus. A split asks the new editor for the focus. A pane that
+becomes active while the focus is outside it takes the focus, into its editor if it shows the text and into an empty
+focus target of the pane otherwise, so typing never reaches a pane that is not the active one; when a pane disappears
+while an editor has the focus, the active pane takes it as well. A pane in 64 splits is not split further, far below
+the nesting the project file reads. The diagram of a file is shared by the panes through one `SharedDiagrams` of the
+editor area: one tracker derives it and one `DiagramEditing` holds and writes
+its layout by hand, so a drag in one pane moves the box in the other at once and the companion file is written once.
+The panes keep their own zoom, position, menus and code cells. The test tags of the parts of a pane are the same in
+every pane; tests with several panes look for them below `EditorAreaTestTags.pane`.
+
+The panes go into `.karpfenproject` through `EditorPanesPersister`, debounced like the tool windows, so a drag of a
+border writes once. One pane is written as the lines `open` and `active` alone, so the file of a project that is not
+split keeps its form. A split editor area writes a `split` line with the tree, such as
+`row 50 (1, column 40 (2, 3))`, the lines `open.<n>` and `active.<n>` of each pane and `activePane`;
+`StoredPanesLines` describes the rules for reading what is broken. `ProjectFlow.restoreTabs` hands the stored tree to
+`EditorLifecycle.restore`, which opens the files of each pane and drops the panes whose files are gone. The view
+modes and the zoom of the diagrams are not stored.
 
 ### The Project tool window
 

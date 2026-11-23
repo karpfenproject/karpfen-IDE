@@ -165,6 +165,51 @@ internal object IconShapes {
         }
     }
 
+    /** Split right: a tintable frame halved by an upright line, with a plus in the right half, where the new pane goes. */
+    fun splitRight(): ImageVector = icon("SplitRight") {
+        stroked(TINTABLE) {
+            splitFrame()
+            polyline(8f, 2.5f, 8f, 13.5f)
+            plus(10.75f, 8f)
+        }
+    }
+
+    /** Split left: the frame of [splitRight] with the plus in the left half. */
+    fun splitLeft(): ImageVector = icon("SplitLeft") {
+        stroked(TINTABLE) {
+            splitFrame()
+            polyline(8f, 2.5f, 8f, 13.5f)
+            plus(5.25f, 8f)
+        }
+    }
+
+    /** Split down: a tintable frame halved by a level line, with a plus in the lower half, where the new pane goes. */
+    fun splitDown(): ImageVector = icon("SplitDown") {
+        stroked(TINTABLE) {
+            splitFrame()
+            polyline(2.5f, 8f, 13.5f, 8f)
+            plus(8f, 10.75f)
+        }
+    }
+
+    /** Split up: the frame of [splitDown] with the plus in the upper half. */
+    fun splitUp(): ImageVector = icon("SplitUp") {
+        stroked(TINTABLE) {
+            splitFrame()
+            polyline(2.5f, 8f, 13.5f, 8f)
+            plus(8f, 5.25f)
+        }
+    }
+
+    /** The frame of the split icons: a closed square from 2.5 to 13.5 with rounded corners. */
+    private fun PathBuilder.splitFrame() = roundedRect(2.5f, 2.5f, 13.5f, 13.5f, 1.5f)
+
+    /** A small plus centred at ([cx], [cy]) whose arms reach 1.5 units from the centre. */
+    private fun PathBuilder.plus(cx: Float, cy: Float) {
+        polyline(cx - 1.5f, cy, cx + 1.5f, cy)
+        polyline(cx, cy - 1.5f, cx, cy + 1.5f)
+    }
+
     /** The frame of [detach] and [dock]: a square from 2.5 to 12.5 with a gap at its top right corner. */
     private fun PathBuilder.windowFrame() = polyline(6.5f, 3.5f, 2.5f, 3.5f, 2.5f, 13.5f, 12.5f, 13.5f, 12.5f, 9.5f)
 

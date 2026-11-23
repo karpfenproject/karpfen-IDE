@@ -33,13 +33,17 @@ import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
+import kotlin.test.assertNotNull
+import kotlin.test.assertNotSame
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
- * Tests [EditorTabsState]. It covers the order, activation, removal and moves of tabs, and the dirty and conflict
- * flags of the documents.
+ * Tests [EditorTabsState]. It covers the order, activation, removal and moves of tabs, the dirty and conflict flags of
+ * the documents, and the panes: splitting, views of one document in several panes, the flows of the active pane, the
+ * focus, resizing, the replacement of a renamed document and clearing.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class EditorTabsStateTest {
@@ -64,8 +68,12 @@ class EditorTabsStateTest {
             return document
         }
 
-        /** The tab titles in display order. */
+        /** The tab titles of the active pane in display order. */
         fun titles(): List<String> = tabs.tabs.value.map { it.title }
+
+        /** Splits [pane] towards [side] with a new spy editor of [document], and returns the new pane. */
+        fun split(pane: PaneId, side: SplitSide, document: FakeOpenDocument): PaneId? =
+            tabs.split(pane, side, editorOf(document, scope, dispatcher))
     }
 
     /** Runs [block] with a fresh [Fixture] and cancels its scope afterwards. */
@@ -118,23 +126,23 @@ class EditorTabsStateTest {
         listOf("a.kmeta", "b.kmeta", "c.kmeta").forEach { f.open(it) }
         f.tabs.activate(root.resolve("b.kmeta"))
 
-        f.tabs.remove(root.resolve("b.kmeta"))
+        f.tabs.remove(f.tabs.activePane.value,root.resolve("b.kmeta"))
         assertTrue(f.editors.getValue("b.kmeta").closed)
         assertEquals(root.resolve("c.kmeta"), f.tabs.active.value)
-        f.tabs.remove(root.resolve("c.kmeta"))
+        f.tabs.remove(f.tabs.activePane.value,root.resolve("c.kmeta"))
         assertEquals(root.resolve("a.kmeta"), f.tabs.active.value)
-        f.tabs.remove(root.resolve("a.kmeta"))
+        f.tabs.remove(f.tabs.activePane.value,root.resolve("a.kmeta"))
         assertNull(f.tabs.active.value)
         assertNull(f.tabs.activeEditor.value)
 
-        f.tabs.remove(root.resolve("a.kmeta"))
+        f.tabs.remove(f.tabs.activePane.value,root.resolve("a.kmeta"))
         assertTrue(f.tabs.tabs.value.isEmpty())
     }
 
     @Test
     fun `removing an inactive tab keeps the active one`() = fixture { f ->
         listOf("a.kmeta", "b.kmeta").forEach { f.open(it) }
-        f.tabs.remove(root.resolve("a.kmeta"))
+        f.tabs.remove(f.tabs.activePane.value,root.resolve("a.kmeta"))
         assertEquals(root.resolve("b.kmeta"), f.tabs.active.value)
     }
 
@@ -160,7 +168,7 @@ class EditorTabsStateTest {
         assertEquals(ExternalChangeKind.DELETED, f.tabs.tabs.value.single().conflict)
         assertTrue(f.tabs.tabs.value.single().hasConflict)
 
-        f.tabs.remove(document.path)
+        f.tabs.remove(f.tabs.activePane.value, document.path)
         document.isDirty.value = false
         advanceUntilIdle()
         assertTrue(f.tabs.tabs.value.isEmpty(), "a removed tab no longer follows its document")
@@ -174,5 +182,175 @@ class EditorTabsStateTest {
         assertNull(f.tabs.editorFor(root.resolve("x.kmeta")))
         assertNull(f.tabs.documentFor(root.resolve("x.kmeta")))
         assertEquals(-1, f.tabs.indexOf(root.resolve("x.kmeta")))
+    }
+
+    @Test
+    fun `a split shows the active file in a new active pane with its own editor on the same document`() = fixture { f ->
+        val document = f.open("a.kstates")
+        f.open("b.kmeta")
+        f.tabs.activate(document.path)
+        f.tabs.setViewMode(document.path, EditorViewMode.DIAGRAM)
+        val first = f.tabs.activePane.value
+
+        val second = assertNotNull(f.split(first, SplitSide.RIGHT, document))
+
+        assertEquals(second, f.tabs.activePane.value)
+        assertEquals(listOf(first, second), f.tabs.layout.value.panes.map { it.id })
+        assertEquals(listOf("a.kstates"), f.titles(), "the tabs of the active pane")
+        assertEquals(document.path, f.tabs.active.value)
+        val editors = listOf(f.tabs.editorFor(first, document.path), f.tabs.editorFor(second, document.path))
+        assertNotSame(editors[0], editors[1])
+        assertSame(editors[1], f.tabs.activeEditor.value)
+        assertSame(editors[0]?.session, editors[1]?.session, "one document session")
+        assertSame(document, f.tabs.documentFor(document.path))
+        assertEquals(listOf(document.path, root.resolve("b.kmeta")), f.tabs.documents().map { it.path }, "each document once")
+        assertEquals(EditorViewMode.DIAGRAM, f.tabs.panes.value.getValue(second).viewMode, "the view mode is copied")
+
+        f.tabs.setViewMode(second, document.path, EditorViewMode.TEXT)
+        assertEquals(EditorViewMode.DIAGRAM, f.tabs.panes.value.getValue(first).viewMode, "view modes are per pane")
+        assertEquals(EditorViewMode.TEXT, f.tabs.viewModes.value[document.path])
+        assertNull(f.split(PaneId(99), SplitSide.LEFT, document), "an unknown pane is not split")
+    }
+
+    @Test
+    fun `the flows without a pane follow the active pane`() = fixture { f ->
+        val document = f.open("a.kstates")
+        val first = f.tabs.activePane.value
+        val second = assertNotNull(f.split(first, SplitSide.DOWN, document))
+        f.open("b.kmeta")
+        assertEquals(listOf("a.kstates", "b.kmeta"), f.titles(), "opening goes into the active pane")
+
+        f.tabs.activatePane(first)
+        assertEquals(listOf("a.kstates"), f.titles())
+        assertEquals(document.path, f.tabs.active.value)
+        assertSame(f.tabs.editorFor(first, document.path), f.tabs.activeEditor.value)
+        assertEquals(0, f.tabs.indexOf(document.path))
+        assertEquals(-1, f.tabs.indexOf(root.resolve("b.kmeta")))
+
+        f.tabs.activate(second, root.resolve("b.kmeta"))
+        assertEquals(second, f.tabs.activePane.value)
+        assertEquals(root.resolve("b.kmeta"), f.tabs.active.value)
+        val states = f.tabs.panes.value
+        assertEquals(listOf(document.path), states.getValue(first).tabs.map { it.path })
+        assertEquals(root.resolve("b.kmeta"), states.getValue(second).active)
+    }
+
+    @Test
+    fun `a removed view keeps the document while another pane shows it, and an emptied pane collapses`() = fixture { f ->
+        val document = f.open("a.kstates")
+        val first = f.tabs.activePane.value
+        val second = assertNotNull(f.split(first, SplitSide.RIGHT, document))
+        val secondEditor = assertNotNull(f.tabs.editorFor(second, document.path))
+
+        f.tabs.remove(second, document.path)
+        assertTrue((secondEditor as ClosingSpyEditor).closed)
+        assertFalse(f.editors.getValue("a.kstates").closed)
+        assertSame(document, f.tabs.documentFor(document.path), "the first pane still shows it")
+        assertEquals(listOf(first), f.tabs.layout.value.panes.map { it.id }, "the empty pane is gone")
+        assertEquals(first, f.tabs.activePane.value, "its neighbour is active")
+
+        document.isDirty.value = true
+        advanceUntilIdle()
+        assertTrue(f.tabs.tabs.value.single().isDirty, "the remaining tab still follows the document")
+
+        f.tabs.remove(first, document.path)
+        assertNull(f.tabs.documentFor(document.path), "the last view forgets the document")
+        assertEquals(listOf(first), f.tabs.layout.value.panes.map { it.id }, "the last pane stays, empty")
+        assertTrue(f.tabs.tabs.value.isEmpty())
+    }
+
+    @Test
+    fun `the pane of an editor that gains the focus becomes active`() = fixture { f ->
+        val document = f.open("a.kstates")
+        val first = f.tabs.activePane.value
+        f.split(first, SplitSide.RIGHT, document)
+        advanceUntilIdle()
+
+        assertNotNull(f.tabs.editorFor(first, document.path)).onFocusChanged(true)
+        advanceUntilIdle()
+
+        assertEquals(first, f.tabs.activePane.value)
+    }
+
+    @Test
+    fun `focus next and previous cycle through the panes and ask their editors for the focus`() = fixture { f ->
+        val document = f.open("a.kstates")
+        val first = f.tabs.activePane.value
+        val second = assertNotNull(f.split(first, SplitSide.RIGHT, document))
+        val third = assertNotNull(f.split(second, SplitSide.DOWN, document))
+
+        f.tabs.focusNextPane()
+        assertEquals(first, f.tabs.activePane.value, "after the last pane comes the first")
+        assertTrue(assertNotNull(f.tabs.editorFor(first, document.path)).focusRequested.value)
+        f.tabs.focusPreviousPane()
+        assertEquals(third, f.tabs.activePane.value)
+        f.tabs.focusPreviousPane()
+        assertEquals(second, f.tabs.activePane.value)
+        assertTrue(assertNotNull(f.tabs.editorFor(second, document.path)).focusRequested.value)
+    }
+
+    @Test
+    fun `a resize changes the share of the split`() = fixture { f ->
+        val document = f.open("a.kstates")
+        f.split(f.tabs.activePane.value, SplitSide.UP, document)
+        val split = assertIs<PaneNode.Split>(f.tabs.layout.value.root)
+
+        f.tabs.resize(split.id, 0.25f)
+
+        assertEquals(0.25f, assertIs<PaneNode.Split>(f.tabs.layout.value.root).share)
+    }
+
+    @Test
+    fun `a replaced document takes the place of the old one in every pane with new editors`() = fixture { f ->
+        val document = f.open("a.kstates")
+        f.open("b.kmeta")
+        f.tabs.activate(document.path)
+        val first = f.tabs.activePane.value
+        val second = assertNotNull(f.split(first, SplitSide.RIGHT, document))
+        f.tabs.setViewMode(second, document.path, EditorViewMode.SPLIT)
+        val oldEditors = f.tabs.editorsOf(document.path)
+        val renamed = FakeOpenDocument(root.resolve("c.kstates"), "", f.scope, f.dispatcher)
+
+        f.tabs.replace(document.path, renamed, root) { editorOf(renamed, f.scope, f.dispatcher) }
+
+        assertTrue(oldEditors.all { (it as ClosingSpyEditor).closed })
+        assertEquals(listOf(listOf("c.kstates", "b.kmeta"), listOf("c.kstates")), f.tabs.panes.value.values.map { pane -> pane.tabs.map { it.title } })
+        assertEquals(second, f.tabs.activePane.value)
+        assertEquals(renamed.path, f.tabs.active.value)
+        assertSame(renamed.session, f.tabs.activeEditor.value?.session)
+        assertEquals(EditorViewMode.SPLIT, f.tabs.viewModes.value[renamed.path])
+        assertNull(f.tabs.documentFor(document.path))
+    }
+
+    @Test
+    fun `reveal activates a tab in the active pane, else in the first pane that has it`() = fixture { f ->
+        val document = f.open("a.kstates")
+        val first = f.tabs.activePane.value
+        val second = assertNotNull(f.split(first, SplitSide.RIGHT, document))
+        f.open("b.kmeta")
+        f.tabs.activatePane(first)
+
+        f.tabs.reveal(root.resolve("b.kmeta"))
+        assertEquals(second, f.tabs.activePane.value)
+        assertEquals(root.resolve("b.kmeta"), f.tabs.active.value)
+
+        f.tabs.reveal(document.path)
+        assertEquals(second, f.tabs.activePane.value, "the active pane has a tab of it")
+        assertEquals(document.path, f.tabs.active.value)
+    }
+
+    @Test
+    fun `clearing closes every view and leaves one empty pane`() = fixture { f ->
+        val document = f.open("a.kstates")
+        f.split(f.tabs.activePane.value, SplitSide.RIGHT, document)
+        val editors = f.tabs.allEditors()
+
+        f.tabs.clear()
+
+        assertTrue(editors.all { (it as ClosingSpyEditor).closed })
+        assertEquals(1, f.tabs.layout.value.panes.size)
+        assertTrue(f.tabs.tabs.value.isEmpty())
+        assertTrue(f.tabs.documents().isEmpty())
+        assertNull(f.tabs.activeEditor.value)
     }
 }

@@ -22,7 +22,9 @@ import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.rememberScrollState
@@ -87,6 +89,11 @@ public object TabStripTestTags {
  * [onClose] without selecting it. When the tabs overflow, the strip scrolls with the horizontal wheel or the trackpad
  * and also with the vertical wheel. Whenever [selectedId] changes, the strip scrolls minimally so that the tab is fully
  * visible. The strip needs `KarpfenTheme`.
+ *
+ * The selected tab is underlined in the accent colour while the strip is [emphasized], and in the muted text colour
+ * otherwise. Where several strips are shown, as in a split editor, that tells the strip of the active pane apart from
+ * the others at a glance. [trailing] is drawn at the right end of the strip, outside the scrolled tabs, so actions
+ * such as buttons stay in place however many tabs there are.
  */
 @Composable
 public fun TabStrip(
@@ -95,6 +102,8 @@ public fun TabStrip(
     onSelect: (String) -> Unit,
     onClose: (String) -> Unit,
     modifier: Modifier = Modifier,
+    emphasized: Boolean = true,
+    trailing: @Composable RowScope.() -> Unit = {},
 ) {
     val colors = KarpfenTheme.colors
     val scroll = rememberScrollState()
@@ -103,28 +112,33 @@ public fun TabStrip(
 
     Box(modifier.fillMaxWidth().height(TabStripDefaults.Height).background(colors.panel)) {
         Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().height(1.dp).background(colors.border))
-        Row(
-            Modifier
-                .fillMaxHeight()
-                .testTag(TabStripTestTags.STRIP)
-                .verticalWheelScroll(scroll)
-                .horizontalScroll(scroll),
-        ) {
-            tabs.forEach { tab ->
-                key(tab.id) {
-                    DisposableEffect(tab.id) { onDispose { extents.remove(tab.id) } }
-                    TabView(
-                        tab = tab,
-                        isSelected = tab.id == selectedId,
-                        onSelect = onSelect,
-                        onClose = onClose,
-                        modifier = Modifier.onPlaced { coordinates ->
-                            val start = coordinates.positionInParent().x.roundToInt()
-                            extents[tab.id] = TabExtent(start, start + coordinates.size.width)
-                        },
-                    )
+        Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .testTag(TabStripTestTags.STRIP)
+                    .verticalWheelScroll(scroll)
+                    .horizontalScroll(scroll),
+            ) {
+                tabs.forEach { tab ->
+                    key(tab.id) {
+                        DisposableEffect(tab.id) { onDispose { extents.remove(tab.id) } }
+                        TabView(
+                            tab = tab,
+                            isSelected = tab.id == selectedId,
+                            emphasized = emphasized,
+                            onSelect = onSelect,
+                            onClose = onClose,
+                            modifier = Modifier.onPlaced { coordinates ->
+                                val start = coordinates.positionInParent().x.roundToInt()
+                                extents[tab.id] = TabExtent(start, start + coordinates.size.width)
+                            },
+                        )
+                    }
                 }
             }
+            trailing()
         }
     }
 }

@@ -181,6 +181,9 @@ internal object SplitPaneDefaults {
 
     /** Width of the divider's drag handle. It is centred on the line and overlaps the panes' edges. */
     val HandleWidth: Dp = 6.dp
+
+    /** The main-axis size a [ShareSplitPane] takes when its container does not bound the main axis. */
+    val UnboundedShareSize: Dp = 400.dp
 }
 
 /** Fixed measures of [ToolWindow]. */
@@ -195,8 +198,8 @@ private fun MeasureScope.measureAlone(pane: Measurable, constraints: Constraints
     return layout(placeable.width, placeable.height) { placeable.place(0, 0) }
 }
 
-/** The three children of a [SplitPane] layout: both panes and the divider's drag handle. */
-private class SplitMeasurables(val first: Measurable, val second: Measurable, val divider: Measurable)
+/** The three children of a [SplitPane] or [ShareSplitPane] layout: both panes and the divider's drag handle. */
+internal class SplitMeasurables(val first: Measurable, val second: Measurable, val divider: Measurable)
 
 /**
  * Measures and places the children of a [SplitPane]. The pane sizes come from [geometry] for the requested [fixedPx].

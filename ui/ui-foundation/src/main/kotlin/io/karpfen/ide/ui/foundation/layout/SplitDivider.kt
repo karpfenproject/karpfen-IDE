@@ -41,10 +41,15 @@ import java.awt.Cursor
  * The drag handle of a [SplitPane]. It draws the 1 dp divider line at its centre and shows a resize cursor. On a
  * press it calls [onDragStart] once, and from then on it reports the pointer movement along the main axis through
  * [onDrag]. Only the primary button and touch start a drag. A press with the secondary or the tertiary button is
- * ignored.
+ * ignored. The handle carries the test tag [tag], which the [SplitPane] and the [ShareSplitPane] tell apart.
  */
 @Composable
-internal fun SplitDivider(orientation: SplitOrientation, onDragStart: () -> Unit, onDrag: (Float) -> Unit) {
+internal fun SplitDivider(
+    orientation: SplitOrientation,
+    onDragStart: () -> Unit,
+    onDrag: (Float) -> Unit,
+    tag: String = SplitPaneTestTags.DIVIDER,
+) {
     val horizontal = orientation == SplitOrientation.HORIZONTAL
     val lineColor = KarpfenTheme.colors.border
     val currentOnDragStart = rememberUpdatedState(onDragStart)
@@ -55,7 +60,7 @@ internal fun SplitDivider(orientation: SplitOrientation, onDragStart: () -> Unit
     Box(
         Modifier
             .fillMaxSize()
-            .testTag(SplitPaneTestTags.DIVIDER)
+            .testTag(tag)
             .pointerHoverIcon(cursor)
             .drawBehind {
                 val thickness = SplitPaneDefaults.DividerThickness.toPx()

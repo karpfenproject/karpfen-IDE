@@ -36,6 +36,8 @@ import io.karpfen.ide.ui.workbench.settings.IdeSettings
 import io.karpfen.ide.ui.workbench.settings.ZoomStep
 import io.karpfen.ide.ui.workbench.statusbar.StatusBarState
 import io.karpfen.ide.ui.workbench.tabs.EditorTabsState
+import io.karpfen.ide.ui.workbench.tabs.PaneId
+import io.karpfen.ide.ui.workbench.tabs.SplitSide
 import io.karpfen.ide.ui.workbench.templates.FileTemplateKind
 import io.karpfen.ide.ui.workbench.validation.ValidationState
 import kotlinx.coroutines.CoroutineScope
@@ -93,7 +95,10 @@ public interface WorkbenchState : AutoCloseable {
     /** The project tree. */
     public val projectTree: ProjectTreeState
 
-    /** The open editor tabs and their editor states. */
+    /**
+     * The editor panes with their tabs and editor states. Its flows without a pane in their name follow the active
+     * pane.
+     */
     public val tabs: EditorTabsState
 
     /** The outline of the active document. */
@@ -183,8 +188,9 @@ public interface WorkbenchState : AutoCloseable {
     public fun chooseAndOpenFolder(): Job
 
     /**
-     * Opens [path] in an editor tab, or activates its tab if it is open already. This works for KMeta, KModel and
-     * KStates files and for environment descriptors. A bridge file opens in the [bridgeForm] and never as text. Files
+     * Opens [path] in an editor tab of the active pane, or activates its tab there if the pane has one already. A file
+     * that another pane shows gets a new view of the same document. This works for KMeta, KModel and KStates files and
+     * for environment descriptors. A bridge file opens in the [bridgeForm] and never as text. Files
      * that the editor cannot open come back as `OpenResult.Unsupported`. They are opened in the system's default
      * application through `ProjectFileOperations.openExternally`. That also happens when the Problems view navigates
      * to them. Failures become an error dialog.
@@ -192,10 +198,12 @@ public interface WorkbenchState : AutoCloseable {
     public fun openFile(path: Path): Job
 
     /**
-     * Opens the file of [location] and moves the caret to the start of its range, scrolled to the centre. The range is
-     * mapped into the document's current text with `EditableText.mapRange(range, version, lineage)`. When that returns
-     * null, the range is clamped to the text instead. That happens for another lineage, a newer version, evicted
-     * history, or a location without a version.
+     * Opens the file of [location] in the pane that is active at the time of the call, as [openFile] does, and moves
+     * the caret of that pane's editor to the start of its range, scrolled to the centre. A pane that shows the file's
+     * diagram alone switches to the text and the diagram next to each other, so the place shows. The range is mapped
+     * into the document's current text with `EditableText.mapRange(range, version, lineage)`. When that returns null,
+     * the range is clamped to the text instead. That happens for another lineage, a newer version, evicted history,
+     * or a location without a version.
      *
      * The caret move, `scrollTo(center = true)` and the focus request are pending state of the editor. They therefore
      * take effect once a new tab is composed. Files that the editor cannot open are opened externally. The Problems
@@ -205,14 +213,16 @@ public interface WorkbenchState : AutoCloseable {
 
     /**
      * Opens the diagram of the fragment named [fragment], the page of a container state in the diagram of the file at
-     * [from]. The fragment is found by its name, one of the modeling context of [from] first. Its file opens with its
-     * diagram shown the way [from] shows its diagram. A name that no file declares becomes an error dialog.
+     * [from]. The fragment is found by its name, one of the modeling context of [from] first. Its file opens in the
+     * pane that is active at the time of the call, with its diagram shown the way that pane shows [from]. A name that
+     * no file declares becomes an error dialog.
      */
     public fun openPage(from: Path, fragment: String): Job
 
     /**
-     * Opens [path] with its diagram shown the way the file at [from] shows its diagram. The diagram of a fragment
-     * uses it to go back to a file whose container states run the fragment.
+     * Opens [path] in the pane that is active at the time of the call, with its diagram shown the way that pane shows
+     * the file at [from]. The diagram of a fragment uses it to go back to a file whose container states run the
+     * fragment.
      */
     public fun openWithDiagram(path: Path, from: Path): Job
 
@@ -282,14 +292,30 @@ public interface WorkbenchState : AutoCloseable {
     /** Saves all dirty documents. It asks first about those whose save would overwrite a change made on disk. */
     public fun saveAll(): Job
 
-    /**
-     * Closes the tab of [path] and asks about unsaved changes first. Cancel keeps the tab open. While a close request
-     * for the tab is queued or asking, a further request returns its job instead of asking again.
-     */
+    /** Closes the tab of [path] in the pane that is active at the time of the call, as [closeTab] with a pane does. */
     public fun closeTab(path: Path): Job
+
+    /**
+     * Closes the tab of [path] in the pane [pane]. When it is the last tab of the file in any pane, it asks about
+     * unsaved changes first, and Cancel keeps the tab open. While another pane shows the file, the tab closes without
+     * a question, because the document stays open there. A pane whose last tab closes disappears, unless it is the
+     * only one, and its neighbour takes its space. While a close request for the tab is queued or asking, a further
+     * request returns its job instead of asking again.
+     */
+    public fun closeTab(pane: PaneId, path: Path): Job
 
     /** Closes the tab that is active at the time of the call, as [closeTab] does. */
     public fun closeActiveTab(): Job
+
+    /**
+     * Splits the pane [pane] towards [side]: a new pane on that side shows the file of the pane's active tab in a new
+     * view of the same document, with the same view mode, and becomes the active pane. The two panes share the space
+     * of the pane half and half. A pane without a tab is not split. The layout lives in `EditorTabsState.layout`.
+     */
+    public fun splitPane(pane: PaneId, side: SplitSide): Job
+
+    /** Splits the pane that is active at the time of the call, as [splitPane] does. */
+    public fun splitActivePane(side: SplitSide): Job
 
     /**
      * Reads the folder again now, so a file the IDE itself just wrote next to a model shows in the project tree at
