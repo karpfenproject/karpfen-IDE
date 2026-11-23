@@ -20,10 +20,13 @@ plugins {
 /**
  * The diagram model without any UI, derived from the outline of a document, and its layout, automatic or by hand. The
  * layout library ELK stays an implementation detail behind the layouter. The JSON library reads and writes the
- * companion file that holds a layout made by hand.
+ * companion file that holds a layout made by hand. The language services of core-lang write the whole objects of a
+ * type that the object diagram adds, the same text their completion inserts, and the actions of the object diagram take
+ * that writer in their API.
  */
 dependencies {
     api(project(":core:core-workspace"))
+    api(project(":core:core-lang"))
     implementation(libs.bundles.elk)
     implementation(libs.kotlinx.serialization.json)
 }

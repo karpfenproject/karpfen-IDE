@@ -37,6 +37,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.core.document.session.DocumentSession
+import io.karpfen.ide.core.lang.kmodel.KmodelObjectWriter
 import io.karpfen.ide.core.text.EditOrigin
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.notation.diagram.edit.DiagramChange
@@ -76,7 +77,10 @@ import java.nio.file.Path
  *
  * The context menu of the diagram changes the model. Every such change is one edit of the text of [session], which
  * the editor can undo like any other. It is only made while the diagram shows the current text. It offers the
- * constructs of an optional language feature of KStates only while that feature is among [languageFeatures].
+ * constructs of an optional language feature of KStates only while that feature is among [languageFeatures]. The
+ * object diagram of a model offers to add a whole object of each type of [modelTypes], the types of the domain
+ * metamodel of the modeling context of [modelFile], which [modelTypes] also writes. The caller makes it from the latest
+ * analysis of the project, since the diagram does not know the project.
  *
  * An entry that leaves the diagram for another one, such as the page of a container state, calls [onFollow] with the
  * name the model refers to. The caller finds the file of that name and opens its diagram.
@@ -91,6 +95,7 @@ public fun DiagramPane(
     live: DiagramLive? = null,
     cellEditor: DiagramCellEditor? = null,
     languageFeatures: Set<KstatesFeature> = emptySet(),
+    modelTypes: KmodelObjectWriter = KmodelObjectWriter.NONE,
     onSelect: (TextRange) -> Unit = {},
     onLayoutSaved: () -> Unit = {},
     onFollow: (String) -> Unit = {},
@@ -101,7 +106,7 @@ public fun DiagramPane(
         DiagramKind.OBJECTS -> DiagramNotation.OBJECTS
     }
     NotationPane(
-        notation, session, modelFile, modifier, reloadKey, live, cellEditor, languageFeatures, onSelect, onLayoutSaved, onFollow,
+        notation, session, modelFile, modifier, reloadKey, live, cellEditor, languageFeatures, modelTypes, onSelect, onLayoutSaved, onFollow,
     )
 }
 
@@ -116,6 +121,7 @@ private fun <D : Any, L : DiagramLayout> NotationPane(
     live: DiagramLive?,
     cellEditor: DiagramCellEditor?,
     languageFeatures: Set<KstatesFeature>,
+    modelTypes: KmodelObjectWriter,
     onSelect: (TextRange) -> Unit,
     onLayoutSaved: () -> Unit,
     onFollow: (String) -> Unit,
@@ -148,7 +154,7 @@ private fun <D : Any, L : DiagramLayout> NotationPane(
     }
     DiagramView(
         notation, state, editing, modifier, onSelect, change, live?.active.orEmpty(), live?.pause, cellEditor,
-        languageFeatures, onFollow,
+        languageFeatures, modelTypes, onFollow,
     )
 }
 
@@ -160,7 +166,8 @@ private fun <D : Any, L : DiagramLayout> NotationPane(
  *
  * A change the user makes to the model through the diagram goes to [onChange] as edits of the text the diagram was
  * derived from. It answers whether the text took the change. The context menu offers what the notation's actions
- * offer while [languageFeatures] are switched on. An action that leaves the diagram goes to [onFollow].
+ * offer while [languageFeatures] are switched on and with the types of [modelTypes]. An action that leaves the diagram
+ * goes to [onFollow].
  *
  * A failure inside the view does not reach the window. What failed is left out, and a second note over the drawing
  * says what went wrong. Its text can be selected and copied. See [DiagramFaults].
@@ -177,6 +184,7 @@ internal fun <D : Any, L : DiagramLayout> DiagramView(
     pause: DiagramPause? = null,
     cellEditor: DiagramCellEditor? = null,
     languageFeatures: Set<KstatesFeature> = emptySet(),
+    modelTypes: KmodelObjectWriter = KmodelObjectWriter.NONE,
     onFollow: (String) -> Unit = {},
 ) {
     val colors = KarpfenTheme.colors
@@ -186,7 +194,7 @@ internal fun <D : Any, L : DiagramLayout> DiagramView(
         if (diagram == null) {
             Muted(notation.nothingToDraw)
         } else {
-            val actions = remember(notation, languageFeatures) { notation.actions(languageFeatures) }
+            val actions = remember(notation, languageFeatures, modelTypes) { notation.actions(languageFeatures, modelTypes) }
             DiagramCanvas(notation, actions, diagram, editing, faults, state.source?.text, active, pause, cellEditor, onChange, onSelect, onFollow)
             if (faults.guard("looking at the diagram", { false }) { notation.arrangement.isEmpty(diagram) }) Muted(NOTHING_YET)
         }

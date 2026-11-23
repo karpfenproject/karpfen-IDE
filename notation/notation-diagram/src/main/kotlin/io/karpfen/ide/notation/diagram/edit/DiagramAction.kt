@@ -42,7 +42,8 @@ public class DiagramChange(
  * menu. Some actions need more from the user before they change anything: a click on another element or a text. Such
  * an action leads to the next one, and the last one of the chain is a [Change]. An [Open] shows a piece of the model as
  * text, so whatever the menu has no entry for can still be done in the diagram. A [Follow] changes nothing and leaves
- * the diagram for another one.
+ * the diagram for another one. A [Submenu] is an entry that holds further entries, which the view shows as a second
+ * level of the menu beside it.
  */
 public sealed interface DiagramAction {
     /** What the entry of the menu says. */
@@ -95,6 +96,20 @@ public sealed interface DiagramAction {
         override val label: String,
         public val initial: String,
         public val next: (String) -> DiagramAction?,
+    ) : DiagramAction
+
+    /**
+     * Opens a further level of entries, each of them an action of its own. Choosing one of them runs it as if it stood
+     * in the menu itself. The entry does nothing by itself.
+     *
+     * @property entries the entries of the further level, in the order they are shown.
+     * @property empty the line the further level shows in place of the entries where there are none. It cannot be
+     *   chosen, so the entry is always there and still tells why it offers nothing.
+     */
+    public class Submenu(
+        override val label: String,
+        public val entries: List<DiagramAction>,
+        public val empty: String,
     ) : DiagramAction
 }
 

@@ -375,6 +375,10 @@ still at that text. `StatechartEdits` makes the edits of a state machine, `TypeE
 `ObjectEdits` those of a model, with `StructureEdits` for what the last two share. All of them use `TextBlocks`,
 which puts a statement at the end of a block and takes a construct out with its lines. The menus of the class and the
 object diagram are `TypeActions` and `ObjectActions`, which `StructureActions` hands the element at the pointer. A
+`Submenu` holds further entries, which the canvas shows as a second level of the menu. "New object of" of
+`ObjectActions` is the one entry that lists something of the project, the domain types of the model's context: the
+workbench makes a `KmodelObjectWriter` of core-lang from the latest analysis and hands it through `DiagramPane` to the
+actions, and that writer writes the whole object with the same code that writes the completion templates. A
 relation is a row where its target cannot be drawn and a line where it can, and `StructureMember` names either, so
 that one edit serves both. A new type becomes the first type of its file, because the last type of a metamodel is its
 root type. A change can also say what it means for the layout by hand: a new state is placed where the user clicked,

@@ -31,7 +31,8 @@ import kotlin.test.assertTrue
  * Covers the KModel templates of whole objects over a metamodel with properties of all three types, a list property, a
  * containment, a list of containments, a reference, a list of references, a type that contains itself and a chain of
  * containments deeper than the depth limit. It checks the text, the placeholders in visiting order, the keys, the
- * ranking, the generic template without types, and that every template parses inserted at top level and nested.
+ * ranking, the generic template without types, and that every template parses inserted at top level and nested. The
+ * object writer of the diagram writes the same text as the templates.
  */
 class KmodelTemplatesTest {
 
@@ -173,6 +174,20 @@ class KmodelTemplatesTest {
 
         assertEquals(listOf("has(\"…\") -> make object \"…\":\"…\" { }", "knows(\"…\") -> \"…\"", "prop(\"…\") -> \"…\""), labels.take(3))
         assertTrue(labels.drop(3).all { it.startsWith("has(\"") && it.endsWith("{ … }") })
+    }
+
+    @Test
+    fun `the object writer of the diagram writes the text of the templates for the domain types of the context`() {
+        val writer = KmodelObjectWriter.of(analysis, ExampleProject.pathOf("$DIRECTORY/graph.kmodel"))
+        val text = "make object \"node\":\"Node\" {\n}\n‸"
+        val top = templates(text).single { it.label.contains("\"Node\"") }
+
+        assertEquals(listOf("Part", "Level4", "Level3", "Level2", "Level1", "Level0", "Node"), writer.types.map { it.name })
+        assertEquals(KmodelObjectText("node2", top.insertText), writer.root("Node", setOf("node")))
+        val child = templates("make object \"node\":\"Node\" {\n    has(\"child\") -> ‸\n}\n").first()
+        assertEquals(child.insertText, writer.contained("child", "Node", setOf("node")).text)
+        val outside = ExampleProject.analyze(emptyList())
+        assertEquals(emptyList(), KmodelObjectWriter.of(outside, ExampleProject.pathOf("$DIRECTORY/graph.kmodel")).types)
     }
 
     @Test

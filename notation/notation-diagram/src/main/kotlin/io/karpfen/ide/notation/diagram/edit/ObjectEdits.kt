@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.notation.diagram.edit
 
+import io.karpfen.ide.core.lang.kmodel.KmodelObjectWriter
 import io.karpfen.ide.core.text.TextEdit
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.notation.diagram.edit.StructureEdits.bodyOf
@@ -57,10 +58,36 @@ public object ObjectEdits {
      */
     public fun addRoot(text: String, diagram: StructureDiagram, at: DiagramPoint? = null): DiagramChange? {
         if (!diagram.isObjects || diagram.nodes.isNotEmpty()) return null
+        return rootChange(text, ROOT_KEY, "$MAKE_OBJECT ${quoted(ROOT_KEY)}:\"\" { }", at)
+    }
+
+    /**
+     * Adds the root object of the type [type] to a model that has no object, drawn with its middle at [at]. [writer]
+     * writes it with all members of the type, as the completion of the text editor writes a top-level object, and keys
+     * it by the type name with a small first letter. The objects that the root contains are new in the text and are
+     * placed as any element that is new in the text.
+     */
+    public fun addRootOf(
+        text: String,
+        diagram: StructureDiagram,
+        type: String,
+        writer: KmodelObjectWriter,
+        at: DiagramPoint? = null,
+    ): DiagramChange? {
+        if (!diagram.isObjects || diagram.nodes.isNotEmpty()) return null
+        val written = writer.root(clean(type), emptySet())
+        return rootChange(text, written.key, written.text, at)
+    }
+
+    /**
+     * Appends the root object [made], keyed [key], to the end of [text] on lines of its own, drawn with its middle at
+     * [at].
+     */
+    private fun rootChange(text: String, key: String, made: String, at: DiagramPoint?): DiagramChange {
         val before = if (text.isNotEmpty() && !text.endsWith("\n")) "\n" else ""
-        val edit = TextEdit(TextRange(text.length, text.length), "$before$MAKE_OBJECT ${quoted(ROOT_KEY)}:\"\" { }\n")
+        val edit = TextEdit(TextRange(text.length, text.length), "$before$made\n")
         return DiagramChange(listOf(edit), arranges = at != null) { vis ->
-            if (at == null) vis else vis.copy(boxes = vis.boxes + (ROOT_KEY to DiagramGrid.snap(at)))
+            if (at == null) vis else vis.copy(boxes = vis.boxes + (key to DiagramGrid.snap(at)))
         }
     }
 
@@ -122,6 +149,33 @@ public object ObjectEdits {
         val key = StructureEdits.fresh(clean(relation), diagram.nodes.map { it.id })
         return StructureEdits.addStatement(text, diagram, id, "has(${quoted(relation)}) -> $MAKE_OBJECT ${quoted(key)}:${quoted(type)} { }")
     }
+
+    /**
+     * Gives the object [id] a new object of the type [type] through the `has` relation [relation], with all members of
+     * the type as [writer] writes them, which is the text the completion of the text editor inserts for that type. The
+     * new object is keyed by the relation and every object inside it by its own relation, each with the first free
+     * number from 2 on where an object of the file has that key already. An empty relation gives an object without an
+     * id, as [addObject] does. The writer writes the whole statement, so the relation and the key of the new object are
+     * escaped alike. The statement goes last into the object [id],
+     * its lines indented for that place. It changes nothing about the layout, as [addObject] does not, so the new
+     * objects are placed as any element that is new in the text.
+     */
+    public fun addObjectOf(
+        text: String,
+        diagram: StructureDiagram,
+        id: String,
+        relation: String,
+        type: String,
+        writer: KmodelObjectWriter,
+    ): DiagramChange? {
+        if (!diagram.isObjects) return null
+        val written = writer.has(clean(relation), clean(type), keysOf(text, diagram))
+        return StructureEdits.addStatement(text, diagram, id, written.text)
+    }
+
+    /** The keys of the objects of [diagram] as the text [text] writes them. */
+    private fun keysOf(text: String, diagram: StructureDiagram): Set<String> =
+        diagram.nodes.map { text.substring(it.nameRange.start, it.nameRange.end) }.toSet()
 
     /** Gives the object [id] a reference to the object [target] through a `knows` relation named `ref`. */
     public fun addReference(text: String, diagram: StructureDiagram, id: String, target: String): DiagramChange? {

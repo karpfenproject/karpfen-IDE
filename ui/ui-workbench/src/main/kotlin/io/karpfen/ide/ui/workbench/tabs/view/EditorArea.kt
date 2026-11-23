@@ -43,6 +43,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import io.karpfen.dsl.states.KstatesFeature
+import io.karpfen.ide.core.lang.kmodel.KmodelObjectWriter
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.workspace.document.ConflictResolution
 import io.karpfen.ide.ui.diagram.DiagramCellEditor
@@ -87,7 +88,8 @@ import java.nio.file.Path
  * another to [onShowInstance]. While the debugger holds the shown use at a breakpoint, the others take no clicks.
  * An opened code cell of the diagram holds [cellEditor]. The
  * context menu of a statechart offers the constructs of the optional language features in [languageFeatures] only, the
- * features switched on for the project.
+ * features switched on for the project. The context menu of the object diagram of a model offers to add a whole object
+ * of each type of [modelTypes], the types of the domain metamodel of the modeling context of the active file.
  *
  * Opening the page of a container state calls [onOpenPage] with the name of its fragment. The diagram of a fragment
  * has a bar above it that names [pageUsers], the files whose container states use it, and a click on one calls
@@ -126,6 +128,7 @@ internal fun EditorArea(
     onShowInstance: (LiveInstance) -> Unit = {},
     cellEditor: DiagramCellEditor? = null,
     languageFeatures: Set<KstatesFeature> = emptySet(),
+    modelTypes: KmodelObjectWriter = KmodelObjectWriter.NONE,
     validation: ValidateButtonUiState = ValidateButtonUiState(),
     onValidate: () -> Unit = {},
     onOpenPage: (String) -> Unit = {},
@@ -176,6 +179,7 @@ internal fun EditorArea(
                                     live = run?.live,
                                     cellEditor = cellEditor,
                                     languageFeatures = languageFeatures,
+                                    modelTypes = modelTypes,
                                     onSelect = onSelectInText,
                                     onLayoutSaved = onDiagramSaved,
                                     onFollow = onOpenPage,

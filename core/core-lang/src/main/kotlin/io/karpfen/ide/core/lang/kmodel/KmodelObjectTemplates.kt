@@ -49,6 +49,9 @@ internal data class KmodelTemplate(val label: String, val text: TemplateText)
  * relation. A key that [usedKeys] or the template itself already holds gets the first free number from 2 on, so no two
  * objects share a key once the template is inserted.
  *
+ * The same writer gives an object as plain text without placeholders, which [KmodelObjectWriter] hands to the object
+ * diagram, so the completion of the text editor and the diagram write one and the same object for a type.
+ *
  * The class is immutable. Each template is written by a writer of its own, so the keys one template takes do not
  * affect another.
  *
@@ -66,11 +69,30 @@ internal class KmodelObjectTemplates(
     }
 
     /** The template of a top-level object of [type]. */
-    fun topLevelObject(type: TypeInfo): KmodelTemplate =
-        Writer().run { objectTemplate(type.name.replaceFirstChar(Char::lowercaseChar), type.name) }
+    fun topLevelObject(type: TypeInfo): KmodelTemplate = Writer().run { objectTemplate(rootKeyOf(type.name), type.name) }
 
     /** The template of an object of [typeName] that is the value of the `has` relation [relation]. */
     fun containedObject(relation: String, typeName: String): KmodelTemplate = Writer().run { objectTemplate(relation, typeName) }
+
+    /**
+     * The object [key] of [typeName] as plain text, the same text the template of [containedObject] inserts, with the
+     * key it got. The text starts with `make object` and ends with the closing brace of the object.
+     */
+    fun plainObject(key: String, typeName: String): KmodelObjectText = Writer().run {
+        val written = obj(key, typeName, open = emptySet(), level = 1, indent = "")
+        KmodelObjectText(written, builder.build().text)
+    }
+
+    /**
+     * The `has` statement of the relation [relation] with the object of [typeName] as plain text, the object keyed by
+     * the relation as in [plainObject]. The relation and the key are escaped alike, so they stay equal in the text for
+     * any name. The text starts with `has(` and ends with the closing brace of the object.
+     */
+    fun plainHas(relation: String, typeName: String): KmodelObjectText = Writer().run {
+        builder.literal("has(${quote(relation)}) -> ")
+        val written = obj(relation, typeName, open = emptySet(), level = 1, indent = "")
+        KmodelObjectText(written, builder.build().text)
+    }
 
     /** The template of the `has` statement of [relation] with its whole contained object. */
     fun hasStatement(relation: MemberInfo): KmodelTemplate = Writer().run {
@@ -127,9 +149,13 @@ internal class KmodelObjectTemplates(
             }
         }
 
-        /** [key] if neither the document nor this template uses it, or else [key] with the first free number from 2. */
+        /**
+         * [key] if neither the document nor this template uses it, or else [key] with the first free number from 2. The
+         * empty key stays empty, since it marks an object without an id, of which a model may hold several.
+         */
         private fun freeKey(key: String): String {
-            val free = if (key.isNotEmpty() && key !in keys) key else generateSequence(2) { it + 1 }.map { "$key$it" }.first { it !in keys }
+            if (key.isEmpty()) return key
+            val free = if (key !in keys) key else generateSequence(2) { it + 1 }.map { "$key$it" }.first { it !in keys }
             keys += free
             return free
         }
@@ -145,6 +171,9 @@ internal class KmodelObjectTemplates(
 
         /** The indentation of one level. */
         private const val INDENT = "    "
+
+        /** The key of a top-level object of [typeName]: the type name with a small first letter. */
+        fun rootKeyOf(typeName: String): String = typeName.replaceFirstChar(Char::lowercaseChar)
 
         /** The label of an object [key] of [typeName]. */
         fun objectLabel(key: String, typeName: String): String = "make object ${quote(key)}:${quote(typeName)} { … }"

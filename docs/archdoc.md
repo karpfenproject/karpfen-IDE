@@ -104,7 +104,7 @@ flowchart TD
     workbench --> editor & session & host & uidiagram & bridges
     editor --> foundation & lang
     uidiagram --> foundation & nsync
-    nsync --> ndiagram --> workspace
+    nsync --> ndiagram --> lang
     session --> protocol & workspace
     host --> protocol
     bridges --> protocol
@@ -153,7 +153,8 @@ three modeling languages and environment descriptors. `LanguageServices` is the 
 workspace's analysis. Each language contributes a `LanguageFeatures` family from the package `feature`, with its
 providers in the packages `kmeta`, `kmodel`, `kstates` and `environment`. Shared mechanics live in the packages
 `context`, `symbols`, `modelpath` and `navigation`, with `CaretContextDetector`, `TypeCatalog` and
-`ModelPathResolver` as good entry points. It depends on core-workspace and is used by ui-editor and ui-workbench.
+`ModelPathResolver` as good entry points. It depends on core-workspace and is used by ui-editor, ui-workbench and
+notation-diagram.
 
 ### runtime-protocol
 

@@ -15,6 +15,8 @@
  */
 package io.karpfen.ide.notation.diagram.edit
 
+import io.karpfen.ide.core.lang.kmodel.KmodelObjectWriter
+import io.karpfen.ide.core.lang.symbols.MemberKind
 import io.karpfen.ide.notation.diagram.layout.DiagramPoint
 import io.karpfen.ide.notation.diagram.structure.LinkKind
 import io.karpfen.ide.notation.diagram.structure.RowKind
@@ -25,10 +27,14 @@ import io.karpfen.ide.notation.diagram.structure.StructureNode
 /**
  * What a user can do at a point of an object diagram.
  *
- * - On the empty canvas of a model without an object: add the root object.
+ * - On the empty canvas of a model without an object: add the root object, and add the root object of a type chosen
+ *   in the second level of "New object of", written with all members of the type and keyed by the type name with a
+ *   small first letter.
  * - On an object: rename its key, edit it as text, set its type, add a property, add an embedded object, for which
- *   the user types the relation and then the type, add a reference to an object the user clicks, which may be the
- *   object itself, move it into another object the user clicks, and delete it. The root object neither moves nor goes.
+ *   the user types the relation and then the type, add an embedded object of a type chosen in the second level of
+ *   "New object of", for which the user confirms or types the relation, add a reference to an object the user clicks,
+ *   which may be the object itself, move it into another object the user clicks, and delete it. The root object
+ *   neither moves nor goes.
  * - On a property row: set its value, rename its key, add another value of the same key after it, move it up or down
  *   among the rows, edit it as text and delete it.
  * - On a `knows`, drawn as a line or, where no object has the key it names, as a row: rename the relation, set the key
@@ -38,18 +44,29 @@ import io.karpfen.ide.notation.diagram.structure.StructureNode
  *
  * A type and the key of an object a `knows` leads to are typed as text and are not looked up, so a reference can name an
  * object that does not exist yet. dsl-tools reports such a name until the object exists.
+ *
+ * "New object of" is the one entry whose second level comes from the project: it lists the types of [writer], which are
+ * the types of the domain metamodel of the modeling context of the model, in the order of the metamodel. Where there
+ * are none, because the model belongs to no context or its metamodel declares no type, the second level holds one line
+ * that says so and cannot be chosen. [writer] writes the chosen object, the same text the completion of the text editor
+ * inserts for that type. For an embedded object the field starts with the relation the object most likely means: the
+ * first `has` relation of the type of the object that leads to the chosen type, one the object does not have yet or a
+ * list before one it has, and "relation" where the type of the object is unknown or has no such relation.
+ *
+ * The class is immutable. A view makes one for each [writer] it is handed, which follows the analysis of the project.
+ *
+ * @param writer writes the objects of the types of the metamodel of the model. Its types fill the second level of
+ *   "New object of".
  */
-public object ObjectActions : StructureActions() {
+public class ObjectActions(private val writer: KmodelObjectWriter = KmodelObjectWriter.NONE) : StructureActions() {
 
-    /** The entry that sets the key of the object a `knows` leads to. */
-    private const val SET_TARGET = "Set target"
-
-    /** The entry that adds an embedded object. */
-    private const val ADD_OBJECT = "Add object"
-
-    override fun onCanvas(source: String, diagram: StructureDiagram, point: DiagramPoint): List<DiagramAction> = listOfNotNull(
-        DiagramAction.Change("Add root object") { ObjectEdits.addRoot(source, diagram, point) }.takeIf { diagram.nodes.isEmpty() },
-    )
+    override fun onCanvas(source: String, diagram: StructureDiagram, point: DiagramPoint): List<DiagramAction> {
+        if (diagram.nodes.isNotEmpty()) return emptyList()
+        return listOf(
+            DiagramAction.Change("Add root object") { ObjectEdits.addRoot(source, diagram, point) },
+            newObjectOf { type -> DiagramAction.Change(type) { ObjectEdits.addRootOf(source, diagram, type, writer, point) } },
+        )
+    }
 
     override fun onBox(source: String, diagram: StructureDiagram, node: StructureNode): List<DiagramAction> {
         val id = node.id
@@ -67,6 +84,11 @@ public object ObjectActions : StructureActions() {
             DiagramAction.Ask(ADD_OBJECT, "relation") { relation ->
                 DiagramAction.Ask(ADD_OBJECT, "Type") { type ->
                     DiagramAction.Change(ADD_OBJECT) { ObjectEdits.addObject(source, diagram, id, relation, type) }
+                }
+            },
+            newObjectOf { type ->
+                DiagramAction.Ask(type, relationTo(source, diagram, id, type)) { relation ->
+                    DiagramAction.Change(NEW_OBJECT_OF) { ObjectEdits.addObjectOf(source, diagram, id, relation, type, writer) }
                 }
             },
             DiagramAction.Pick("Add reference to", "Click the object that this object knows.", all) { target ->
@@ -119,4 +141,41 @@ public object ObjectActions : StructureActions() {
         DiagramAction.Ask(label, StructureEdits.valueOf(source, diagram, member).orEmpty()) { value ->
             DiagramAction.Change(label) { ObjectEdits.setValue(source, diagram, member, value) }
         }
+
+    /**
+     * The entry "New object of" with one entry per type of [writer] in its second level, each made by [entry] from the
+     * name of the type, or the line [NO_TYPES] where [writer] has no types.
+     */
+    private fun newObjectOf(entry: (String) -> DiagramAction): DiagramAction.Submenu =
+        DiagramAction.Submenu(NEW_OBJECT_OF, writer.types.map { entry(it.name) }, NO_TYPES)
+
+    /**
+     * The relation through which the object [id] most likely gets a new object of the type [target]: the first `has`
+     * relation of its type that leads to [target] and that the object does not have yet or that is a list, else the
+     * first such relation at all. It is [RELATION] where the type of the object is unknown or has no such relation.
+     */
+    private fun relationTo(source: String, diagram: StructureDiagram, id: String, target: String): String {
+        val type = ObjectEdits.typeOf(source, diagram, id)?.let(writer::type) ?: return RELATION
+        val leading = type.members.filter { it.kind == MemberKind.HAS && it.typeName == target }
+        val present = StructureEdits.membersOf(diagram, id)
+        return (leading.firstOrNull { it.isList || it.name !in present } ?: leading.firstOrNull())?.name ?: RELATION
+    }
+
+    /** The labels and texts of the entries of an object diagram. */
+    private companion object {
+        /** The entry that sets the key of the object a `knows` leads to. */
+        const val SET_TARGET = "Set target"
+
+        /** The entry that adds an embedded object. */
+        const val ADD_OBJECT = "Add object"
+
+        /** The entry whose second level adds an object of a type of the metamodel. */
+        const val NEW_OBJECT_OF = "New object of"
+
+        /** The line of the second level of [NEW_OBJECT_OF] where the metamodel has no types. */
+        const val NO_TYPES = "No types"
+
+        /** The relation a new object of a type gets where nothing tells a better one. */
+        const val RELATION = "relation"
+    }
 }

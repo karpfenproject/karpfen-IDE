@@ -32,7 +32,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Density
 import io.karpfen.ide.core.lang.Location
+import io.karpfen.ide.core.lang.kmodel.KmodelObjectWriter
 import io.karpfen.ide.core.workspace.analysis.ProjectFragments
+import io.karpfen.ide.core.workspace.files.FileKind
 import io.karpfen.ide.runtime.session.debug.DebuggerState
 import io.karpfen.ide.ui.editor.theme.LocalEditorTheme
 import io.karpfen.ide.ui.editor.theme.darkEditorTheme
@@ -265,6 +267,10 @@ private fun EditorPane(state: WorkbenchState) {
         val file = active
         pages?.all()?.firstOrNull { it.path == file }?.let { pages.usersOf(it.name) }
     }
+    val modelTypes = remember(analysis, active) {
+        val file = active?.takeIf { FileKind.of(it.fileName?.toString().orEmpty()) == FileKind.KMODEL }
+        if (analysis == null || file == null) KmodelObjectWriter.NONE else KmodelObjectWriter.of(analysis, file)
+    }
     val services by state.languageServices.collectAsState()
     val cellEditor = remember(activeEditor, services, workspace) {
         val editor = activeEditor
@@ -289,6 +295,7 @@ private fun EditorPane(state: WorkbenchState) {
         onShowInstance = { use -> active?.let { chosenInstances[it] = use } },
         cellEditor = cellEditor,
         languageFeatures = settings.languageFeatures,
+        modelTypes = modelTypes,
         validation = ValidateButtonUiState(enabled = canValidate, busy = validating),
         onValidate = { state.validation.validate() },
         onOpenPage = { name -> active?.let { state.openPage(it, name) } },

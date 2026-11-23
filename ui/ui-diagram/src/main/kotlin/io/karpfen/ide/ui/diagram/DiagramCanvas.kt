@@ -98,7 +98,8 @@ import kotlinx.coroutines.withContext
  * adding, renaming or deleting an element, and the entry that adds a waypoint to the line under the pointer or
  * removes the waypoint under it. Nothing changes until the user clicks an entry. Some entries need more first. One
  * that needs a box marks the boxes to choose from and waits for a click on one of them. One that needs a name shows
- * a field at the pointer. A secondary click, or a click beside the boxes, gives such an action up. A change of the
+ * a field at the pointer. One that holds further entries shows them as a second level of the menu beside it, and a
+ * chosen entry of that level runs as an entry of the menu itself. A secondary click, or a click beside the boxes, gives such an action up. A change of the
  * model is an edit of [source], the text the diagram was derived from, and goes to [onChange], which answers whether
  * the text took it. An entry that leaves the diagram for another one, such as the page of a container state, goes to
  * [onFollow] with the name the model refers to.
@@ -238,6 +239,10 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
                     if (made != null && change(made)) editing.changed(shown.diagram, shown.layout, made)
                 }
             }
+            is DiagramAction.Submenu -> {
+                mode = CanvasMode.Idle
+                menu = MenuRequest(position, menuEntriesOf(action) { chosen -> run(chosen, position) })
+            }
         }
     }
 
@@ -336,7 +341,7 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
                     source?.let { actions.at(it, shown.diagram, shown.layout, point) }.orEmpty()
                 }
                 val offer = faults.guard<DiagramOffer?>("opening the context menu", { null }) { editing.offerAt(shown.diagram, shown.layout, point) }
-                val entries = offered.map { action -> ContextMenuAction(action.label) { run(action, at) } } +
+                val entries = offered.map { action -> menuEntryOf(action) { chosen -> run(chosen, at) } } +
                     listOfNotNull(offer?.let { ContextMenuAction(it.label) { faults.attempt("changing a waypoint") { it.take() } } })
                 if (entries.isNotEmpty()) menu = MenuRequest(at, entries)
             }
@@ -455,6 +460,22 @@ private class Press(val time: Long, val position: Offset)
 
 /** The context menu to show: its [entries] and the [position] of the pointer on the canvas, in pixels. */
 private class MenuRequest(val position: Offset, val entries: List<ContextMenuAction>)
+
+/**
+ * The entry of the context menu for [action], which hands it to [choose] when it is chosen. A
+ * [DiagramAction.Submenu] becomes an entry with a further level of its own entries, made the same way.
+ */
+private fun menuEntryOf(action: DiagramAction, choose: (DiagramAction) -> Unit): ContextMenuAction = when (action) {
+    is DiagramAction.Submenu -> ContextMenuAction(action.label, menuEntriesOf(action, choose))
+    else -> ContextMenuAction(action.label) { choose(action) }
+}
+
+/**
+ * The entries of the further level of [submenu], each handing its action to [choose], or the line of [submenu] for no
+ * entries, which cannot be chosen, where it has none.
+ */
+private fun menuEntriesOf(submenu: DiagramAction.Submenu, choose: (DiagramAction) -> Unit): List<ContextMenuAction> =
+    submenu.entries.map { menuEntryOf(it, choose) }.ifEmpty { listOf(ContextMenuAction(submenu.empty, isEnabled = false) {}) }
 
 /** A small button over the canvas. It never takes the keyboard focus, so the editor next to the diagram keeps it. */
 @Composable

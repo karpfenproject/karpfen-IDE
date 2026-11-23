@@ -20,6 +20,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -36,6 +37,11 @@ import androidx.compose.ui.test.swipe
 import androidx.compose.ui.test.v2.runComposeUiTest
 import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.document.registry.defaultLanguageRegistry
+import io.karpfen.ide.core.lang.kmodel.KmodelObjectWriter
+import io.karpfen.ide.core.lang.symbols.MemberInfo
+import io.karpfen.ide.core.lang.symbols.MemberKind
+import io.karpfen.ide.core.lang.symbols.TypeInfo
+import io.karpfen.ide.core.lang.symbols.TypeOrigin
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.text.TextSnapshot
 import io.karpfen.ide.notation.diagram.edit.DiagramChange
@@ -155,6 +161,48 @@ class DiagramViewTest {
         waitForIdle()
 
         assertEquals(listOf("make object \"object\":\"\" { }\n"), changes.single().edits.map { it.newText })
+    }
+
+    @Test
+    fun `an entry with further entries shows them as a second level and runs the one chosen there`() = runComposeUiTest {
+        val changes = ArrayList<DiagramChange>()
+        val writer = KmodelObjectWriter(
+            listOf(
+                TypeInfo("Lamp", null, listOf(MemberInfo("mode", MemberKind.PROPERTY, "string", false, null)), TypeOrigin.DOMAIN, null),
+                TypeInfo("Bulb", null, emptyList(), TypeOrigin.DOMAIN, null),
+            ),
+        )
+        show(DiagramNotation.OBJECTS, stateOf(DiagramNotation.OBJECTS, KarpfenLanguage.KMODEL, ""), onChange = { changes += it }, modelTypes = writer)
+        awaitDrawing()
+
+        onNodeWithTag(DiagramViewTestTags.CANVAS).performMouseInput { rightClick(center) }
+        waitForIdle()
+        onNodeWithText("Bulb").assertDoesNotExist()
+        onNodeWithText("New object of").performClick()
+        waitForIdle()
+        onNodeWithText("Bulb").assertIsDisplayed()
+        onNodeWithText("Lamp").performClick()
+        waitForIdle()
+
+        assertEquals(listOf("make object \"lamp\":\"Lamp\" {\n    prop(\"mode\") -> \"\"\n}\n"), changes.single().edits.map { it.newText })
+        onNodeWithText("New object of").assertDoesNotExist()
+        onNodeWithText("Bulb").assertDoesNotExist()
+    }
+
+    @Test
+    fun `a second level without entries shows its line, which cannot be chosen`() = runComposeUiTest {
+        val changes = ArrayList<DiagramChange>()
+        show(DiagramNotation.OBJECTS, stateOf(DiagramNotation.OBJECTS, KarpfenLanguage.KMODEL, ""), onChange = { changes += it })
+        awaitDrawing()
+
+        onNodeWithTag(DiagramViewTestTags.CANVAS).performMouseInput { rightClick(center) }
+        waitForIdle()
+        onNodeWithText("New object of").performClick()
+        waitForIdle()
+        onNodeWithText("No types").assertIsDisplayed().assertIsNotEnabled().performClick()
+        waitForIdle()
+
+        assertEquals(emptyList(), changes)
     }
 
     @Test
@@ -351,6 +399,7 @@ class DiagramViewTest {
         onSave: (VisLayout) -> Unit = {},
         onChange: (DiagramChange) -> Unit = {},
         onFollow: (String) -> Unit = {},
+        modelTypes: KmodelObjectWriter = KmodelObjectWriter.NONE,
         onSelect: (TextRange) -> Unit = {},
     ) {
         val editing = DiagramEditing(notation.arrangement, onSave)
@@ -360,7 +409,7 @@ class DiagramViewTest {
         }
         setContent {
             KarpfenTheme(darkTheme = false) {
-                DiagramView(notation, state, editing, onSelect = onSelect, onChange = change, onFollow = onFollow)
+                DiagramView(notation, state, editing, onSelect = onSelect, onChange = change, modelTypes = modelTypes, onFollow = onFollow)
             }
         }
         waitForIdle()

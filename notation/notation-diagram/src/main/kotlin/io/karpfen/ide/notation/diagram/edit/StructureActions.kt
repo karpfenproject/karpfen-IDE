@@ -28,9 +28,11 @@ import io.karpfen.ide.notation.diagram.structure.StructureNode
  * [TypeActions] for a class diagram and [ObjectActions] for an object diagram. The line and the label of a link count
  * as the link. A row counts before the box it belongs to, and the title of a box counts as the box.
  *
- * The entries of an element depend on the element alone and never on what else the file or the project holds. Where an
- * entry needs a name, a type or a value, it asks for it in a field. Where it needs another element, the user clicks
- * its box. What the user types is written as it is, also when it leaves the model in error.
+ * Which entries an element has depends on the element alone and never on what else the file or the project holds.
+ * Where an entry needs a name, a type or a value, it asks for it in a field. Where it needs another element, the user
+ * clicks its box. What the user types is written as it is, also when it leaves the model in error. One entry offers a
+ * list from the project: "New object of" of [ObjectActions] lists the types of the metamodel of the model in a second
+ * level. The entry itself is there whatever the project holds, and only its second level follows the metamodel.
  */
 public abstract class StructureActions : DiagramActions<StructureDiagram, StructureLayout> {
 

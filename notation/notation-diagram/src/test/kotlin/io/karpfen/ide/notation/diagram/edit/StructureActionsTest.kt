@@ -49,12 +49,12 @@ class StructureActionsTest {
     @Test
     fun `the canvas of a class diagram adds a type, and that of an object diagram the root object while there is none`() {
         assertEquals(listOf("Add type"), labels(TypeActions.at(meta, types, typeLayout, canvas)))
-        assertEquals(emptyList(), labels(ObjectActions.at(model, objects, objectLayout, canvas)))
+        assertEquals(emptyList(), labels(ObjectActions().at(model, objects, objectLayout, canvas)))
 
         val nothing = StructureDiagram(StructureKind.OBJECTS, emptyList(), emptyList())
-        val entries = ObjectActions.at("", nothing, StructureLayout.EMPTY, canvas)
-        assertEquals(listOf("Add root object"), labels(entries))
-        assertEquals("make object \"object\":\"\" { }\n", applied(assertIs<DiagramAction.Change>(entries.single()).change(), ""))
+        val entries = ObjectActions().at("", nothing, StructureLayout.EMPTY, canvas)
+        assertEquals(listOf("Add root object", "New object of"), labels(entries))
+        assertEquals("make object \"object\":\"\" { }\n", applied(assertIs<DiagramAction.Change>(entries.first()).change(), ""))
     }
 
     @Test
@@ -123,40 +123,40 @@ class StructureActionsTest {
 
     @Test
     fun `an object offers its own entries, and the root object neither moves nor goes`() {
-        val bulb = ObjectActions.at(model, objects, objectLayout, onTitle(objects, objectLayout, "wallSwitch"))
+        val bulb = ObjectActions().at(model, objects, objectLayout, onTitle(objects, objectLayout, "wallSwitch"))
         assertEquals(
-            listOf("Rename", "Edit as text", "Set type", "Add property", "Add object", "Add reference to", "Move into", "Delete"),
+            listOf("Rename", "Edit as text", "Set type", "Add property", "Add object", "New object of", "Add reference to", "Move into", "Delete"),
             labels(bulb),
         )
         assertEquals("Switch", ask(bulb, "Set type").initial)
         assertEquals(objects.nodes.map { it.id }.toSet(), assertIs<DiagramAction.Pick>(bulb.first { it.label == "Add reference to" }).candidates)
 
-        val lamp = ObjectActions.at(model, objects, objectLayout, onTitle(objects, objectLayout, "lamp"))
+        val lamp = ObjectActions().at(model, objects, objectLayout, onTitle(objects, objectLayout, "lamp"))
         assertEquals(setOf("living room", "wallSwitch"), assertIs<DiagramAction.Pick>(lamp.first { it.label == "Move into" }).candidates)
 
-        val root = labels(ObjectActions.at(model, objects, objectLayout, onTitle(objects, objectLayout, "living room")))
-        assertEquals(listOf("Rename", "Edit as text", "Set type", "Add property", "Add object", "Add reference to"), root)
+        val root = labels(ObjectActions().at(model, objects, objectLayout, onTitle(objects, objectLayout, "living room")))
+        assertEquals(listOf("Rename", "Edit as text", "Set type", "Add property", "Add object", "New object of", "Add reference to"), root)
     }
 
     @Test
     fun `a property row of an object sets its value, adds a value and moves, and a knows row sets its target`() {
-        val mode = ObjectActions.at(model, objects, objectLayout, onRow(objects, objectLayout, "lamp", 0))
+        val mode = ObjectActions().at(model, objects, objectLayout, onRow(objects, objectLayout, "lamp", 0))
         assertEquals(listOf("Set value", "Rename", "Add value", "Move down", "Edit as text", "Delete"), labels(mode))
         assertEquals("off", ask(mode, "Set value").initial)
         assertEquals("mode", ask(mode, "Rename").initial)
 
-        val fuse = ObjectActions.at(model, objects, objectLayout, onRow(objects, objectLayout, "lamp", 1))
+        val fuse = ObjectActions().at(model, objects, objectLayout, onRow(objects, objectLayout, "lamp", 1))
         assertEquals(listOf("Rename relation", "Set target", "Move up", "Edit as text", "Delete relation"), labels(fuse))
         assertEquals("fuseBox", ask(fuse, "Set target").initial)
     }
 
     @Test
     fun `a knows line sets its target, and a has line has none`() {
-        val control = ObjectActions.at(model, objects, objectLayout, onLabel(objectLayout, "knows:lamp.control"))
+        val control = ObjectActions().at(model, objects, objectLayout, onLabel(objectLayout, "knows:lamp.control"))
         assertEquals(listOf("Rename relation", "Set target", "Edit as text", "Delete relation"), labels(control))
         assertEquals("wallSwitch", ask(control, "Set target").initial)
 
-        val bulb = ObjectActions.at(model, objects, objectLayout, onLabel(objectLayout, "has:lamp.bulb"))
+        val bulb = ObjectActions().at(model, objects, objectLayout, onLabel(objectLayout, "has:lamp.bulb"))
         assertEquals(listOf("Rename relation", "Edit as text", "Delete relation"), labels(bulb))
     }
 

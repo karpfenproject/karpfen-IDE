@@ -66,17 +66,6 @@ public data class TreeNode<K>(
     public val startsSection: Boolean = false,
 )
 
-/**
- * An entry of a context menu: its [label], whether it [isEnabled], and what happens [onClick]. It holds behaviour, so
- * it is a plain class with identity equality and not a data class.
- */
-@Immutable
-public class ContextMenuAction(
-    public val label: String,
-    public val isEnabled: Boolean = true,
-    public val onClick: () -> Unit,
-)
-
 /** Test tags of [TreeView], for headless UI tests of the foundation and of the modules that use it. */
 public object TreeViewTestTags {
     /** The focusable tree container. */
